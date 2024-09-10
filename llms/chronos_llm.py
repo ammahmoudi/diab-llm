@@ -40,14 +40,35 @@ class ChronosLLM(TimeSeriesLLM):
                 'num_samples': 100,
             }
     ):
-        # TODO: batch test data -> all sample simultaneously is too large for memory
-        # TODO: If sequence length is too long, split it into smaller sequences and predict auto-regressively
-        llm_prediction = self.llm_model.predict(
-            context=test_data,
-            prediction_length=settings['prediction_length'],
-            num_samples=settings['num_samples'],
-            limit_prediction_length=False
-        )
+        # batch dataframe into smaller sequences, e.g., always predict 64 samples (rows) at a time
+        prediction_batch_size = 64
+        test_data_batches = [
+            test_data[i:i + prediction_batch_size] for i in range(0, len(test_data), prediction_batch_size)
+        ]
+        prediction_results = []
+        for batch in test_data_batches:
+            if settings['prediction_length'] > 64:
+                # split after 64 time steps (columns) of each batch
+                batch_per_prediction_length = [
+                    batch.iloc[:, i:i + 64] for i in range(0, batch.shape[1], 64)
+                ]
+            else:
+                batch_per_prediction_length = [batch]
+
+            batch_prediction_results = []
+            for batch_prediction_length in batch_per_prediction_length:
+                current_llm_prediction = self.llm_model.predict(
+                    context=batch_prediction_length,
+                    prediction_length=settings['prediction_length'],
+                    num_samples=settings['num_samples'],
+                    limit_prediction_length=False
+                )
+                batch_prediction_results.append(current_llm_prediction)
+
+            batch_prediction_results = torch.cat(batch_prediction_results, dim=1)
+            prediction_results.append(batch_prediction_results)
+
+        llm_prediction = torch.cat(prediction_results, dim=1)
 
         return llm_prediction
 
