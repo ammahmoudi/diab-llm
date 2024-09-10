@@ -1,0 +1,19 @@
+run.log_dir = "./logs"
+run.chronos_dir = "."
+run.data_settings = {
+    'path_to_train_data': 'path/to/train/data',
+    'path_to_test_data': 'path/to/test/data',
+    'input_features': ['feature1', 'feature2'],
+    'label': ['label1'],
+}
+run.llm_settings = {
+    'mode': 'inference',    # available modes: 'inference', 'training', 'training+inference'
+    'method': 'chronos',    # available methods: 'chronos'
+    'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
+    'torch_dtype': 'float32',   # available dtypes: 'float16', 'bfloat16', 'float32'
+    'llm_prediction_length': 64,    # Note: maximal prediction length is 64 for chronos pretrained models
+    'llm_num_samples': 100,
+    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
+    'restore_from_checkpoint': False,
+    'restore_checkpoint_path': 'path/to/checkpoint',
+}
