@@ -2,7 +2,7 @@ import os
 import gin
 import torch
 import datetime
-from data import DataLoader
+from data import DataHandler
 from absl import app, flags, logging
 from llms.chronos_llm import ChronosLLM
 
@@ -16,6 +16,9 @@ def run(
             'path_to_test_data': 'path/to/test/data',
             'input_features': ['feature1', 'feature2'],
             'label': ['label1'],
+            'preprocessing_method': 'min_max',
+            'preprocess_input_features': False,
+            'preprocess_label': False
         },
         llm_settings={
             'mode': 'inference',
@@ -49,10 +52,13 @@ def run(
         raise NotImplementedError
 
     # load data
-    data_loader = DataLoader(
+    data_loader = DataHandler(
         settings={
             'input_features': data_settings['input_features'],
-            'label': data_settings['label']
+            'label': data_settings['label'],
+            'preprocessing_method': data_settings['preprocessing_method'],
+            'preprocess_input_features': data_settings['preprocess_input_features'],
+            'preprocess_label': data_settings['preprocess_label']
         }
     )
 
@@ -69,6 +75,13 @@ def run(
         if llm_settings['mode'] == 'inference':
             # check if train and test data are csv files
             if data_settings['path_to_train_data'].endswith('.csv'):
+                logging.debug("Loading train data from {}.".format(data_settings['path_to_train_data']))
+                train_data_path = data_loader.convert_csv_to_arrow(
+                    data_settings['path_to_train_data'],
+                    training_data=True
+                )
+                data_settings['path_to_train_data'] = train_data_path
+            if data_settings['path_to_test_data'].endswith('.csv'):
                 logging.debug("Loading test data from {}.".format(data_settings['path_to_test_data']))
                 test_data = data_loader.load_csv_as_dataframe(data_settings['path_to_test_data'])
                 test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
@@ -97,7 +110,10 @@ def run(
                 os.system("git clone https://github.com/amazon-science/chronos-forecasting.git")
             
             if data_settings['path_to_train_data'].endswith('.csv'):
-                train_data_path = data_loader.convert_csv_to_arrow(data_settings['path_to_train_data'])
+                train_data_path = data_loader.convert_csv_to_arrow(
+                    data_settings['path_to_train_data'],
+                    training_data=True
+                )
                 data_settings['path_to_train_data'] = train_data_path
             elif data_settings['path_to_train_data'].endswith('.arrow'):
                 pass
@@ -115,7 +131,10 @@ def run(
                 os.system("git clone https://github.com/amazon-science/chronos-forecasting.git")
 
             if data_settings['path_to_train_data'].endswith('.csv'):
-                train_data_path = data_loader.convert_csv_to_arrow(data_settings['path_to_train_data'])
+                train_data_path = data_loader.convert_csv_to_arrow(
+                    data_settings['path_to_train_data'],
+                    training_data=True
+                )
                 data_settings['path_to_train_data'] = train_data_path
             elif data_settings['path_to_train_data'].endswith('.arrow'):
                 pass
