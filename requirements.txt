@@ -1,0 +1,9 @@
+pandas==2.2.2
+torch==2.4.1
+gluonts==0.15.1
+accelerate==0.34.2
+bitsandbytes==0.43.3
+transformers==4.44.2
+triton==3.0.0
+chronos @ git+https://github.com/amazon-science/chronos-forecasting.git@main
+chronos[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main
