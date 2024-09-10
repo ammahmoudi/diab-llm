@@ -1,5 +1,4 @@
 import numpy as np
-from absl import logging
 
 def calculate_rmse(
         prediction,
