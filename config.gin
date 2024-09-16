@@ -14,12 +14,12 @@ run.llm_settings = {
     'method': 'chronos',    # available methods: 'chronos'
     'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
     'torch_dtype': 'float32',   # available dtypes: 'float16', 'bfloat16', 'float32'
-    'prediction_length': 64,    # Note: maximal prediction length is 64 for chronos pretrained models
+    'prediction_length': 64,    # Note: maximal prediction length is 64 for chronos pretrained models (see auto split)
     'context_length': 64,
     'min_past': 64,
+    'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
+    'prediction_auto_split': False,
     'num_samples': 100,
-    'inference_batch_size': 64,
-    'inference_auto_split': False,
     'max_train_steps': 1000,
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
     'restore_from_checkpoint': False,

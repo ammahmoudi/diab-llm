@@ -26,11 +26,11 @@ def run(
             'model': 'amazon/chronos-t5-base',
             'torch_dtype': 'float32',
             'prediction_length': 64,
+            'num_samples': 100,
             'context_length': 64,
             'min_past': 64,
-            'num_samples': 100,
-            'inference_batch_size': 64,
-            'inference_use_auto_split': False,
+            'prediction_batch_size': 64,
+            'prediction_use_auto_split': False,
             'max_train_steps': 10000,
             'eval_metrics': ['rmse', 'mae', 'mape'],
             'restore_from_checkpoint': False,
@@ -98,8 +98,8 @@ def run(
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
                     'num_samples': llm_settings['num_samples'],
-                    'batch_size': llm_settings['inference_batch_size'],
-                    'auto_split': llm_settings['inference_use_auto_split']
+                    'batch_size': llm_settings['prediction_batch_size'],
+                    'auto_split': llm_settings['prediction_use_auto_split']
                 }
             )
             # metric evaluation
@@ -190,8 +190,8 @@ def run(
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
                     'num_samples': llm_settings['num_samples'],
-                    'batch_size': llm_settings['inference_batch_size'],
-                    'auto_split': llm_settings['inference_use_auto_split']
+                    'batch_size': llm_settings['prediction_batch_size'],
+                    'auto_split': llm_settings['prediction_use_auto_split']
                 }
             )
             metric_results = llm.evaluate(
