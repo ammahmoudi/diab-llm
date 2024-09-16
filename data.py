@@ -1,12 +1,14 @@
+import numpy as np
 import pandas as pd
 from absl import logging
+from gluonts.dataset.arrow import ArrowWriter
 
 class DataHandler:
     def __init__(
             self,
             settings={
                 'input_features': ['feature1', 'feature2'],
-                'label': ['label1'],
+                'labels': ['label1'],
                 'preprocessing_method': 'min_max',
                 'preprocess_input_features': False,
                 'preprocess_label': False
@@ -15,7 +17,7 @@ class DataHandler:
         self.scaler = DataScaler(
             settings={
                 'input_features': settings['input_features'],
-                'label': settings['label'],
+                'labels': settings['labels'],
                 'method': settings['preprocessing_method'],
                 'preprocess_input_features': settings['preprocess_input_features'],
                 'preprocess_label': settings['preprocess_label']
@@ -34,16 +36,34 @@ class DataHandler:
         return dataframe
 
     def convert_csv_to_arrow(self, path_to_csv, training_data=False):
+        # Note: Arrow dataset with two columns: start and target
+        # start: start time of the time series
+        # target: values of the time series - encoding: [historic values (=inputs), future values(=outputs)]
         dataframe = self.load_csv_as_dataframe(path_to_csv, training_data=training_data)
-        dataframe.to_feather(path_to_csv.replace('.csv', '.arrow'))
+        df_values = dataframe[self._settings['labels'] + self._settings['input_features']].values
+
+        # Set an arbitrary start time
+        start = np.datetime64("2000-01-01 00:00", "s")
+        # always add ts interval to the start time
+        dataset = [
+            {
+                "start": start,
+                "target": np.array(value, np.float32)
+            } for value in df_values
+        ]
+
+        ArrowWriter(compression='lz4').write_to_file(
+            dataset,
+            path=path_to_csv.replace('.csv', '.arrow'),
+        )
 
         return path_to_csv.replace('.csv', '.arrow')
 
     def split_dataframe_input_features_vs_labels(self, dataframe):
         input_features = dataframe[self._settings['input_features']]
-        labels = dataframe[self._settings['label']]
+        ground_truth = dataframe[self._settings['labels']]
 
-        return input_features, labels
+        return input_features, ground_truth
 
 
 class DataScaler:
@@ -51,7 +71,7 @@ class DataScaler:
             self,
             settings={
                 'input_features': ['feature1', 'feature2'],
-                'label': ['label1'],
+                'labels': ['label1'],
                 'method': 'min_max',
                 'preprocess_input_features': True,
                 'preprocess_label': False
@@ -69,7 +89,7 @@ class DataScaler:
                         'max': dataframe[feature].max()
                     }
             if self._settings['preprocess_label']:
-                for label in self._settings['label']:
+                for label in self._settings['labels']:
                     self._scaler_parameters[label] = {
                         'min': dataframe[label].min(),
                         'max': dataframe[label].max()
@@ -82,7 +102,7 @@ class DataScaler:
                         'std': dataframe[feature].std()
                     }
             if self._settings['preprocess_label']:
-                for label in self._settings['label']:
+                for label in self._settings['labels']:
                     self._scaler_parameters[label] = {
                         'mean': dataframe[label].mean(),
                         'std': dataframe[label].std()
@@ -96,7 +116,7 @@ class DataScaler:
             for feature in self._settings['input_features']:
                 dataframe[feature] = (dataframe[feature] - self._scaler_parameters[feature]['min']) / (self._scaler_parameters[feature]['max'] - self._scaler_parameters[feature]['min'])
         if self._settings['preprocess_label']:
-            for label in self._settings['label']:
+            for label in self._settings['labels']:
                 dataframe[label] = (dataframe[label] - self._scaler_parameters[label]['min']) / (self._scaler_parameters[label]['max'] - self._scaler_parameters[label]['min'])
 
         return dataframe
@@ -106,7 +126,7 @@ class DataScaler:
             for feature in self._settings['input_features']:
                 dataframe[feature] = dataframe[feature] * (self._scaler_parameters[feature]['max'] - self._scaler_parameters[feature]['min']) + self._scaler_parameters[feature]['min']
         if self._settings['preprocess_label']:
-            for label in self._settings['label']:
+            for label in self._settings['labels']:
                 dataframe[label] = dataframe[label] * (self._scaler_parameters[label]['max'] - self._scaler_parameters[label]['min']) + self._scaler_parameters[label]['min']
 
         return dataframe
@@ -116,7 +136,7 @@ class DataScaler:
             for feature in self._settings['input_features']:
                 dataframe[feature] = (dataframe[feature] - self._scaler_parameters[feature]['mean']) / self._scaler_parameters[feature]['std']
         if self._settings['preprocess_label']:
-            for label in self._settings['label']:
+            for label in self._settings['labels']:
                 dataframe[label] = (dataframe[label] - self._scaler_parameters[label]['mean']) / self._scaler_parameters[label]['std']
 
         return dataframe
@@ -126,7 +146,7 @@ class DataScaler:
             for feature in self._settings['input_features']:
                 dataframe[feature] = dataframe[feature] * self._scaler_parameters[feature]['std'] + self._scaler_parameters[feature]['mean']
         if self._settings['preprocess_label']:
-            for label in self._settings['label']:
+            for label in self._settings['labels']:
                 dataframe[label] = dataframe[label] * self._scaler_parameters[label]['std'] + self._scaler_parameters[label]['mean']
 
         return dataframe

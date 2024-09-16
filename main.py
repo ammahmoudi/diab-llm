@@ -25,8 +25,13 @@ def run(
             'method': 'chronos',
             'model': 'amazon/chronos-t5-base',
             'torch_dtype': 'float32',
-            'llm_prediction_length': 64,
-            'llm_num_samples': 100,
+            'prediction_length': 64,
+            'context_length': 64,
+            'min_past': 64,
+            'num_samples': 100,
+            'inference_batch_size': 64,
+            'inference_use_auto_split': False,
+            'max_train_steps': 10000,
             'eval_metrics': ['rmse', 'mae', 'mape'],
             'restore_from_checkpoint': False,
             'restore_checkpoint_path': 'path/to/checkpoint',
@@ -35,7 +40,7 @@ def run(
         chronos_dir="."
 ):
     # logging files
-    log_dir = log_dir + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_dir = log_dir + "logs_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     # logging file
@@ -55,7 +60,8 @@ def run(
     data_loader = DataHandler(
         settings={
             'input_features': data_settings['input_features'],
-            'label': data_settings['label'],
+            'labels': data_settings['labels'],
+            'ts_interval': data_settings['ts_interval'],
             'preprocessing_method': data_settings['preprocessing_method'],
             'preprocess_input_features': data_settings['preprocess_input_features'],
             'preprocess_label': data_settings['preprocess_label']
@@ -90,14 +96,16 @@ def run(
             llm_prediction = llm.predict(
                 test_data=test_input_features,
                 settings={
-                    'prediction_length': llm_settings['llm_prediction_length'],
-                    'num_samples': llm_settings['llm_num_samples'],
+                    'prediction_length': llm_settings['prediction_length'],
+                    'num_samples': llm_settings['num_samples'],
+                    'batch_size': llm_settings['inference_batch_size'],
+                    'auto_split': llm_settings['inference_use_auto_split']
                 }
             )
             # metric evaluation
             metric_results = llm.evaluate(
                 llm_prediction=llm_prediction,
-                ground_truth_data=test_labels,
+                ground_truth_data=test_labels.values,
                 metrics=llm_settings['eval_metrics']
             )
             logging.info("Metric results: {}".format(metric_results))
@@ -105,9 +113,11 @@ def run(
         elif llm_settings['mode'] == 'training':
             # check if chronos-forecasting repo is already cloned
             if not os.path.exists("{}/chronos-forecasting".format(chronos_dir)):
+                root_dir = os.getcwd()
                 # clone repo from https://github.com/amazon-science/chronos-forecasting.git
-                os.system("cd {}".format(chronos_dir))
+                os.chdir("cd {}".format(chronos_dir))
                 os.system("git clone https://github.com/amazon-science/chronos-forecasting.git")
+                os.chdir(root_dir)
             
             if data_settings['path_to_train_data'].endswith('.csv'):
                 train_data_path = data_loader.convert_csv_to_arrow(
@@ -121,14 +131,27 @@ def run(
                 logging.info("Data format not supported.")
                 raise NotImplementedError
 
-            llm.train(data_settings['path_to_train_data'])
+            llm.train(
+                data_settings['path_to_train_data'],
+                chronos_dir,
+                settings={
+                    'random_init': True,
+                    'save_steps': 1000,
+                    'max_steps': llm_settings['max_train_steps'],
+                    'prediction_length': llm_settings['prediction_length'],
+                    'context_length': llm_settings['context_length'],
+                    'min_past': llm_settings['min_past']
+                }
+            )
 
         elif llm_settings['mode'] == 'training+inference':
             # check if chronos-forecasting repo is already cloned
             if not os.path.exists("{}/chronos-forecasting".format(chronos_dir)):
+                root_dir = os.getcwd()
                 # clone repo from https://github.com/amazon-science/chronos-forecasting.git
-                os.system("cd {}".format(chronos_dir))
+                os.chdir("cd {}".format(chronos_dir))
                 os.system("git clone https://github.com/amazon-science/chronos-forecasting.git")
+                os.chdir(root_dir)
 
             if data_settings['path_to_train_data'].endswith('.csv'):
                 train_data_path = data_loader.convert_csv_to_arrow(
@@ -143,7 +166,18 @@ def run(
                 raise NotImplementedError
 
             # training
-            llm_ckpt_path = llm.train(data_settings['path_to_train_data'])
+            llm_ckpt_path = llm.train(
+                data_settings['path_to_train_data'],
+                chronos_dir,
+                settings={
+                    'random_init': True,
+                    'save_steps': 1000,
+                    'max_steps': llm_settings['max_train_steps'],
+                    'prediction_length': llm_settings['prediction_length'],
+                    'context_length': llm_settings['context_length'],
+                    'min_past': llm_settings['min_past']
+                }
+            )
             # load checkpoint
             llm.load_ckpt(llm_ckpt_path)
             # inference and evaluation
@@ -154,13 +188,15 @@ def run(
             llm_prediction = llm.predict(
                 test_data=test_input_features,
                 settings={
-                    'prediction_length': llm_settings['llm_prediction_length'],
-                    'num_samples': llm_settings['llm_num_samples'],
+                    'prediction_length': llm_settings['prediction_length'],
+                    'num_samples': llm_settings['num_samples'],
+                    'batch_size': llm_settings['inference_batch_size'],
+                    'auto_split': llm_settings['inference_use_auto_split']
                 }
             )
             metric_results = llm.evaluate(
                 llm_prediction=llm_prediction,
-                ground_truth_data=test_labels,
+                ground_truth_data=test_labels.values,
                 metrics=llm_settings['eval_metrics']
             )
             logging.info("Metric results: {}".format(metric_results))
@@ -169,6 +205,11 @@ def run(
     else:
         logging.info("Method {} not supported.".format(llm_settings['method']))
         raise NotImplementedError
+
+    # Save Gin's operative config to a file
+    txt_file = open(log_dir + "/gin_config.txt", "w+")
+    txt_file.write(gin.operative_config_str())
+    txt_file.close()
 
 def main(args):
     # parse config file
