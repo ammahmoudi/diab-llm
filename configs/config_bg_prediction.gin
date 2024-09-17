@@ -1,0 +1,32 @@
+run.log_dir = "/home/pdomanski/scratch/llm_time/"
+run.chronos_dir = "/home/pdomanski/scratch/"
+run.data_settings = {
+    'path_to_train_data': '/home/pdomanski/scratch/bg_prediction/data/train/llm/570-ws-training.csv',
+    'path_to_test_data': '/home/pdomanski/scratch/bg_prediction/data/test/llm/570-ws-testing.csv',
+    'input_features': ['BG_{t-5}', 'BG_{t-4}', 'BG_{t-3}', 'BG_{t-2}', 'BG_{t-1}', 'BG_{t}'],
+    'labels': ['BG_{t+1}', 'BG_{t+2}', 'BG_{t+3}', 'BG_{t+4}', 'BG_{t+5}', 'BG_{t+6}'],
+    'preprocessing_method': 'min_max',
+    'preprocess_input_features': False,
+    'preprocess_label': False
+}
+run.llm_settings = {
+    'mode': 'training+inference',    # available modes: 'inference', 'training', 'training+inference'
+    'method': 'chronos',    # available methods: 'chronos'
+    'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
+    'torch_dtype': 'bfloat16',   # available dtypes: 'float16', 'bfloat16', 'float32'
+    'ntokens': 4096,
+    'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}",
+    'prediction_length': 6,    # Note: maximal prediction length is 64 for chronos pretrained models
+    'num_samples': 1,
+    'context_length': 6,
+    'min_past': 6,
+    'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
+    'prediction_use_auto_split': False,
+    'max_train_steps': 10000,
+    'train_batch_size': 32,
+    'random_init': False,
+    'save_steps': 1000,
+    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
+    'restore_from_checkpoint': False,
+    'restore_checkpoint_path': 'path/to/checkpoint',
+}
