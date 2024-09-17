@@ -25,6 +25,8 @@ def run(
             'method': 'chronos',
             'model': 'amazon/chronos-t5-base',
             'torch_dtype': 'float32',
+            'ntokens': 4096,
+            'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}",
             'prediction_length': 64,
             'num_samples': 100,
             'context_length': 64,
@@ -32,6 +34,9 @@ def run(
             'prediction_batch_size': 64,
             'prediction_use_auto_split': False,
             'max_train_steps': 10000,
+            'train_batch_size': 32,
+            'random_init': False,
+            'save_steps': 1000,
             'eval_metrics': ['rmse', 'mae', 'mape'],
             'restore_from_checkpoint': False,
             'restore_checkpoint_path': 'path/to/checkpoint',
@@ -61,7 +66,6 @@ def run(
         settings={
             'input_features': data_settings['input_features'],
             'labels': data_settings['labels'],
-            'ts_interval': data_settings['ts_interval'],
             'preprocessing_method': data_settings['preprocessing_method'],
             'preprocess_input_features': data_settings['preprocess_input_features'],
             'preprocess_label': data_settings['preprocess_label']
@@ -135,12 +139,15 @@ def run(
                 data_settings['path_to_train_data'],
                 chronos_dir,
                 settings={
-                    'random_init': True,
-                    'save_steps': 1000,
                     'max_steps': llm_settings['max_train_steps'],
+                    'random_init': llm_settings['random_init'],
+                    'save_steps': llm_settings['save_steps'],
+                    'batch_size': llm_settings['train_batch_size'],
                     'prediction_length': llm_settings['prediction_length'],
                     'context_length': llm_settings['context_length'],
-                    'min_past': llm_settings['min_past']
+                    'min_past': llm_settings['min_past'],
+                    'ntokens': llm_settings['ntokens'],
+                    'tokenizer_kwargs': llm_settings['tokenizer_kwargs']
                 }
             )
 
@@ -170,12 +177,15 @@ def run(
                 data_settings['path_to_train_data'],
                 chronos_dir,
                 settings={
-                    'random_init': True,
-                    'save_steps': 1000,
                     'max_steps': llm_settings['max_train_steps'],
+                    'random_init': llm_settings['random_init'],
+                    'save_steps': llm_settings['save_steps'],
+                    'batch_size': llm_settings['train_batch_size'],
                     'prediction_length': llm_settings['prediction_length'],
                     'context_length': llm_settings['context_length'],
-                    'min_past': llm_settings['min_past']
+                    'min_past': llm_settings['min_past'],
+                    'ntokens': llm_settings['ntokens'],
+                    'tokenizer_kwargs': llm_settings['tokenizer_kwargs']
                 }
             )
             # load checkpoint
