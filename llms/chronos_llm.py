@@ -33,14 +33,14 @@ class ChronosLLM(TimeSeriesLLM):
         )
 
     def predict(
-            self,
-            test_data,
-            settings={
-                'prediction_length': 64,
-                'num_samples': 100,
-                'batch_size': None,
-                'auto_split': False
-            }
+        self,
+        test_data,
+        settings={
+            'prediction_length': 64,
+            'num_samples': 100,
+            'batch_size': None,
+            'auto_split': False
+        }
     ):
         # batch dataframe into smaller sequences, e.g., always predict 64 samples (rows) at a time
         if settings['batch_size'] is not None:
@@ -53,32 +53,63 @@ class ChronosLLM(TimeSeriesLLM):
         prediction_results = []
         for batch in test_data_batches:
             if settings['prediction_length'] > 64 and settings['auto_split']:
-                # split after 64 time steps (columns) of each batch
-                batch_per_prediction_length = [
-                    batch.iloc[:, i:i + 64] for i in range(0, batch.shape[1], 64)
-                ]
-            else:
-                batch_per_prediction_length = [batch]
-
-            batch_prediction_results = []
-            for batch_prediction_length in batch_per_prediction_length:
+                split_results = []
+                # use a sliding window to predict the next 64 samples
+                predictions_remaining = settings['prediction_length']
+                num_splits = settings['prediction_length'] // 64
+                num_splits = num_splits if settings['prediction_length'] % 64 == 0 else num_splits + 1
                 current_llm_prediction = self.llm_model.predict(
-                    context=torch.tensor(batch_prediction_length.values),
+                    context=torch.tensor(batch.values),
+                    prediction_length=64,
+                    num_samples=settings['num_samples'],
+                    limit_prediction_length=True
+                )
+                if settings['num_samples'] > 1:
+                    current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
+
+                split_results.append(torch.squeeze(current_llm_prediction))
+
+                # update sliding window with current prediction
+                batch.values[:, :(batch.values.shape[1] - 64)] = batch.values[:, 64:]
+                batch.values[:, :64] = current_llm_prediction
+                predictions_remaining -= 64
+                num_splits -= 1
+
+                for _ in range(num_splits):
+                    current_llm_prediction = self.llm_model.predict(
+                        context=torch.tensor(batch.values),
+                        prediction_length=64 if predictions_remaining > 64 else predictions_remaining,
+                        num_samples=settings['num_samples'],
+                        limit_prediction_length=True
+                    )
+                    if settings['num_samples'] > 1:
+                        current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
+
+                    split_results.append(torch.squeeze(current_llm_prediction))
+
+                    # update sliding window with current prediction
+                    if predictions_remaining > 64:
+                        batch.values[:, :(batch.values.shape[1] - 64)] = batch.values[:, 64:]
+                        batch.values[:, :64] = current_llm_prediction
+                        predictions_remaining -= 64
+
+                current_llm_prediction = torch.cat(split_results, dim=1)
+            else:
+                current_llm_prediction = self.llm_model.predict(
+                    context=torch.tensor(batch.values),
                     prediction_length=settings['prediction_length'],
                     num_samples=settings['num_samples'],
                     limit_prediction_length=False
                 )
-                batch_prediction_results.append(torch.squeeze(current_llm_prediction))
+                if settings['num_samples'] > 1:
+                    current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
 
-            batch_prediction_results = torch.cat(batch_prediction_results, dim=1)
-            prediction_results.append(torch.squeeze(batch_prediction_results))
+                current_llm_prediction = torch.squeeze(current_llm_prediction)
+
+            prediction_results.append(current_llm_prediction)
 
         # convert to tensor with shape (n_samples, n_features)
-        llm_results = []
-        for prediction in prediction_results:
-            llm_results.append(prediction)
-
-        llm_prediction = torch.cat(llm_results, dim=0)
+        llm_prediction = torch.cat(prediction_results, dim=0)
         llm_prediction = llm_prediction.cpu().detach().numpy()
 
         return llm_prediction
@@ -91,9 +122,12 @@ class ChronosLLM(TimeSeriesLLM):
                 'max_steps': 10000,
                 'random_init': True,
                 'save_steps': 1000,
+                'batch_size': 32,
                 'prediction_length': 64,
                 'context_length': 64,
-                'min_past': 64
+                'min_past': 64,
+                'ntokens': 4096,
+                'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}"
             }
     ):
         with open("{}/chronos-forecasting/scripts/training/configs/{}.yaml".format(chronos_dir, self._llm_settings['model'].split("/")[-1]), 'r') as stream:
@@ -105,10 +139,10 @@ class ChronosLLM(TimeSeriesLLM):
         data_loaded['prediction_length'] = settings['prediction_length']
         data_loaded['context_length'] = settings['context_length']
         data_loaded['min_past'] = settings['min_past']
-        data_loaded['tokenizer_kwargs'] = "{'low_limit': 35,'high_limit': 500}"
-        data_loaded['ntokens'] = 4096
+        data_loaded['tokenizer_kwargs'] = settings['tokenizer_kwargs']
+        data_loaded['ntokens'] = settings['ntokens']
         data_loaded['random_init'] = settings['random_init']
-        data_loaded['per_device_train_batch_size'] = 1
+        data_loaded['per_device_train_batch_size'] = settings['batch_size']
         data_loaded['max_steps'] = settings['max_steps']
         data_loaded['save_steps'] = settings['save_steps']
 
