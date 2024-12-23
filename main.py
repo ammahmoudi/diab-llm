@@ -2,9 +2,11 @@ import os
 import gin
 import torch
 import datetime
-from data import DataHandler
+from data import ChronosDataHandler, TimeLLMDataHandler
 from absl import app, flags, logging
-from llms.chronos_llm import ChronosLLM
+from llms.chronos import ChronosLLM
+from llms.time_llm import TimeLLM
+
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('config_path', './config.gin', 'Path to config file.')
@@ -42,7 +44,8 @@ def run(
             'restore_checkpoint_path': 'path/to/checkpoint',
         },
         log_dir="./logs",
-        chronos_dir="."
+        chronos_dir=".",
+        time_llm_dir="."
 ):
     # logging files
     log_dir = log_dir + "logs_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -61,18 +64,17 @@ def run(
         logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
         raise NotImplementedError
 
-    # load data
-    data_loader = DataHandler(
-        settings={
-            'input_features': data_settings['input_features'],
-            'labels': data_settings['labels'],
-            'preprocessing_method': data_settings['preprocessing_method'],
-            'preprocess_input_features': data_settings['preprocess_input_features'],
-            'preprocess_label': data_settings['preprocess_label']
-        }
-    )
-
     if llm_settings['method'] == 'chronos':
+        # load data
+        data_loader = ChronosDataHandler(
+            settings={
+                'input_features': data_settings['input_features'],
+                'labels': data_settings['labels'],
+                'preprocessing_method': data_settings['preprocessing_method'],
+                'preprocess_input_features': data_settings['preprocess_input_features'],
+                'preprocess_label': data_settings['preprocess_label']
+            }
+        )
         logging.info('Running Chronos model.')
         llm = ChronosLLM(
             settings={
@@ -88,12 +90,12 @@ def run(
                 logging.debug("Loading train data from {}.".format(data_settings['path_to_train_data']))
                 train_data_path = data_loader.convert_csv_to_arrow(
                     data_settings['path_to_train_data'],
-                    training_data=True
+                    split='train'
                 )
                 data_settings['path_to_train_data'] = train_data_path
             if data_settings['path_to_test_data'].endswith('.csv'):
                 logging.debug("Loading test data from {}.".format(data_settings['path_to_test_data']))
-                test_data = data_loader.load_csv_as_dataframe(data_settings['path_to_test_data'])
+                test_data = data_loader.load_from_csv(data_settings['path_to_test_data'])
                 test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
 
             # prediction
@@ -126,7 +128,7 @@ def run(
             if data_settings['path_to_train_data'].endswith('.csv'):
                 train_data_path = data_loader.convert_csv_to_arrow(
                     data_settings['path_to_train_data'],
-                    training_data=True
+                    split='train'
                 )
                 data_settings['path_to_train_data'] = train_data_path
             elif data_settings['path_to_train_data'].endswith('.arrow'):
@@ -163,7 +165,7 @@ def run(
             if data_settings['path_to_train_data'].endswith('.csv'):
                 train_data_path = data_loader.convert_csv_to_arrow(
                     data_settings['path_to_train_data'],
-                    training_data=True
+                    split='train'
                 )
                 data_settings['path_to_train_data'] = train_data_path
             elif data_settings['path_to_train_data'].endswith('.arrow'):
@@ -192,7 +194,7 @@ def run(
             llm.load_ckpt(llm_ckpt_path)
             # inference and evaluation
             if data_settings['path_to_test_data'].endswith('.csv'):
-                test_data = data_loader.load_csv_as_dataframe(data_settings['path_to_test_data'])
+                test_data = data_loader.load_from_csv(data_settings['path_to_test_data'])
                 test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
 
             llm_prediction = llm.predict(
@@ -211,7 +213,53 @@ def run(
             )
             logging.info("Metric results: {}".format(metric_results))
 
+    elif llm_settings['method'] == 'time_llm':
+        if not os.path.exists("{}/Time-LLM".format(time_llm_dir)):
+            root_dir = os.getcwd()
+            # clone repo from https://github.com/KimMeen/Time-LLM.git
+            os.chdir("cd {}".format(time_llm_dir))
+            os.system("git clone https://github.com/KimMeen/Time-LLM.git")
+            os.chdir(root_dir)
 
+        data_loader = TimeLLMDataHandler(
+            settings={
+                'input_features': data_settings['input_features'],
+                'labels': data_settings['labels'],
+                'preprocessing_method': data_settings['preprocessing_method'],
+                'preprocess_input_features': data_settings['preprocess_input_features'],
+                'preprocess_label': data_settings['preprocess_label']
+            }
+        )
+        train_data, train_loader = data_loader.load_from_csv(data_settings['path_to_train_data'])
+        test_data, test_loader = data_loader.load_from_csv(data_settings['path_to_test_data'])
+        llm = TimeLLM(
+            settings={
+                'model': llm_settings['model']
+            }
+        )
+
+        if  llm_settings['mode'] == 'inference':
+            llm_prediction = llm.predict(train_loader, test_loader)
+            metric_results = llm.evaluate(
+                llm_prediction=llm_prediction,
+                ground_truth_data=test_data.values,
+                metrics=llm_settings['eval_metrics']
+            )
+            logging.info("Metric results: {}".format(metric_results))
+        elif llm_settings['mode'] == 'training':
+            llm.train(train_loader, test_loader)
+        elif llm_settings['mode'] == 'training+inference':
+            llm.train(train_loader, test_loader)
+            llm_prediction = llm.predict(train_loader, test_loader)
+            metric_results = llm.evaluate(
+                llm_prediction=llm_prediction,
+                ground_truth_data=test_data.values,
+                metrics=llm_settings['eval_metrics']
+            )
+            logging.info("Metric results: {}".format(metric_results))
+        else:
+            logging.info("Mode {} not supported.".format(llm_settings['mode']))
+            raise NotImplementedError
     else:
         logging.info("Method {} not supported.".format(llm_settings['method']))
         raise NotImplementedError
