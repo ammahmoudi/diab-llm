@@ -3,7 +3,7 @@ import pandas as pd
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--csv_path", dest="csv_path", default=".")
-argparser.add_argument("--save_path", dest="save_path", default=".")
+argparser.add_argument("--save_path", dest="save_path", default="./reformated.csv")
 argparser.add_argument("--input_window_size", dest="input_window_size", default=6)
 argparser.add_argument("--prediction_window_size", dest="prediction_window_size", default=6)
 argparser.add_argument(
@@ -57,7 +57,7 @@ def reformat_t1dm_bg_data(
 
     transformed_data = pd.DataFrame(transformed_data)
     transformed_data.to_csv(
-        parameters['save_path'] + '/t1dm_bg_data_transformed.csv',
+        parameters['save_path'],
         index=False
     )
 

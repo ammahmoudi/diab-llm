@@ -155,6 +155,7 @@ class ChronosLLM(TimeSeriesLLM):
 
         os.system("python {}/chronos-forecasting/scripts/training/train.py --config {}/chronos-forecasting/scripts/training/configs/{}_custom.yaml".format(chronos_dir, chronos_dir, self._llm_settings['model'].split("/")[-1]))
         output_dir = "{}/run-0/checkpoint-final".format(output_dir)
+        print(output_dir)
 
         return output_dir
 

@@ -7,7 +7,7 @@ from absl import app, flags, logging
 from llms.chronos_llm import ChronosLLM
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('config_path', './config.gin', 'Path to config file.')
+flags.DEFINE_string('config_path', './configs/config_bg_prediction.gin', 'Path to config file.')
 
 @gin.configurable
 def run(
@@ -156,7 +156,7 @@ def run(
             if not os.path.exists("{}/chronos-forecasting".format(chronos_dir)):
                 root_dir = os.getcwd()
                 # clone repo from https://github.com/amazon-science/chronos-forecasting.git
-                os.chdir("cd {}".format(chronos_dir))
+                os.chdir(chronos_dir)
                 os.system("git clone https://github.com/amazon-science/chronos-forecasting.git")
                 os.chdir(root_dir)
 
