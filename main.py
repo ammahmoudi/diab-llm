@@ -2,7 +2,7 @@ import os
 import gin
 import torch
 import datetime
-from data import ChronosDataHandler, TimeLLMDataHandler
+from data.data_loader import ChronosDataHandler, TimeLLMDataHandler
 from absl import app, flags, logging
 from llms.chronos import ChronosLLM
 from llms.time_llm import TimeLLM
@@ -217,7 +217,7 @@ def run(
         if not os.path.exists("{}/Time-LLM".format(time_llm_dir)):
             root_dir = os.getcwd()
             # clone repo from https://github.com/KimMeen/Time-LLM.git
-            os.chdir("cd {}".format(time_llm_dir))
+            os.chdir(time_llm_dir)
             os.system("git clone https://github.com/KimMeen/Time-LLM.git")
             os.chdir(root_dir)
 

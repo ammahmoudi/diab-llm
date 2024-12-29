@@ -9,3 +9,4 @@ triton==3.0.0
 gin-config==0.5.0
 chronos-forecasting @ git+https://github.com/amazon-science/chronos-forecasting.git@main
 chronos-forecasting[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main
+matplotlib

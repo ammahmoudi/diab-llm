@@ -3,9 +3,10 @@ import time
 import numpy as np
 import pandas as pd
 from llms.ts_llm import TimeSeriesLLM
-from models.autoformer import Autoformer
-from models.dlinear import Dlinear
-from models.time_llm import TimeLLM
+
+from models import autoformer, dlinear
+
+
 from accelerate import Accelerator, DeepSpeedPlugin
 from accelerate import DistributedDataParallelKwargs
 from torch import optim
@@ -17,19 +18,19 @@ from utils.losses import smape_loss
 class TimeLLM(TimeSeriesLLM):
     def __init__(self, settings):
         super(TimeLLM, self).__init__()
+        self._llm_settings=settings
         if settings['model'] == 'Autoformer':
-            model = Autoformer.Model(
-                configs=settings['model_configs']
+            model = autoformer.Model(
+                configs=self._llm_settings
             ).float()
         elif settings['model'] == 'Dlinear':
-            model = Dlinear.Model(
-                configs=settings['model_configs']
+            model = dlinear.Model(
+                configs=self._llm_settings
             ).float()
         else:
             model = TimeLLM.Model(
-                configs=settings['model_configs']
+                configs=self._llm_settings
             ).float()
-
         self.model = model
         ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
         deepspeed_plugin = DeepSpeedPlugin(hf_ds_config='./ds_config_zero2.json')
@@ -49,10 +50,10 @@ class TimeLLM(TimeSeriesLLM):
 
         with torch.no_grad():
             B, _, C = x.shape
-            dec_inp = torch.zeros((B, args.pred_len, C)).float().to(self.accelerator.device)
-            dec_inp = torch.cat([x[:, -args.label_len:, :], dec_inp], dim=1)
-            outputs = torch.zeros((B, args.pred_len, C)).float().to(self.accelerator.device)
-            id_list = np.arange(0, B, args.eval_batch_size)
+            dec_inp = torch.zeros((B, self._llm_settings['pred_len'], C)).float().to(self.accelerator.device)
+            dec_inp = torch.cat([x[:, -self._llm_settings['label_len']:, :], dec_inp], dim=1)
+            outputs = torch.zeros((B, self._llm_settings['pred_len'], C)).float().to(self.accelerator.device)
+            id_list = np.arange(0, B, self._llm_settings['eval_batch_size'])
             id_list = np.append(id_list, B)
             for i in range(len(id_list) - 1):
                 outputs[id_list[i]:id_list[i + 1], :, :] = self.model(
@@ -62,8 +63,8 @@ class TimeLLM(TimeSeriesLLM):
                     None
                 )
             self.accelerator.wait_for_everyone()
-            f_dim = -1 if args.features == 'MS' else 0
-            outputs = outputs[:, -args.pred_len:, f_dim:]
+            f_dim = -1 if self._llm_settings['features'] == 'MS' else 0
+            outputs = outputs[:, -self._llm_settings['pred_len']:, f_dim:]
             outputs = outputs.detach().cpu().numpy()
 
             preds = outputs
@@ -72,11 +73,11 @@ class TimeLLM(TimeSeriesLLM):
 
         self.accelerator.print('test shape:', preds.shape)
         if self.accelerator.is_local_main_process:
-            forecasts_df = pd.DataFrame(preds[:, :, 0], columns=[f'V{i + 1}' for i in range(args.pred_len)])
+            forecasts_df = pd.DataFrame(preds[:, :, 0], columns=[f'V{i + 1}' for i in range(self._llm_settings['pred_len'])])
             forecasts_df.index = test_loader.dataset.ids[:preds.shape[0]]
             forecasts_df.index.name = 'id'
             forecasts_df.set_index(forecasts_df.columns[0], inplace=True)
-            forecasts_df.to_csv(folder_path + args.seasonal_patterns + '_forecast.csv')
+            forecasts_df.to_csv(folder_path + self._llm_settings['seasonal_patterns'] + '_forecast.csv')
 
     def train(
             self,
@@ -84,23 +85,23 @@ class TimeLLM(TimeSeriesLLM):
             test_loader,
     ):
         train_steps = len(train_loader)
-        early_stopping = EarlyStopping(accelerator=self.accelerator, patience=args.patience, verbose=True)
-        model_optim = optim.Adam(self.model.parameters(), lr=args.learning_rate)
-        if args.lradj == 'COS':
+        early_stopping = EarlyStopping(accelerator=self.accelerator, patience=self._llm_settings['percent'], verbose=True)
+        model_optim = optim.Adam(self.model.parameters(), lr=self._llm_settings['learning_rate'])
+        if self._llm_settings['lradj'] == 'COS':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=20, eta_min=1e-8)
         else:
             scheduler = lr_scheduler.OneCycleLR(optimizer=model_optim,
                                                 steps_per_epoch=train_steps,
-                                                pct_start=args.pct_start,
-                                                epochs=args.train_epochs,
-                                                max_lr=args.learning_rate)
+                                                pct_start=self._llm_settings['pct_start'],
+                                                epochs=self._llm_settings['train_epochs'],
+                                                max_lr=self._llm_settings['learning_rate'])
 
         criterion = smape_loss()
 
         train_loader, model, model_optim, scheduler = self.accelerator.prepare(
             train_loader, self.model, model_optim, scheduler)
 
-        for epoch in range(args.train_epochs):
+        for epoch in range(self._llm_settings['train_epochs']):
             iter_count = 0
             train_loss = []
 
@@ -116,18 +117,18 @@ class TimeLLM(TimeSeriesLLM):
                 batch_y_mark = batch_y_mark.float().to(self.accelerator.device)
 
                 # decoder input
-                dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float().to(self.accelerator.device)
-                dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(
+                dec_inp = torch.zeros_like(batch_y[:, -self._llm_settings['pred_len']:, :]).float().to(self.accelerator.device)
+                dec_inp = torch.cat([batch_y[:, :self._llm_settings['label_len'], :], dec_inp], dim=1).float().to(
                     self.accelerator.device)
 
                 outputs = model(batch_x, None, dec_inp, None)
 
-                f_dim = -1 if args.features == 'MS' else 0
-                outputs = outputs[:, -args.pred_len:, f_dim:]
-                batch_y = batch_y[:, -args.pred_len:, f_dim:]
+                f_dim = -1 if self._llm_settings['features'] == 'MS' else 0
+                outputs = outputs[:, -self._llm_settings['pred_len']:, f_dim:]
+                batch_y = batch_y[:, -self._llm_settings['pred_len']:, f_dim:]
 
-                batch_y_mark = batch_y_mark[:, -args.pred_len:, f_dim:]
-                loss = criterion(batch_x, args.frequency_map, outputs, batch_y, batch_y_mark)
+                batch_y_mark = batch_y_mark[:, -self._llm_settings['pred_len']:, f_dim:]
+                loss = criterion(batch_x, self._llm_settings['frequency_map'], outputs, batch_y, batch_y_mark)
 
                 train_loss.append(loss.item())
 
@@ -136,7 +137,7 @@ class TimeLLM(TimeSeriesLLM):
                         "\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item())
                     )
                     speed = (time.time() - time_now) / iter_count
-                    left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
+                    left_time = speed * ((self._llm_settings['train_epochs'] - epoch) * train_steps - i)
                     self.accelerator.print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
                     iter_count = 0
                     time_now = time.time()
@@ -144,13 +145,13 @@ class TimeLLM(TimeSeriesLLM):
                 self.accelerator.backward(loss)
                 model_optim.step()
 
-                if args.lradj == 'TST':
-                    adjust_learning_rate(self.accelerator, model_optim, scheduler, epoch + 1, args, printout=False)
+                if self._llm_settings['lradj'] == 'TST':
+                    adjust_learning_rate(self.accelerator, model_optim, scheduler, epoch + 1, self._llm_settings, printout=False)
                     scheduler.step()
 
             self.accelerator.print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
-            test_loss = test(args, self.accelerator, model, train_loader, test_loader, criterion)
+            test_loss = test(self._llm_settings, self.accelerator, model, train_loader, test_loader, criterion)
             vali_loss = test_loss
             self.accelerator.print(
                 "Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
@@ -160,7 +161,7 @@ class TimeLLM(TimeSeriesLLM):
                 self.accelerator.print("Early stopping")
                 break
 
-            if args.lradj != 'TST':
-                adjust_learning_rate(self.accelerator, model_optim, scheduler, epoch + 1, args, printout=True)
+            if self._llm_settings['lradj'] != 'TST':
+                adjust_learning_rate(self.accelerator, model_optim, scheduler, epoch + 1, self._llm_settings, printout=True)
             else:
                 self.accelerator.print('Updating learning rate to {}'.format(scheduler.get_last_lr()[0]))
