@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from data.data_scaler import DataScaler
-from data.data_sets import TimeSeriesDataset
+from data.data_sets import Dataset_T1DM, TimeSeriesDataset
 from torch.utils.data import DataLoader
 from gluonts.dataset.arrow import ArrowWriter
 
@@ -80,15 +80,18 @@ class TimeLLMDataHandler:
                 'num_workers': 1
             }
     ):
-        self.scaler = DataScaler(
-            settings={
-                'input_features': settings['input_features'],
-                'labels': settings['labels'],
-                'method': settings['preprocessing_method'],
-                'preprocess_input_features': settings['preprocess_input_features'],
-                'preprocess_label': settings['preprocess_label']
-            }
-        )
+               # TODO: Fix using our own data scaler.(currently if enabled it fits the standard scaler on train set)
+        # self.scaler = DataScaler(
+        #     settings={
+        #         'input_features': settings['input_features'],
+        #         'labels': settings['labels'],
+        #         'method': settings['preprocessing_method'],
+        #         'preprocess_input_features': settings['preprocess_input_features'],
+        #         'preprocess_label': settings['preprocess_label']
+        #     }
+        # )
+        self.scaler=None
+        
         self._settings = settings
 
     def load_from_csv(self, path_to_csv, batch_size=32, split='train'):
@@ -99,20 +102,21 @@ class TimeLLMDataHandler:
             shuffle_flag = True
             drop_last = True
 
-        data_set = TimeSeriesDataset(
-            path_to_csv=path_to_csv,
+        data_set = Dataset_T1DM(
+            data_path=path_to_csv,
+            flag=split,
             size=(
+                self._settings['sequence_length'],
                 self._settings['context_length'],
-                self._settings['prediction_length'],
                 self._settings['prediction_length']
             ),
-            features=self._settings['input_features'],
+            features='S',
             targets=self._settings['labels'],
-            flag=split,
+            scale=self._settings['preprocess_input_features'],
             scaler=self.scaler,
             timeenc=0,
-            freq='h',
-            percent=100
+            freq=self._settings['frequency'],
+            percent=100 #TODO: implement train percantage in dataset class
         )
         data_loader = DataLoader(
             data_set,
@@ -121,5 +125,8 @@ class TimeLLMDataHandler:
             num_workers=self._settings['num_workers'],
             drop_last=drop_last
         )
+        #save the fitted scaler in train mode to use in other modes
+        if(split=='train'):
+            self.scaler=data_set.scaler
 
         return data_set, data_loader

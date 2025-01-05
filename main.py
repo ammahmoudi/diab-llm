@@ -214,12 +214,12 @@ def run(
             logging.info("Metric results: {}".format(metric_results))
 
     elif llm_settings['method'] == 'time_llm':
-        if not os.path.exists("{}/Time-LLM".format(time_llm_dir)):
-            root_dir = os.getcwd()
+        # if not os.path.exists("{}/Time-LLM".format(time_llm_dir)):
+            # root_dir = os.getcwd()
             # clone repo from https://github.com/KimMeen/Time-LLM.git
-            os.chdir(time_llm_dir)
-            os.system("git clone https://github.com/KimMeen/Time-LLM.git")
-            os.chdir(root_dir)
+            # os.chdir(time_llm_dir)
+            # os.system("git clone https://github.com/KimMeen/Time-LLM.git")
+            # os.chdir(root_dir)
 
         data_loader = TimeLLMDataHandler(
             settings={
@@ -230,14 +230,13 @@ def run(
                 'preprocess_label': data_settings['preprocess_label']
             }
         )
-        train_data, train_loader = data_loader.load_from_csv(data_settings['path_to_train_data'])
-        test_data, test_loader = data_loader.load_from_csv(data_settings['path_to_test_data'])
-        llm = TimeLLM(
-            settings={
-                'model': llm_settings['model']
-            }
+        train_data, train_loader = data_loader.load_from_csv(data_settings['path_to_train_data'],batch_size=llm_settings['train_batch_size'],split='train')
+        val_data,val_loader = data_loader.load_from_csv(data_settings['path_to_train_data'],batch_size=llm_settings['train_batch_size'],split='val')
+        test_data, test_loader = data_loader.load_from_csv(data_settings['path_to_test_data'],batch_size=llm_settings['prediction_batch_size'],split='test')
+        llm = TimeLLM(name=llm_settings['model_comment'],
+            settings=llm_settings
         )
-
+        
         if  llm_settings['mode'] == 'inference':
             llm_prediction = llm.predict(train_loader, test_loader)
             metric_results = llm.evaluate(
@@ -247,10 +246,10 @@ def run(
             )
             logging.info("Metric results: {}".format(metric_results))
         elif llm_settings['mode'] == 'training':
-            llm.train(train_loader, test_loader)
+            llm.train(train_loader=train_loader,val_loader=val_loader)
         elif llm_settings['mode'] == 'training+inference':
-            llm.train(train_loader, test_loader)
-            llm_prediction = llm.predict(train_loader, test_loader)
+            llm.train(train_loader=train_loader,val_loader=val_loader)
+            llm_prediction = llm.predict(test_loader)
             metric_results = llm.evaluate(
                 llm_prediction=llm_prediction,
                 ground_truth_data=test_data.values,
