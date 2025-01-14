@@ -15,11 +15,11 @@ class Model(nn.Module):
         """
         super(Model, self).__init__()
         self.task_name = configs['task_name']
-        self.seq_len = configs['seq_len']
+        self.sequence_length = configs['sequence_length']
         if self.task_name == 'classification' or self.task_name == 'anomaly_detection' or self.task_name == 'imputation':
-            self.pred_len = configs['seq_len']
+            self.prediction_length = configs['sequence_length']
         else:
-            self.pred_len = configs['pred_len']
+            self.prediction_length = configs['prediction_length']
 
         self.decompsition = series_decomp(configs['moving_avg'])
         self.individual = individual
@@ -31,37 +31,37 @@ class Model(nn.Module):
 
             for i in range(self.channels):
                 self.Linear_Seasonal.append(
-                    nn.Linear(self.seq_len, self.pred_len))
+                    nn.Linear(self.sequence_length, self.prediction_length))
                 self.Linear_Trend.append(
-                    nn.Linear(self.seq_len, self.pred_len))
+                    nn.Linear(self.sequence_length, self.prediction_length))
 
                 self.Linear_Seasonal[i].weight = nn.Parameter(
-                    (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+                    (1 / self.sequence_length) * torch.ones([self.prediction_length, self.sequence_length]))
                 self.Linear_Trend[i].weight = nn.Parameter(
-                    (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+                    (1 / self.sequence_length) * torch.ones([self.prediction_length, self.sequence_length]))
         else:
-            self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
-            self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
+            self.Linear_Seasonal = nn.Linear(self.sequence_length, self.prediction_length)
+            self.Linear_Trend = nn.Linear(self.sequence_length, self.prediction_length)
 
             self.Linear_Seasonal.weight = nn.Parameter(
-                (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+                (1 / self.sequence_length) * torch.ones([self.prediction_length, self.sequence_length]))
             self.Linear_Trend.weight = nn.Parameter(
-                (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+                (1 / self.sequence_length) * torch.ones([self.prediction_length, self.sequence_length]))
 
         if self.task_name == 'classification':
             self.act = F.gelu
             self.dropout = nn.Dropout(configs['dropout'])
             self.projection = nn.Linear(
-                configs['enc_in'] * configs['seq_len'], configs['num_class'])
+                configs['enc_in'] * configs['sequence_length'], configs['num_class'])
 
     def encoder(self, x):
         seasonal_init, trend_init = self.decompsition(x)
         seasonal_init, trend_init = seasonal_init.permute(
             0, 2, 1), trend_init.permute(0, 2, 1)
         if self.individual:
-            seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.pred_len],
+            seasonal_output = torch.zeros([seasonal_init.size(0), seasonal_init.size(1), self.prediction_length],
                                           dtype=seasonal_init.dtype).to(seasonal_init.device)
-            trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.pred_len],
+            trend_output = torch.zeros([trend_init.size(0), trend_init.size(1), self.prediction_length],
                                        dtype=trend_init.dtype).to(trend_init.device)
             for i in range(self.channels):
                 seasonal_output[:, i, :] = self.Linear_Seasonal[i](
@@ -86,7 +86,7 @@ class Model(nn.Module):
     def classification(self, x_enc):
         enc_out = self.encoder(x_enc)
         # Output
-        # (batch_size, seq_length * d_model)
+        # (batch_size, sequence_lengthgth * d_model)
         output = enc_out.reshape(enc_out.shape[0], -1)
         output = self.projection(output)  # (batch_size, num_classes)
         return output
@@ -94,7 +94,7 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc)
-            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+            return dec_out[:, -self.prediction_length:, :]  # [B, L, D]
         if self.task_name == 'imputation':
             dec_out = self.imputation(x_enc)
             return dec_out  # [B, L, D]

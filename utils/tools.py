@@ -133,73 +133,103 @@ def cal_accuracy(y_pred, y_true):
 def del_files(dir_path):
     shutil.rmtree(dir_path)
 
+def vali(llm_settings, accelerator, model, vali_loader, criterion, mae_metric):
+    """
+    Validation function to compute loss and MAE over the validation set.
 
-def vali(args, accelerator, model, vali_data, vali_loader, criterion, mae_metric):
+    Args:
+        llm_settings (dict): Settings for the LLM model, including prediction lengths and context lengths.
+        accelerator (Accelerator): Accelerator object for distributed or mixed-precision training.
+        model (torch.nn.Module): The LLM model being evaluated.
+        vali_loader (DataLoader): DataLoader for the validation set.
+        criterion (function): Loss function to evaluate the predictions.
+        mae_metric (function): Metric function to calculate MAE.
+
+    Returns:
+        tuple: Average loss and MAE over the validation set.
+    """
     total_loss = []
     total_mae_loss = []
     model.eval()
-    with torch.no_grad():
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(enumerate(vali_loader)):
-            batch_x = batch_x.float().to(accelerator.device)
-            batch_y = batch_y.float()
 
+    with torch.no_grad():
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(enumerate(vali_loader), desc="Validating"):
+            # Move data to accelerator device
+            batch_x = batch_x.float().to(accelerator.device)
+            batch_y = batch_y.float().to(accelerator.device)
             batch_x_mark = batch_x_mark.float().to(accelerator.device)
             batch_y_mark = batch_y_mark.float().to(accelerator.device)
 
-            # decoder input
-            dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
-            dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(
-                accelerator.device)
-            # encoder - decoder
-            if args.use_amp:
-                with torch.cuda.amp.autocast():
-                    if args.output_attention:
-                        outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
-                    else:
-                        outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-            else:
-                if args.output_attention:
-                    outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
-                else:
-                    outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+            # Prepare decoder input
+            dec_inp = torch.zeros_like(batch_y[:, -llm_settings['prediction_length']:, :]).float()
+            dec_inp = torch.cat([batch_y[:, :llm_settings['context_length'], :], dec_inp], dim=1).to(accelerator.device)
 
+            # Forward pass through the model
+            if llm_settings.get('output_attention', False):
+                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+            else:
+                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+
+            # Gather outputs and targets for metrics
             outputs, batch_y = accelerator.gather_for_metrics((outputs, batch_y))
 
-            f_dim = -1 if args.features == 'MS' else 0
-            outputs = outputs[:, -args.pred_len:, f_dim:]
-            batch_y = batch_y[:, -args.pred_len:, f_dim:].to(accelerator.device)
+            # Extract relevant dimensions for univariate or multivariate settings
+            f_dim = -1 if llm_settings['features'] == 'MS' else 0
+            outputs = outputs[:, -llm_settings['prediction_length']:, f_dim:]
+            batch_y = batch_y[:, -llm_settings['prediction_length']:, f_dim:]
 
+            # Compute loss and metrics
             pred = outputs.detach()
             true = batch_y.detach()
 
             loss = criterion(pred, true)
-
             mae_loss = mae_metric(pred, true)
 
             total_loss.append(loss.item())
             total_mae_loss.append(mae_loss.item())
 
-    total_loss = np.average(total_loss)
-    total_mae_loss = np.average(total_mae_loss)
+    # Compute average loss and MAE
+    avg_loss = np.mean(total_loss)
+    avg_mae_loss = np.mean(total_mae_loss)
 
+    # Switch model back to training mode
     model.train()
-    return total_loss, total_mae_loss
+
+    return avg_loss, avg_mae_loss
 
 
-def test(args, accelerator, model, train_loader, vali_loader, criterion):
+def test(llm_settings, accelerator, model, train_loader, test_loader, criterion):
+    """
+    Test function to evaluate the model on the test dataset.
+
+    Args:
+        llm_settings (dict): Configuration settings for the model.
+        accelerator (Accelerator): Accelerator object for distributed or mixed-precision training.
+        model (torch.nn.Module): The trained model to be evaluated.
+        train_loader (DataLoader): DataLoader for the training dataset.
+        test_loader (DataLoader): DataLoader for the test dataset.
+        criterion (function): Loss function to evaluate predictions.
+
+    Returns:
+        float: Average test loss over the entire test dataset.
+    """
+    # Retrieve the last insample window and test time series
     x, _ = train_loader.dataset.last_insample_window()
-    y = vali_loader.dataset.timeseries
-    x = torch.tensor(x, dtype=torch.float32).to(accelerator.device)
-    x = x.unsqueeze(-1)
+    y = test_loader.dataset.timeseries
+
+    # Prepare inputs
+    x = torch.tensor(x, dtype=torch.float32).to(accelerator.device).unsqueeze(-1)
+    B, _, C = x.shape
+    dec_inp = torch.zeros((B, llm_settings['prediction_length'], C)).float().to(accelerator.device)
+    dec_inp = torch.cat([x[:, -llm_settings['context_length']:, :], dec_inp], dim=1)
+
+    # Initialize outputs
+    outputs = torch.zeros((B, llm_settings['prediction_length'], C)).float().to(accelerator.device)
+    id_list = np.arange(0, B, llm_settings['prediction_batch_size'])
+    id_list = np.append(id_list, B)
 
     model.eval()
     with torch.no_grad():
-        B, _, C = x.shape
-        dec_inp = torch.zeros((B, args.pred_len, C)).float().to(accelerator.device)
-        dec_inp = torch.cat([x[:, -args.label_len:, :], dec_inp], dim=1)
-        outputs = torch.zeros((B, args.pred_len, C)).float().to(accelerator.device)
-        id_list = np.arange(0, B, args.eval_batch_size)
-        id_list = np.append(id_list, B)
         for i in range(len(id_list) - 1):
             outputs[id_list[i]:id_list[i + 1], :, :] = model(
                 x[id_list[i]:id_list[i + 1]],
@@ -207,20 +237,18 @@ def test(args, accelerator, model, train_loader, vali_loader, criterion):
                 dec_inp[id_list[i]:id_list[i + 1]],
                 None
             )
-        accelerator.wait_for_everyone()
-        outputs = accelerator.gather_for_metrics(outputs)
-        f_dim = -1 if args.features == 'MS' else 0
-        outputs = outputs[:, -args.pred_len:, f_dim:]
-        pred = outputs
-        true = torch.from_numpy(np.array(y)).to(accelerator.device)
-        batch_y_mark = torch.ones(true.shape).to(accelerator.device)
-        true = accelerator.gather_for_metrics(true)
-        batch_y_mark = accelerator.gather_for_metrics(batch_y_mark)
 
-        loss = criterion(x[:, :, 0], args.frequency_map, pred[:, :, 0], true, batch_y_mark)
+        # Gather outputs and calculate loss
+        outputs = accelerator.gather_for_metrics(outputs)
+        f_dim = -1 if llm_settings['features'] == 'MS' else 0
+        pred = outputs[:, -llm_settings['prediction_length']:, f_dim:]
+        true = torch.tensor(np.array(y)).to(accelerator.device)
+
+        loss = criterion(pred, true)
 
     model.train()
-    return loss
+    return loss.item()
+
 
 
 def load_content(args):
@@ -229,5 +257,11 @@ def load_content(args):
     else:
         file = args.data
     with open('./dataset/prompt_bank/{0}.txt'.format(file), 'r') as f:
+        content = f.read()
+    return content
+
+def load_txt_content(txt_path):
+  
+    with open(txt_path, 'r') as f:
         content = f.read()
     return content

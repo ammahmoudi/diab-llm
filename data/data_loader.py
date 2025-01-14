@@ -77,7 +77,12 @@ class TimeLLMDataHandler:
                 'preprocessing_method': 'min_max',
                 'preprocess_input_features': False,
                 'preprocess_label': False,
-                'num_workers': 1
+                'frequency':'5min',
+                'num_workers': 1,
+                'sequence_length':6,
+                'context_length':6,
+                'prediction_length':6,
+                'percent':100
             }
     ):
                # TODO: Fix using our own data scaler.(currently if enabled it fits the standard scaler on train set)
@@ -111,12 +116,12 @@ class TimeLLMDataHandler:
                 self._settings['prediction_length']
             ),
             features='S',
-            targets=self._settings['labels'],
+            target=self._settings['labels'][0],
             scale=self._settings['preprocess_input_features'],
             scaler=self.scaler,
             timeenc=0,
             freq=self._settings['frequency'],
-            percent=100 #TODO: implement train percantage in dataset class
+            percent=self._settings['percent']
         )
         data_loader = DataLoader(
             data_set,

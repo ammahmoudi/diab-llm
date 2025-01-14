@@ -18,9 +18,9 @@ class Model(nn.Module):
     def __init__(self, configs):
         super(Model, self).__init__()
         self.task_name = configs['task_name']
-        self.seq_len = configs['seq_len']
-        self.label_len = configs['label_len']
-        self.pred_len = configs['pred_len']
+        self.sequence_length = configs['sequence_length']
+        self.context_length = configs['context_length']
+        self.prediction_length = configs['prediction_length']
         self.output_attention = configs['output_attention']
 
         # Decomp
@@ -94,20 +94,20 @@ class Model(nn.Module):
             self.act = F.gelu
             self.dropout = nn.Dropout(configs['dropout'])
             self.projection = nn.Linear(
-                configs['d_model'] * configs['seq_len'], configs['num_class'])
+                configs['d_model'] * configs['sequence_length'], configs['num_class'])
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         # decomp init
         mean = torch.mean(x_enc, dim=1).unsqueeze(
-            1).repeat(1, self.pred_len, 1)
-        zeros = torch.zeros([x_dec.shape[0], self.pred_len,
+            1).repeat(1, self.prediction_length, 1)
+        zeros = torch.zeros([x_dec.shape[0], self.prediction_length,
                              x_dec.shape[2]], device=x_enc.device)
         seasonal_init, trend_init = self.decomp(x_enc)
         # decoder input
         trend_init = torch.cat(
-            [trend_init[:, -self.label_len:, :], mean], dim=1)
+            [trend_init[:, -self.context_length:, :], mean], dim=1)
         seasonal_init = torch.cat(
-            [seasonal_init[:, -self.label_len:, :], zeros], dim=1)
+            [seasonal_init[:, -self.context_length:, :], zeros], dim=1)
         # enc
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
@@ -146,7 +146,7 @@ class Model(nn.Module):
         output = self.dropout(output)
         # zero-out padding embeddings
         output = output * x_mark_enc.unsqueeze(-1)
-        # (batch_size, seq_length * d_model)
+        # (batch_size, sequence_lengthgth * d_model)
         output = output.reshape(output.shape[0], -1)
         output = self.projection(output)  # (batch_size, num_classes)
         return output
@@ -154,7 +154,7 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+            return dec_out[:, -self.prediction_length:, :]  # [B, L, D]
         if self.task_name == 'imputation':
             dec_out = self.imputation(
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)

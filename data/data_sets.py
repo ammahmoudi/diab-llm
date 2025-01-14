@@ -42,12 +42,28 @@ class Dataset_T1DM(Dataset):
         self.seasonal_patterns = seasonal_patterns
         self.scaler = scaler 
         self._data_transformed = False  # Initialize the flag for scaling status
+        
+        
 
         self.__read_data__()
+        self._log_dataset_info()
 
         self.enc_in = self.data_x.shape[-1]  # Number of input features
         self.tot_len = len(self.data_x) - self.sequence_length - self.prediction_length + 1  # Total valid sequences
-
+        
+    def _log_dataset_info(self):
+        """
+        Logs the dataset size and split details.
+        """
+        mode = self.flag.upper()
+        print(f"Dataset '{mode}' initialized:")
+        print(f" - Total samples after applying {self.percent}%: {len(self.data_x)}")
+        print(f" - Sequence Length: {self.sequence_length}, "
+              f"Context Length: {self.context_length}, "
+              f"Prediction Length: {self.prediction_length}.")
+        print(f" - Target Feature: {self.target}")
+        print(f" - Scaling Enabled: {self.scale}")
+        
     def __read_data__(self):
         """
         Reads and preprocesses the data.
@@ -60,8 +76,13 @@ class Dataset_T1DM(Dataset):
             "Dataset must contain '_ts' (timestamp) and target columns."
 
         # Sort by timestamp
-        df_raw['_ts'] = pd.to_datetime(df_raw['_ts'])
+        df_raw['_ts'] = pd.to_datetime(df_raw['_ts'],format="%d-%m-%Y %H:%M:%S")
         df_raw = df_raw.sort_values('_ts')
+        
+        # Apply the percent parameter to reduce the dataset size
+        total_rows = len(df_raw)
+        rows_to_include = int(total_rows * self.percent / 100)
+        df_raw = df_raw.iloc[:rows_to_include]
         
         if self.features == 'M' or self.features == 'MS':
             cols_data = df_raw.columns[1:]

@@ -32,8 +32,8 @@ class Model(nn.Module):
     def __init__(self, configs, patch_len=16, stride=8):
         super(Model, self).__init__()
         self.task_name = configs['task_name']
-        self.pred_len = configs['pred_len']
-        self.seq_len = configs['seq_len']
+        self.prediction_length = configs['prediction_length']
+        self.sequence_length = configs['sequence_length']
         self.d_ff = configs['d_ff']
         self.top_k = 5
         self.d_llm = configs['llm_dim']
@@ -180,11 +180,11 @@ class Model(nn.Module):
 
         self.reprogramming_layer = ReprogrammingLayer(configs['d_model'], configs['n_heads'], self.d_ff, self.d_llm)
 
-        self.patch_nums = int((configs['seq_len'] - self.patch_len) / self.stride + 2)
+        self.patch_nums = int((configs['sequence_length'] - self.patch_len) / self.stride + 2)
         self.head_nf = self.d_ff * self.patch_nums
 
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            self.output_projection = FlattenHead(configs['enc_in'], self.head_nf, self.pred_len,
+            self.output_projection = FlattenHead(configs['enc_in'], self.head_nf, self.prediction_length,
                                                  head_dropout=configs['dropout'])
         else:
             raise NotImplementedError
@@ -194,7 +194,7 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.pred_len:, :]
+            return dec_out[:, -self.prediction_length:, :]
         return None
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
@@ -218,7 +218,7 @@ class Model(nn.Module):
             lags_values_str = str(lags[b].tolist())
             prompt_ = (
                 f"<|start_prompt|>Dataset description: {self.description}"
-                f"Task description: forecast the next {str(self.pred_len)} steps given the previous {str(self.seq_len)} steps information; "
+                f"Task description: forecast the next {str(self.prediction_length)} steps given the previous {str(self.sequence_length)} steps information; "
                 "Input statistics: "
                 f"min value {min_values_str}, "
                 f"max value {max_values_str}, "

@@ -9,7 +9,7 @@ from llms.time_llm import TimeLLM
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('config_path', './configs/config_bg_prediction.gin', 'Path to config file.')
+flags.DEFINE_string('config_path', './configs/config_time_llm.gin', 'Path to config file.')
 
 @gin.configurable
 def run(
@@ -54,15 +54,16 @@ def run(
     # logging file
     logging.get_absl_handler().use_absl_log_file(program_name="log", log_dir=log_dir)
     # convert torch_dtype in llm_settings
-    if llm_settings['torch_dtype'] == 'float32':
-        llm_settings['torch_dtype'] = torch.float32
-    elif llm_settings['torch_dtype'] == 'bfloat16':
-        llm_settings['torch_dtype'] = torch.bfloat16
-    elif llm_settings['torch_dtype'] == 'float16':
-        llm_settings['torch_dtype'] = torch.float16
-    else:
-        logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
-        raise NotImplementedError
+    if  'torch_dtype' in llm_settings:
+        if llm_settings['torch_dtype'] == 'float32':
+            llm_settings['torch_dtype'] = torch.float32
+        elif llm_settings['torch_dtype'] == 'bfloat16':
+            llm_settings['torch_dtype'] = torch.bfloat16
+        elif llm_settings['torch_dtype'] == 'float16':
+            llm_settings['torch_dtype'] = torch.float16
+        else:
+            logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
+            raise NotImplementedError
 
     if llm_settings['method'] == 'chronos':
         # load data
@@ -214,50 +215,81 @@ def run(
             logging.info("Metric results: {}".format(metric_results))
 
     elif llm_settings['method'] == 'time_llm':
-        # if not os.path.exists("{}/Time-LLM".format(time_llm_dir)):
-            # root_dir = os.getcwd()
-            # clone repo from https://github.com/KimMeen/Time-LLM.git
-            # os.chdir(time_llm_dir)
-            # os.system("git clone https://github.com/KimMeen/Time-LLM.git")
-            # os.chdir(root_dir)
+        # Initialize TimeLLM DataLoader
+        data_loader = TimeLLMDataHandler(settings={
+            'input_features': data_settings['input_features'],
+            'labels': data_settings['labels'],
+            'preprocessing_method': data_settings['preprocessing_method'],
+            'preprocess_input_features': data_settings['preprocess_input_features'],
+            'preprocess_label': data_settings['preprocess_label'],
+            'frequency': data_settings['frequency'],
+            'num_workers': llm_settings['num_workers'],
+            'sequence_length': llm_settings['sequence_length'],
+            'context_length': llm_settings['context_length'],
+            'prediction_length': llm_settings['prediction_length'],
+            'percent': data_settings['percent']
+        })
 
-        data_loader = TimeLLMDataHandler(
-            settings={
-                'input_features': data_settings['input_features'],
-                'labels': data_settings['labels'],
-                'preprocessing_method': data_settings['preprocessing_method'],
-                'preprocess_input_features': data_settings['preprocess_input_features'],
-                'preprocess_label': data_settings['preprocess_label']
-            }
+        # Load datasets
+        train_data, train_loader = data_loader.load_from_csv(data_settings['path_to_train_data'], batch_size=llm_settings['train_batch_size'], split='train')
+        val_data, val_loader = data_loader.load_from_csv(data_settings['path_to_train_data'], batch_size=llm_settings['train_batch_size'], split='val')
+        test_data, test_loader = data_loader.load_from_csv(data_settings['path_to_test_data'], batch_size=llm_settings['prediction_batch_size'], split='test')
+
+        # Initialize TimeLLM
+        llm = TimeLLM(
+            name=llm_settings['model_comment'],
+            settings=llm_settings,
+            data_settings=data_settings,
+            log_dir=log_dir
         )
-        train_data, train_loader = data_loader.load_from_csv(data_settings['path_to_train_data'],batch_size=llm_settings['train_batch_size'],split='train')
-        val_data,val_loader = data_loader.load_from_csv(data_settings['path_to_train_data'],batch_size=llm_settings['train_batch_size'],split='val')
-        test_data, test_loader = data_loader.load_from_csv(data_settings['path_to_test_data'],batch_size=llm_settings['prediction_batch_size'],split='test')
-        llm = TimeLLM(name=llm_settings['model_comment'],
-            settings=llm_settings
-        )
-        
-        if  llm_settings['mode'] == 'inference':
-            llm_prediction = llm.predict(train_loader, test_loader)
-            metric_results = llm.evaluate(
-                llm_prediction=llm_prediction,
-                ground_truth_data=test_data.values,
-                metrics=llm_settings['eval_metrics']
-            )
-            logging.info("Metric results: {}".format(metric_results))
+
+        # Handle modes
+        if llm_settings['mode'] == 'inference':
+            if llm_settings['restore_from_checkpoint']:
+                llm.load_model(llm_settings['restore_checkpoint_path'])
+            
+            # Save prediction results
+            # Ensure test_loader is valid
+            if len(test_loader) == 0:
+                logging.warning("Test loader is empty. No predictions will be made.")
+            else:
+                # Save prediction results
+                save_path = os.path.join(log_dir, "inference_results.csv")
+                llm_prediction, targets = llm.predict(test_loader, save_path=save_path)
+
+                if llm_prediction is not None:
+                    metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
+                    logging.info(f"Metric results: {metric_results}")
+                else:
+                    logging.info("No predictions were made due to an empty test loader.")
+
         elif llm_settings['mode'] == 'training':
-            llm.train(train_loader=train_loader,val_loader=val_loader)
+            llm.train(train_data=train_data, train_loader=train_loader, val_loader=val_loader)
+
         elif llm_settings['mode'] == 'training+inference':
-            llm.train(train_loader=train_loader,val_loader=val_loader)
-            llm_prediction = llm.predict(test_loader)
-            metric_results = llm.evaluate(
-                llm_prediction=llm_prediction,
-                ground_truth_data=test_data.values,
-                metrics=llm_settings['eval_metrics']
-            )
-            logging.info("Metric results: {}".format(metric_results))
+            # Train the model and retrieve checkpoint path
+            checkpoint_path = llm.train(train_data=train_data, train_loader=train_loader, val_loader=val_loader)
+
+            # Load the saved checkpoint for inference
+            llm.load_model(checkpoint_path)
+
+            # Ensure test_loader is valid
+            if len(test_loader) == 0:
+                logging.warning("Test loader is empty. No predictions will be made.")
+            else:
+                # Save prediction results
+                save_path = os.path.join(log_dir, "inference_results.csv")
+                llm_prediction, targets = llm.predict(test_loader, save_path=save_path)
+
+                if llm_prediction is not None:
+                    metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
+                    logging.info(f"Metric results: {metric_results}")
+                else:
+                    logging.info("No predictions were made due to an empty test loader.")
+
+
         else:
-            logging.info("Mode {} not supported.".format(llm_settings['mode']))
+            logging.error(f"Unsupported mode: {llm_settings['mode']}")
             raise NotImplementedError
     else:
         logging.info("Method {} not supported.".format(llm_settings['method']))
