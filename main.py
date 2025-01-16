@@ -338,7 +338,7 @@ def run(
             logging.error(f"Unsupported mode: {llm_settings['mode']}")
             raise NotImplementedError
     else:
-        logging.info("Method {} not supported.".format(llm_settings['method']))
+        logging.error("Method {} not supported.".format(llm_settings['method']))
         raise NotImplementedError
 
     # Save Gin's operative config to a file

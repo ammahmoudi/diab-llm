@@ -92,7 +92,7 @@ class TimeLLM(TimeSeriesLLM):
             accelerator=self.accelerator,
             patience=self._llm_settings['patience'],
             verbose=True,
-            save_mode=True
+            save_mode=False
         )
 
         # Loss functions
@@ -103,7 +103,7 @@ class TimeLLM(TimeSeriesLLM):
         train_loader, val_loader, self.llm_model, model_optim, scheduler = self.accelerator.prepare(
             train_loader, val_loader, self.llm_model, model_optim, scheduler
         )
-
+        early_stopping_saved = False
         # Training loop
         for epoch in range(self._llm_settings['train_epochs']):
             train_loss = self._run_epoch(train_loader, criterion, model_optim, scheduler, is_training=True)
@@ -124,13 +124,17 @@ class TimeLLM(TimeSeriesLLM):
             # Early stopping
             if early_stopping.early_stop:
                 logging.info("Early stopping triggered.")
+                early_stopping_saved = True
                 break
-
-        # Always save the final model checkpoint
-        final_checkpoint_path = os.path.join(checkpoint_dir, "final_checkpoint")
+            
+        if not early_stopping_saved:
+            logging.warning('Early stopping did not trigger. Saving final model checkpoint.')
+        
+        final_checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
         logging.info(f"Saving final model checkpoint at {final_checkpoint_path}.")
         model_to_save = self.accelerator.unwrap_model(self.llm_model)
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
+       
 
         return final_checkpoint_path
 
@@ -172,17 +176,19 @@ class TimeLLM(TimeSeriesLLM):
                 inputs.append(batch_x.cpu().numpy())
 
         if not predictions:  # Handle case where no batches were processed
-            logging.info("No predictions were made. Ensure the test loader contains data.")
+            logging.error("No predictions were made. Ensure the test loader contains data.")
             return None, None
 
         predictions = np.concatenate(predictions, axis=0)
         targets = np.concatenate(targets, axis=0)
         inputs = np.concatenate(inputs, axis=0)
 
-        logging.info(f"Predictions shape: {predictions.shape}")
-        logging.info(f"Ground Truth shape: {targets.shape}")
-        logging.info(f"Inputs shape: {inputs.shape}")
+        logging.debug(f"Predictions shape: {predictions.shape}")
+        logging.debug(f"Ground Truth shape: {targets.shape}")
+        logging.debug(f"Inputs shape: {inputs.shape}")
 
+        logging.info("Prediction complete.")
+        
         # Save results to CSV
         if save_path:
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -270,7 +276,7 @@ class TimeLLM(TimeSeriesLLM):
             iter_count += 1
             if (i + 1) % 100 == 0:
                 logging.info(
-                    f"Iter {i + 1}, Loss: {loss.item():.7f}, Avg Loss: {np.mean(epoch_loss):.7f}"
+                    f"Iteration {i + 1}, Loss: {loss.item():.7f}, Avg Loss: {np.mean(epoch_loss):.7f}"
                 )
                 speed = (time.time() - time_now) / iter_count
                 left_time = speed * ((len(loader) - (i + 1)) + len(loader) * (self._llm_settings['train_epochs'] - 1))
