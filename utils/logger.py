@@ -1,7 +1,6 @@
 import os
 import logging
 from datetime import datetime
-from absl import logging as absl_logging
 
 # ANSI escape sequences for colored logs
 COLORS = {
@@ -32,14 +31,14 @@ class StructuredFormatter(logging.Formatter):
             fmt = "%(asctime)s | %(levelname)s | %(filename)s:%(lineno)d | %(message)s"
         super().__init__(fmt=fmt, datefmt=datefmt)
 
-def setup_logging(base_log_dir="./logs", program_name="log", log_level=absl_logging.INFO):
+def setup_logging(base_log_dir="./logs", program_name="log", log_level=logging.INFO):
     """
-    Sets up logging with Abseil for file output and Python logging for console with colors.
+    Sets up logging with custom file and console logging handlers.
 
     Args:
         base_log_dir (str): Base directory where log subdirectories are created.
         program_name (str): Prefix for the log file names.
-        log_level (int): Logging level (e.g., absl_logging.INFO, absl_logging.DEBUG).
+        log_level (int): Logging level (e.g., logging.INFO, logging.DEBUG).
 
     Returns:
         str: The directory where logs for this run are saved.
@@ -49,29 +48,25 @@ def setup_logging(base_log_dir="./logs", program_name="log", log_level=absl_logg
     run_log_dir = os.path.join(base_log_dir, f"logs_{timestamp}")
     os.makedirs(run_log_dir, exist_ok=True)
 
-    # Configure Abseil for file logging
-    absl_handler = absl_logging.get_absl_handler()
-    absl_handler.use_absl_log_file(program_name=program_name, log_dir=run_log_dir)
-    absl_logging.set_verbosity(log_level)
+    # File log handler with structured formatting
+    file_handler = logging.FileHandler(os.path.join(run_log_dir, f"{program_name}.log"))
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(StructuredFormatter())
 
-    # Add Python console handler with colored formatting
+    # Console log handler with colored formatting
     console_handler = logging.StreamHandler()
     console_handler.setLevel(log_level)
     console_handler.setFormatter(ColoredFormatter("%(asctime)s [%(levelname)s] %(message)s"))
 
-    # Add structured formatting to Abseil's file handlers
-    for handler in absl_logging.get_absl_logger().handlers:
-        if isinstance(handler, logging.FileHandler):
-            handler.setFormatter(StructuredFormatter())
-
-    # Add console handler to Python's root logger
+    # Configure the root logger
     root_logger = logging.getLogger()
     root_logger.handlers = []  # Clear existing handlers to avoid duplication
+    root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
     root_logger.setLevel(log_level)
 
     # Log initialization details
-    absl_logging.info(f"Logging initialized. Logs for this run will be saved in: {run_log_dir}")
-    absl_logging.info("Log level set to: INFO")
+    root_logger.info(f"Logging initialized. Logs for this run will be saved in: {run_log_dir}")
+    root_logger.info("Log level set to: INFO")
 
     return run_log_dir

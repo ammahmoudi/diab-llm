@@ -57,6 +57,7 @@ run.llm_settings = {
     'des':'test',
     'model_comment':'time_llm_t1dm',
     'prompt_domain':0,
+    'timeenc':0,
 
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
 
