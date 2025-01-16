@@ -6,10 +6,14 @@ from data.data_loader import ChronosDataHandler, TimeLLMDataHandler
 from absl import app, flags, logging
 from llms.chronos import ChronosLLM
 from llms.time_llm import TimeLLM
+from utils.logger import setup_logging
+from utils.tools import plot_predictions_with_overlays
 
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('config_path', './configs/config_time_llm.gin', 'Path to config file.')
+flags.DEFINE_string('log_level', 'INFO', 'Logging level: DEBUG, INFO, WARNING, ERROR, or FATAL.')
+
 
 @gin.configurable
 def run(
@@ -48,22 +52,35 @@ def run(
         time_llm_dir="."
 ):
     # logging files
-    log_dir = log_dir + "logs_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    # logging file
-    logging.get_absl_handler().use_absl_log_file(program_name="log", log_dir=log_dir)
+     # Parse the log level from the command-line arguments
+    log_level_map = {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'FATAL': logging.FATAL
+    }
+    log_level = log_level_map.get(FLAGS.log_level.upper(), logging.INFO)
+
+    # Set up logging
+    log_dir = setup_logging(log_dir, log_level=log_level)
+    logging.info("Logging initialized at directory: {}".format(log_dir))
+    
     # convert torch_dtype in llm_settings
-    if  'torch_dtype' in llm_settings:
+    if 'torch_dtype' in llm_settings:
         if llm_settings['torch_dtype'] == 'float32':
-            llm_settings['torch_dtype'] = torch.float32
+            dtype = torch.float32
         elif llm_settings['torch_dtype'] == 'bfloat16':
-            llm_settings['torch_dtype'] = torch.bfloat16
+            dtype = torch.bfloat16
         elif llm_settings['torch_dtype'] == 'float16':
-            llm_settings['torch_dtype'] = torch.float16
+            dtype = torch.float16
         else:
             logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
             raise NotImplementedError
+        
+        # Set globally
+        torch.set_default_dtype(dtype)
+            
 
     if llm_settings['method'] == 'chronos':
         # load data
@@ -247,9 +264,7 @@ def run(
         if llm_settings['mode'] == 'inference':
             if llm_settings['restore_from_checkpoint']:
                 llm.load_model(llm_settings['restore_checkpoint_path'])
-            
-            # Save prediction results
-            # Ensure test_loader is valid
+
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
             else:
@@ -258,10 +273,26 @@ def run(
                 llm_prediction, targets = llm.predict(test_loader, save_path=save_path)
 
                 if llm_prediction is not None:
+                    # Evaluate metrics
                     metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
                     logging.info(f"Metric results: {metric_results}")
-                else:
-                    logging.info("No predictions were made due to an empty test loader.")
+
+                    # # Plot predictions
+                    # timestamps = test_data.data_stamp[:, 0]  # Assuming timestamps are stored in `data_stamp`
+                    # context_length = llm_settings['context_length']
+                    # plot_path = os.path.join(log_dir, "prediction_plot.png")
+
+                    # plot_predictions_with_overlays(
+                    #     timestamps=timestamps,
+                    #     inputs=test_data.data_x,
+                    #     ground_truth=targets,
+                    #     predictions=llm_prediction,
+                    #     context_length=context_length,
+                    #     save_path=plot_path,
+                    #     title="Inference Results"
+                    # )
+                    # logging.info(f"Prediction plot saved to {plot_path}")
+
 
         elif llm_settings['mode'] == 'training':
             llm.train(train_data=train_data, train_loader=train_loader, val_loader=val_loader)
@@ -273,7 +304,6 @@ def run(
             # Load the saved checkpoint for inference
             llm.load_model(checkpoint_path)
 
-            # Ensure test_loader is valid
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
             else:
@@ -282,10 +312,26 @@ def run(
                 llm_prediction, targets = llm.predict(test_loader, save_path=save_path)
 
                 if llm_prediction is not None:
+                    # Evaluate metrics
                     metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
                     logging.info(f"Metric results: {metric_results}")
-                else:
-                    logging.info("No predictions were made due to an empty test loader.")
+
+                    # Plot predictions
+                    # timestamps = test_data.data_stamp[:, 0]  # Assuming timestamps are stored in `data_stamp`
+                    # context_length = llm_settings['context_length']
+                    # plot_path = os.path.join(log_dir, "prediction_plot.png")
+
+                    # plot_predictions_with_overlays(
+                    #     timestamps=timestamps,
+                    #     inputs=test_data.data_x,
+                    #     ground_truth=targets,
+                    #     predictions=llm_prediction,
+                    #     context_length=context_length,
+                    #     save_path=plot_path,
+                    #     title="Training + Inference Results"
+                    # )
+                    # logging.info(f"Prediction plot saved to {plot_path}")
+
 
 
         else:

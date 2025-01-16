@@ -9,16 +9,20 @@ run.data_settings = {
     'preprocess_input_features': False,
     'preprocess_label': False,
     'frequency':'5min',
-    'percent':5,
+    'percent':3,
 }
 run.llm_settings = {
     'task_name':'long_term_forecast',
-    'mode': 'training+inference',    # available modes: 'inference', 'training', 'training+inference'
+    'mode': 'inference',    # available modes: 'inference', 'training', 'training+inference'
     'method': 'time_llm',    # available methods: 'chronos','time_llm'
     'llm_model': 'GPT2',  # available models: 'LLAMA', 'GPT2', 'BERT'
     'llm_layers':32,
     'llm_dim':768, #4096 for llama 768 for gpt2
     'num_workers':1,
+    'restore_from_checkpoint':'true', # completly remove it to avoid
+    'restore_checkpoint_path':'./logs/logs_2025-01-14_22-58-27/checkpoints/final_checkpoint',
+    'torch_dtype':'bfloat16',
+
 
     'model_id':'test',
 

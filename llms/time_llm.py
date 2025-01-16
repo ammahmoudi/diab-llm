@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import torch
@@ -49,7 +50,7 @@ class TimeLLM(TimeSeriesLLM):
         
         :param checkpoint_path: Path to the saved model checkpoint.
         """
-        self.accelerator.print(f"Loading model checkpoint from {checkpoint_path}")
+        logging.info(f"Loading model checkpoint from {checkpoint_path}")
         if os.path.exists(checkpoint_path):
             try:
                 self.llm_model.load_state_dict(
@@ -62,7 +63,7 @@ class TimeLLM(TimeSeriesLLM):
                 )
             self.llm_model.to(self.accelerator.device)
             self.llm_model.eval()
-            self.accelerator.print("Model checkpoint loaded successfully.")
+            logging.info("Model checkpoint loaded successfully.")
         else:
             raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
 
@@ -76,7 +77,7 @@ class TimeLLM(TimeSeriesLLM):
         if hasattr(train_data, 'scaler'):
             self.fitted_scaler = train_data.scaler
 
-        self.accelerator.print("Starting Training...")
+        logging.info("Starting Training...")
         train_steps = len(train_loader)
 
         # Initialize optimizer, scheduler, and early stopping
@@ -110,7 +111,7 @@ class TimeLLM(TimeSeriesLLM):
                 val_loss, val_mae_loss = vali(
                     self._llm_settings, self.accelerator, self.llm_model, val_loader, criterion, mae_metric
                 )
-                self.accelerator.print(
+                logging.info(
                     f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | Val Loss: {val_loss:.7f}"
                 )
                 early_stopping(val_loss, self.llm_model, checkpoint_dir)
@@ -120,12 +121,12 @@ class TimeLLM(TimeSeriesLLM):
 
             # Early stopping
             if early_stopping.early_stop:
-                self.accelerator.print("Early stopping triggered.")
+                logging.info("Early stopping triggered.")
                 break
 
         # Always save the final model checkpoint
         final_checkpoint_path = os.path.join(checkpoint_dir, "final_checkpoint")
-        self.accelerator.print(f"Saving final model checkpoint at {final_checkpoint_path}.")
+        logging.info(f"Saving final model checkpoint at {final_checkpoint_path}.")
         model_to_save = self.accelerator.unwrap_model(self.llm_model)
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
 
@@ -145,7 +146,7 @@ class TimeLLM(TimeSeriesLLM):
         predictions, targets, inputs = [], [], []
 
         if len(test_loader) == 0:
-            self.accelerator.print("Warning: The test loader is empty. No data to predict.")
+            logging.info("Warning: The test loader is empty. No data to predict.")
             return None, None
 
         with torch.no_grad():
@@ -168,16 +169,16 @@ class TimeLLM(TimeSeriesLLM):
                 inputs.append(batch_x.cpu().numpy())
 
         if not predictions:  # Handle case where no batches were processed
-            self.accelerator.print("No predictions were made. Ensure the test loader contains data.")
+            logging.info("No predictions were made. Ensure the test loader contains data.")
             return None, None
 
         predictions = np.concatenate(predictions, axis=0)
         targets = np.concatenate(targets, axis=0)
         inputs = np.concatenate(inputs, axis=0)
 
-        self.accelerator.print(f"Predictions shape: {predictions.shape}")
-        self.accelerator.print(f"Ground Truth shape: {targets.shape}")
-        self.accelerator.print(f"Inputs shape: {inputs.shape}")
+        logging.info(f"Predictions shape: {predictions.shape}")
+        logging.info(f"Ground Truth shape: {targets.shape}")
+        logging.info(f"Inputs shape: {inputs.shape}")
 
         # Save results to CSV
         if save_path:
@@ -189,7 +190,7 @@ class TimeLLM(TimeSeriesLLM):
             }
             results_df = pd.DataFrame(results)
             results_df.to_csv(save_path, index=False)
-            self.accelerator.print(f"Results saved to {save_path}")
+            logging.info(f"Results saved to {save_path}")
 
         return predictions, targets
 
@@ -265,12 +266,12 @@ class TimeLLM(TimeSeriesLLM):
             # Logging every 100 iterations
             iter_count += 1
             if (i + 1) % 100 == 0:
-                self.accelerator.print(
+                logging.info(
                     f"Iter {i + 1}, Loss: {loss.item():.7f}, Avg Loss: {np.mean(epoch_loss):.7f}"
                 )
                 speed = (time.time() - time_now) / iter_count
                 left_time = speed * ((len(loader) - (i + 1)) + len(loader) * (self._llm_settings['train_epochs'] - 1))
-                self.accelerator.print(f"\tSpeed: {speed:.4f}s/iter; Remaining time: {left_time:.4f}s")
+                logging.info(f"\tSpeed: {speed:.4f}s/iter; Remaining time: {left_time:.4f}s")
                 iter_count = 0
                 time_now = time.time()
 

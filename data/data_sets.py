@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 from torch.utils.data import Dataset
 from utils.timefeatures import time_features
@@ -56,13 +57,13 @@ class Dataset_T1DM(Dataset):
         Logs the dataset size and split details.
         """
         mode = self.flag.upper()
-        print(f"Dataset '{mode}' initialized:")
-        print(f" - Total samples after applying {self.percent}%: {len(self.data_x)}")
-        print(f" - Sequence Length: {self.sequence_length}, "
+        logging.info(f"Dataset '{mode}' initialized:")
+        logging.info(f" - Total samples after applying {self.percent}%: {len(self.data_x)}")
+        logging.info(f" - Sequence Length: {self.sequence_length}, "
               f"Context Length: {self.context_length}, "
               f"Prediction Length: {self.prediction_length}.")
-        print(f" - Target Feature: {self.target}")
-        print(f" - Scaling Enabled: {self.scale}")
+        logging.info(f" - Target Feature: {self.target}")
+        logging.info(f" - Scaling Enabled: {self.scale}")
         
     def __read_data__(self):
         """
