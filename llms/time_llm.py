@@ -62,6 +62,8 @@ class TimeLLM(TimeSeriesLLM):
                     torch.load(checkpoint_path, map_location=self.accelerator.device)
                 )
             self.llm_model.to(self.accelerator.device)
+            self.llm_model = self.llm_model.to(torch.bfloat16)  # Align dtype if needed
+
             self.llm_model.eval()
             logging.info("Model checkpoint loaded successfully.")
         else:
@@ -142,9 +144,10 @@ class TimeLLM(TimeSeriesLLM):
         :param save_path: Path to save the predictions CSV file.
         :return: Tuple of (predictions, targets) as numpy arrays for evaluation.
         """
+
         self.llm_model.eval()
         predictions, targets, inputs = [], [], []
-
+    
         if len(test_loader) == 0:
             logging.info("Warning: The test loader is empty. No data to predict.")
             return None, None
