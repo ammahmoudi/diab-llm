@@ -11,7 +11,7 @@ from torch import optim, nn
 from torch.optim import lr_scheduler
 from tqdm import tqdm
 from utils.timefeatures import decode_manual_time_features, decode_time_features
-from utils.tools import adjust_learning_rate, EarlyStopping, load_txt_content, vali, test
+from utils.tools import adjust_learning_rate, EarlyStopping, load_txt_content, reformat_results, vali, test
 from utils.losses import smape_loss
 from llms.ts_llm import TimeSeriesLLM
 from models import time_llm as TimeLLMModel
@@ -152,7 +152,7 @@ class TimeLLM(TimeSeriesLLM):
         """
 
         self.llm_model.eval()
-        predictions, targets, inputs, input_timestamps = [], [], [], []
+        predictions, targets, inputs, input_timestamps, output_timestamps = [], [], [], [], []
 
         if len(test_loader) == 0:
             logging.info("Warning: The test loader is empty. No data to predict.")
@@ -176,7 +176,8 @@ class TimeLLM(TimeSeriesLLM):
                 predictions.append(outputs.cpu().numpy())
                 targets.append(batch_y[:, -self._llm_settings['prediction_length']:, f_dim:].cpu().numpy())
                 inputs.append(batch_x.cpu().numpy())
-                input_timestamps.append(batch_x_mark.cpu().numpy())  # Collect timestamps
+                input_timestamps.append(batch_x_mark.cpu().numpy())  # Collect x timestamps
+                output_timestamps.append(batch_y_mark.cpu().numpy())  # Collect y timestamps
 
         if not predictions:  # Handle case where no batches were processed
             logging.error("No predictions were made. Ensure the test loader contains data.")
@@ -185,51 +186,72 @@ class TimeLLM(TimeSeriesLLM):
         predictions = np.concatenate(predictions, axis=0)
         targets = np.concatenate(targets, axis=0)
         inputs = np.concatenate(inputs, axis=0)
-        input_timestamps = np.concatenate(input_timestamps, axis=0)  # Combine timestamps
+        input_timestamps = np.concatenate(input_timestamps, axis=0)  # Combine x timestamps
+        output_timestamps = np.concatenate(output_timestamps, axis=0)  # Combine y timestamps
 
-        # Decode timestamps
-        decoded_timestamps = []
+        # Decode x timestamps
+        decoded_x_timestamps = []
         if self._llm_settings['timeenc'] == 0:
-            # Decode manually extracted time features
             for batch in input_timestamps:
-                decoded_timestamps.extend(decode_manual_time_features(batch, freq=freq))
+                decoded_x_timestamps.extend(decode_manual_time_features(batch, freq=freq))
         else:
-            # Decode normalized time features (e.g., timeenc == 1)
-            decoded_timestamps = decode_time_features(input_timestamps.T, freq=freq)
+            decoded_x_timestamps = decode_time_features(input_timestamps.T, freq=freq)
 
-        # Group timestamps batch-wise
-        grouped_timestamps = [
-            decoded_timestamps[i * self._llm_settings['context_length']:(i + 1) * self._llm_settings['context_length']]
+        # Decode y timestamps
+        decoded_y_timestamps = []
+        if self._llm_settings['timeenc'] == 0:
+            for batch in output_timestamps:
+                decoded_y_timestamps.extend(decode_manual_time_features(batch, freq=freq))
+        else:
+            decoded_y_timestamps = decode_time_features(output_timestamps.T, freq=freq)
+
+        # Group x timestamps batch-wise
+        grouped_x_timestamps = [
+            decoded_x_timestamps[i * self._llm_settings['context_length']:(i + 1) * self._llm_settings['context_length']]
             for i in range(len(inputs))
         ]
 
+        # Group y timestamps batch-wise
+        grouped_y_timestamps = [
+            decoded_y_timestamps[i * self._llm_settings['prediction_length']:(i + 1) * self._llm_settings['prediction_length']]
+            for i in range(len(targets))
+        ]
+
         # Convert grouped timestamps to strings
-        grouped_timestamps = [
+        grouped_x_timestamps = [
             ", ".join(ts.strftime('%d-%m-%Y %H:%M:%S') for ts in group if ts is not None)
-            for group in grouped_timestamps
+            for group in grouped_x_timestamps
+        ]
+        grouped_y_timestamps = [
+            ", ".join(ts.strftime('%d-%m-%Y %H:%M:%S') for ts in group if ts is not None)
+            for group in grouped_y_timestamps
         ]
 
         logging.debug(f"Predictions shape: {predictions.shape}")
         logging.debug(f"Ground Truth shape: {targets.shape}")
         logging.debug(f"Inputs shape: {inputs.shape}")
-        logging.debug(f"Timestamps count: {len(grouped_timestamps)}")
+        logging.debug(f"X Timestamps count: {len(grouped_x_timestamps)}")
+        logging.debug(f"Y Timestamps count: {len(grouped_y_timestamps)}")
 
         logging.info("Prediction complete.")
-        
+            
         # Save results to CSV
         if save_path:
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             results = {
-                'timestamps': grouped_timestamps,  # Use grouped strings
+                'x_timestamps': grouped_x_timestamps,  # Use grouped x timestamps
+                'y_timestamps': grouped_y_timestamps,  # Use grouped y timestamps
                 'inputs': [", ".join(map(str, inputs[i].flatten())) for i in range(len(inputs))],
                 'ground_truth': [", ".join(map(str, targets[i].flatten())) for i in range(len(targets))],
                 'predictions': [", ".join(map(str, predictions[i].flatten())) for i in range(len(predictions))]
             }
             results_df = pd.DataFrame(results)
             results_df.to_csv(save_path, index=False)
+            reformat_results(save_path, output_csv_path=save_path.replace('.csv', '_reformatted.csv'))
             logging.info(f"Results saved to {save_path}")
 
         return predictions, targets
+
 
 
 
