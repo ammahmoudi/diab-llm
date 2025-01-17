@@ -23,7 +23,9 @@ def run(
             'label': ['label1'],
             'preprocessing_method': 'min_max',
             'preprocess_input_features': False,
-            'preprocess_label': False
+            'preprocess_label': False,
+            'percent':100
+            
         },
         llm_settings={
             'mode': 'inference',
@@ -89,7 +91,8 @@ def run(
                 'labels': data_settings['labels'],
                 'preprocessing_method': data_settings['preprocessing_method'],
                 'preprocess_input_features': data_settings['preprocess_input_features'],
-                'preprocess_label': data_settings['preprocess_label']
+                'preprocess_label': data_settings['preprocess_label'],
+                'percent': data_settings['percent']
             }
         )
         logging.info('Running Chronos model.')

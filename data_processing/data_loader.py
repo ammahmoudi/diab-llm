@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pandas as pd
 from data_processing.data_scaler import DataScaler
@@ -13,7 +14,8 @@ class ChronosDataHandler:
                 'labels': ['label1'],
                 'preprocessing_method': 'min_max',
                 'preprocess_input_features': False,
-                'preprocess_label': False
+                'preprocess_label': False,
+                'percent': 100,
             }
     ):
         self.scaler = DataScaler(
@@ -27,26 +29,48 @@ class ChronosDataHandler:
         )
         self._settings = settings
 
+    def _log_dataset_info(self, dataframe, split, percent):
+        """
+        Logs the dataset size and split details.
+        """
+        logging.info(f"Dataset '{split.upper()}' initialized:")
+        logging.info(f" - Total samples after applying {percent}%: {len(dataframe)}")
+        logging.info(f" - Input features: {self._settings['input_features']}")
+        logging.info(f" - Labels: {self._settings['labels']}")
+
     def load_from_csv(self, path_to_csv, split='train'):
+        logging.info(f"Loading data from {path_to_csv} for split '{split}'.")
+
         dataframe = pd.read_csv(path_to_csv)
+        total_rows = len(dataframe)
+
+        # Apply percentage sampling
+        percent = self._settings.get('percent', 100)
+        if percent < 100:
+            rows_to_include = int(total_rows * percent / 100)
+            dataframe = dataframe.iloc[:rows_to_include]
+
+        self._log_dataset_info(dataframe, split, percent)
+
+        # Preprocess data if required
         if self._settings['preprocess_input_features'] or self._settings['preprocess_label']:
             if split == 'train':
+                logging.info("Fitting scaler on train data.")
                 self.scaler.fit(dataframe)
 
-            dataframe = self.scaler.transform(pd.read_csv(path_to_csv))
+            logging.info("Applying scaler to the dataset.")
+            dataframe = self.scaler.transform(dataframe)
 
         return dataframe
 
     def convert_csv_to_arrow(self, path_to_csv, split='train'):
-        # Note: Arrow dataset with two columns: start and target
-        # start: start time of the time series
-        # target: values of the time series - encoding: [historic values (=inputs), future values(=outputs)]
+        logging.info(f"Converting {path_to_csv} to Arrow format for split '{split}'.")
+
         dataframe = self.load_from_csv(path_to_csv, split=split)
         df_values = dataframe[self._settings['labels'] + self._settings['input_features']].values
 
         # Set an arbitrary start time
         start = np.datetime64("2000-01-01 00:00", "s")
-        # always add ts interval to the start time
         dataset = [
             {
                 "start": start,
@@ -54,19 +78,23 @@ class ChronosDataHandler:
             } for value in df_values
         ]
 
-        ArrowWriter(compression='lz4').write_to_file(
-            dataset,
-            path=path_to_csv.replace('.csv', '.arrow'),
-        )
+        arrow_path = path_to_csv.replace('.csv', '.arrow')
+        ArrowWriter(compression='lz4').write_to_file(dataset, arrow_path)
+        logging.info(f"Arrow file saved at {arrow_path}.")
 
-        return path_to_csv.replace('.csv', '.arrow')
+        return arrow_path
 
     def split_dataframe_input_features_vs_labels(self, dataframe):
+        logging.info("Splitting dataframe into input features and labels.")
+
         input_features = dataframe[self._settings['input_features']]
         ground_truth = dataframe[self._settings['labels']]
 
-        return input_features, ground_truth
+        logging.info("Split completed:")
+        logging.info(f" - Input features shape: {input_features.shape}")
+        logging.info(f" - Labels shape: {ground_truth.shape}")
 
+        return input_features, ground_truth
 
 class TimeLLMDataHandler:
     def __init__(

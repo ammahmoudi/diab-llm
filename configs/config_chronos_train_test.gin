@@ -7,7 +7,8 @@ run.data_settings = {
     'labels': ['BG_{t+1}', 'BG_{t+2}', 'BG_{t+3}', 'BG_{t+4}', 'BG_{t+5}', 'BG_{t+6}'],
     'preprocessing_method': 'min_max',
     'preprocess_input_features': False,
-    'preprocess_label': False
+    'preprocess_label': False,
+    'percent':3
 }
 run.llm_settings = {
     'mode': 'training+inference',    # available modes: 'inference', 'training', 'training+inference'
@@ -22,7 +23,7 @@ run.llm_settings = {
     'min_past': 6,
     'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
     'prediction_use_auto_split': False,
-    'max_train_steps': 10000,
+    'max_train_steps': 10,
     'train_batch_size': 32,
     'random_init': False,
     'save_steps': 1000,
