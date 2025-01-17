@@ -67,3 +67,4 @@ def reformat_results(input_csv_path, output_csv_path):
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
     reformatted_df.to_csv(output_csv_path, index=False)
     print(f"Reformatted results saved to {output_csv_path}")
+    return reformatted_df

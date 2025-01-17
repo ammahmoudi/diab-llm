@@ -268,29 +268,15 @@ def run(
                 logging.warning("Test loader is empty. No predictions will be made.")
             else:
                 # Save prediction results
-                save_path = os.path.join(log_dir, "inference_results.csv")
-                llm_prediction, targets = llm.predict(test_loader, save_path=save_path)
+                
+                llm_prediction, targets = llm.predict(test_loader, output_dir=log_dir)
 
                 if llm_prediction is not None:
                     # Evaluate metrics
                     metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
                     logging.info(f"Metric results: {metric_results}")
 
-                    # # Plot predictions
-                    # timestamps = test_data.data_stamp[:, 0]  # Assuming timestamps are stored in `data_stamp`
-                    # context_length = llm_settings['context_length']
-                    # plot_path = os.path.join(log_dir, "prediction_plot.png")
 
-                    # plot_predictions_with_overlays(
-                    #     timestamps=timestamps,
-                    #     inputs=test_data.data_x,
-                    #     ground_truth=targets,
-                    #     predictions=llm_prediction,
-                    #     context_length=context_length,
-                    #     save_path=plot_path,
-                    #     title="Inference Results"
-                    # )
-                    # logging.info(f"Prediction plot saved to {plot_path}")
 
 
         elif llm_settings['mode'] == 'training':
@@ -306,32 +292,11 @@ def run(
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
             else:
-                # Save prediction results
-                save_path = os.path.join(log_dir, "inference_results.csv")
-                llm_prediction, targets = llm.predict(test_loader, save_path=save_path)
-
+                llm_prediction, targets = llm.predict(test_loader, output_dir=log_dir)
                 if llm_prediction is not None:
                     # Evaluate metrics
                     metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
                     logging.info(f"Metric results: {metric_results}")
-
-                    # Plot predictions
-                    # timestamps = test_data.data_stamp[:, 0]  # Assuming timestamps are stored in `data_stamp`
-                    # context_length = llm_settings['context_length']
-                    # plot_path = os.path.join(log_dir, "prediction_plot.png")
-
-                    # plot_predictions_with_overlays(
-                    #     timestamps=timestamps,
-                    #     inputs=test_data.data_x,
-                    #     ground_truth=targets,
-                    #     predictions=llm_prediction,
-                    #     context_length=context_length,
-                    #     save_path=plot_path,
-                    #     title="Training + Inference Results"
-                    # )
-                    # logging.info(f"Prediction plot saved to {plot_path}")
-
-
 
         else:
             logging.error(f"Unsupported mode: {llm_settings['mode']}")

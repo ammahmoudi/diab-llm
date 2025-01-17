@@ -11,6 +11,7 @@ from torch import optim, nn
 from torch.optim import lr_scheduler
 from tqdm import tqdm
 from data_processing.refromat_results import reformat_results
+from utils.result_saver import save_results_and_generate_plots
 from utils.time_llm_utils import EarlyStopping, adjust_learning_rate, vali
 from utils.file_utils import load_txt_content
 from utils.timefeatures import decode_manual_time_features, decode_time_features
@@ -163,17 +164,15 @@ class TimeLLM(TimeSeriesLLM):
 
         return final_checkpoint_path
 
-    def predict(self, test_loader, save_path=None, freq="5min"):
+    def predict(self, test_loader, output_dir):
         """
-        Predict the output for the test data, save predictions to a CSV file,
-        and ensure compatibility with evaluation functions.
+        Predict the output for the test data, save predictions to files,
+        and generate plots for analysis.
 
         :param test_loader: DataLoader for test data.
-        :param save_path: Path to save the predictions CSV file.
-        :param freq: Frequency of the timestamps (e.g., '5min').
+        :param output_dir: Directory to save the predictions, formatted results, and plots.
         :return: Tuple of (predictions, targets) as numpy arrays for evaluation.
         """
-
         self.llm_model.eval()
         predictions, targets, inputs, input_timestamps, output_timestamps = (
             [],
@@ -216,14 +215,10 @@ class TimeLLM(TimeSeriesLLM):
                     .numpy()
                 )
                 inputs.append(batch_x.cpu().numpy())
-                input_timestamps.append(
-                    batch_x_mark.cpu().numpy()
-                )  # Collect x timestamps
-                output_timestamps.append(
-                    batch_y_mark.cpu().numpy()
-                )  # Collect y timestamps
+                input_timestamps.append(batch_x_mark.cpu().numpy())
+                output_timestamps.append(batch_y_mark.cpu().numpy())
 
-        if not predictions:  # Handle case where no batches were processed
+        if not predictions:
             logging.error(
                 "No predictions were made. Ensure the test loader contains data."
             )
@@ -232,34 +227,29 @@ class TimeLLM(TimeSeriesLLM):
         predictions = np.concatenate(predictions, axis=0)
         targets = np.concatenate(targets, axis=0)
         inputs = np.concatenate(inputs, axis=0)
-        input_timestamps = np.concatenate(
-            input_timestamps, axis=0
-        )  # Combine x timestamps
-        output_timestamps = np.concatenate(
-            output_timestamps, axis=0
-        )  # Combine y timestamps
+        input_timestamps = np.concatenate(input_timestamps, axis=0)
+        output_timestamps = np.concatenate(output_timestamps, axis=0)
 
         # Decode x timestamps
         decoded_x_timestamps = []
         if self._llm_settings["timeenc"] == 0:
             for batch in input_timestamps:
                 decoded_x_timestamps.extend(
-                    decode_manual_time_features(batch, freq=freq)
+                    decode_manual_time_features(batch, freq=self._data_settings["frequency"])
                 )
         else:
-            decoded_x_timestamps = decode_time_features(input_timestamps.T, freq=freq)
+            decoded_x_timestamps = decode_time_features(input_timestamps.T, freq=self._data_settings["frequency"])
 
         # Decode y timestamps
         decoded_y_timestamps = []
         if self._llm_settings["timeenc"] == 0:
             for batch in output_timestamps:
                 decoded_y_timestamps.extend(
-                    decode_manual_time_features(batch, freq=freq)
+                    decode_manual_time_features(batch, freq=self._data_settings["frequency"])
                 )
         else:
-            decoded_y_timestamps = decode_time_features(output_timestamps.T, freq=freq)
+            decoded_y_timestamps = decode_time_features(output_timestamps.T, freq=self._data_settings["frequency"])
 
-        # Group x timestamps batch-wise
         grouped_x_timestamps = [
             decoded_x_timestamps[
                 i
@@ -268,8 +258,6 @@ class TimeLLM(TimeSeriesLLM):
             ]
             for i in range(len(inputs))
         ]
-
-        # Group y timestamps batch-wise
         grouped_y_timestamps = [
             decoded_y_timestamps[
                 i
@@ -279,7 +267,6 @@ class TimeLLM(TimeSeriesLLM):
             for i in range(len(targets))
         ]
 
-        # Convert grouped timestamps to strings
         grouped_x_timestamps = [
             ", ".join(
                 ts.strftime("%d-%m-%Y %H:%M:%S") for ts in group if ts is not None
@@ -293,38 +280,14 @@ class TimeLLM(TimeSeriesLLM):
             for group in grouped_y_timestamps
         ]
 
-        logging.debug(f"Predictions shape: {predictions.shape}")
-        logging.debug(f"Ground Truth shape: {targets.shape}")
-        logging.debug(f"Inputs shape: {inputs.shape}")
-        logging.debug(f"X Timestamps count: {len(grouped_x_timestamps)}")
-        logging.debug(f"Y Timestamps count: {len(grouped_y_timestamps)}")
-
-        logging.info("Prediction complete.")
-
-        # Save results to CSV
-        if save_path:
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            results = {
-                "x_timestamps": grouped_x_timestamps,  # Use grouped x timestamps
-                "y_timestamps": grouped_y_timestamps,  # Use grouped y timestamps
-                "inputs": [
-                    ", ".join(map(str, inputs[i].flatten())) for i in range(len(inputs))
-                ],
-                "ground_truth": [
-                    ", ".join(map(str, targets[i].flatten()))
-                    for i in range(len(targets))
-                ],
-                "predictions": [
-                    ", ".join(map(str, predictions[i].flatten()))
-                    for i in range(len(predictions))
-                ],
-            }
-            results_df = pd.DataFrame(results)
-            results_df.to_csv(save_path, index=False)
-            reformat_results(
-                save_path, output_csv_path=save_path.replace(".csv", "_reformatted.csv")
-            )
-            logging.info(f"Results saved to {save_path}")
+        save_results_and_generate_plots(
+            output_dir,
+            predictions,
+            targets,
+            inputs,
+            grouped_x_timestamps,
+            grouped_y_timestamps,
+        )
 
         return predictions, targets
 
