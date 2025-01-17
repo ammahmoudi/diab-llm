@@ -38,7 +38,7 @@ class TimeLLM(TimeSeriesLLM):
 
         # Accelerator setup
         ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config='./ds_config_zero2.json')
+        deepspeed_plugin = DeepSpeedPlugin(hf_ds_config='./configs/ds_config_zero2.json')
         self.accelerator = Accelerator(kwargs_handlers=[ddp_kwargs], deepspeed_plugin=deepspeed_plugin)
         self.fitted_scaler = None  # Global variable to store the fitted scaler
 

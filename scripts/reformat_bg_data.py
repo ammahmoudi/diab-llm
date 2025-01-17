@@ -1,4 +1,4 @@
-from scripts.reformat_t1dm_bg_data import reformat_t1dm_bg_data
+from data_processing.reformat_t1dm_bg_data import reformat_t1dm_bg_data
 if __name__ == '__main__':
     # parse config file
     csv_path='/home/amma/LLM-TIME/data/raw/570-ws-training.csv'

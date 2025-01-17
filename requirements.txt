@@ -1,20 +1,14 @@
-pandas==2.2.2
-pyarrow==17.0.0
-torch==2.4.1
-gluonts==0.15.1
+absl_py==2.1.0
 accelerate==0.34.2
-bitsandbytes==0.43.3
-transformers==4.44.2
-triton==3.0.0
-gin-config==0.5.0
-chronos-forecasting @ git+https://github.com/amazon-science/chronos-forecasting.git@main
-chronos-forecasting[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main
-matplotlib
-einops
-numpy
-scikit_learn
-scipy
-tqdm
-peft
-deepspeed
-sentencepiece
+datasets==2.21.0
+deepspeed==0.16.2
+gin_config==0.5.0
+gluonts==0.15.1
+matplotlib==3.10.0
+numpy==2.2.1
+pandas==2.2.3
+PyYAML==6.0.2
+reformer_pytorch==1.4.4
+torch==2.4.1
+tqdm==4.67.1
+transformers==4.47.1

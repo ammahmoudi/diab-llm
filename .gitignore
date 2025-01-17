@@ -3,5 +3,6 @@ __pycache__
 logs
 raw
 formated
-
+data
 .vscode
+*:Zone.Identifier

@@ -1,8 +1,8 @@
-run.log_dir = "/home/amma/LLM-TIME/logs/"
+run.log_dir = "./logs/"
 run.chronos_dir = "/home/amma/"
 run.data_settings = {
-    'path_to_train_data': '/home/amma/LLM-TIME/data/formated/570-ws-training.csv',
-    'path_to_test_data': '/home/amma/LLM-TIME/data/formated/570-ws-testing.csv',
+    'path_to_train_data': './data/formated/570-ws-training.csv',
+    'path_to_test_data': './data/formated/570-ws-testing.csv',
     'input_features': ['BG_{t-5}', 'BG_{t-4}', 'BG_{t-3}', 'BG_{t-2}', 'BG_{t-1}', 'BG_{t}'],
     'labels': ['BG_{t+1}', 'BG_{t+2}', 'BG_{t+3}', 'BG_{t+4}', 'BG_{t+5}', 'BG_{t+6}'],
     'preprocessing_method': 'min_max',

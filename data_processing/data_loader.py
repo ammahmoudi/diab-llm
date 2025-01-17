@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-from data.data_scaler import DataScaler
-from data.data_sets import Dataset_T1DM, TimeSeriesDataset
+from data_processing.data_scaler import DataScaler
+from data_processing.data_sets import Dataset_T1DM, TimeSeriesDataset
 from torch.utils.data import DataLoader
 from gluonts.dataset.arrow import ArrowWriter
 
