@@ -9,7 +9,7 @@ run.data_settings = {
     'preprocess_input_features': False,
     'preprocess_label': False,
     'frequency':'5min',
-    'percent':3,
+    'percent':100,
 }
 run.llm_settings = {
     'task_name':'long_term_forecast',
