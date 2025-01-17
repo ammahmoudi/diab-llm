@@ -119,7 +119,7 @@ def run(
                 test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
 
             # prediction
-            llm_prediction = llm.predict(
+            llm_prediction,targets = llm.predict(
                 test_data=test_input_features,
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
@@ -128,13 +128,11 @@ def run(
                     'auto_split': llm_settings['prediction_use_auto_split']
                 }
             )
-            # metric evaluation
-            metric_results = llm.evaluate(
-                llm_prediction=llm_prediction,
-                ground_truth_data=test_labels.values,
-                metrics=llm_settings['eval_metrics']
-            )
-            logging.info("Metric results: {}".format(metric_results))
+            
+            if llm_prediction is not None:
+                    # Evaluate metrics
+                    metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
+                    logging.info(f"Metric results: {metric_results}")
 
         elif llm_settings['mode'] == 'training':
             # check if chronos-forecasting repo is already cloned
@@ -211,13 +209,13 @@ def run(
                 }
             )
             # load checkpoint
-            llm.load_ckpt(llm_ckpt_path)
+            llm.load_model(llm_ckpt_path)
             # inference and evaluation
             if data_settings['path_to_test_data'].endswith('.csv'):
                 test_data = data_loader.load_from_csv(data_settings['path_to_test_data'])
                 test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
 
-            llm_prediction = llm.predict(
+            llm_prediction,targets = llm.predict(
                 test_data=test_input_features,
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
@@ -226,12 +224,10 @@ def run(
                     'auto_split': llm_settings['prediction_use_auto_split']
                 }
             )
-            metric_results = llm.evaluate(
-                llm_prediction=llm_prediction,
-                ground_truth_data=test_labels.values,
-                metrics=llm_settings['eval_metrics']
-            )
-            logging.info("Metric results: {}".format(metric_results))
+            if llm_prediction is not None:
+                    # Evaluate metrics
+                    metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
+                    logging.info(f"Metric results: {metric_results}")
 
     elif llm_settings['method'] == 'time_llm':
         # Initialize TimeLLM DataLoader
