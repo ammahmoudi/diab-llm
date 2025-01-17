@@ -1,8 +1,8 @@
 import logging
 import pandas as pd
 from torch.utils.data import Dataset
+from data_processing.data_scaler import StandardScaler
 from utils.timefeatures import time_features
-from utils.tools import StandardScaler
 
 class Dataset_T1DM(Dataset):
     def __init__(self, flag='train', size=None, features='S', data_path='train.csv',

@@ -13,7 +13,7 @@ run.data_settings = {
 }
 run.llm_settings = {
     'task_name':'long_term_forecast',
-    'mode': 'training+inference',    # available modes: 'inference', 'training', 'training+inference'
+    'mode': 'training',    # available modes: 'inference', 'training', 'training+inference'
     'method': 'time_llm',    # available methods: 'chronos','time_llm'
     'llm_model': 'GPT2',  # available models: 'LLAMA', 'GPT2', 'BERT'
     'llm_layers':32,

@@ -20,7 +20,7 @@ run.llm_settings = {
     'llm_dim':768, #4096 for llama 768 for gpt2
     'num_workers':1,
     'restore_from_checkpoint':'true', # completly remove it to avoid
-    'restore_checkpoint_path':'logs/logs_2025-01-16_17-58-46/checkpoints/final_checkpoint',
+    'restore_checkpoint_path':'./logs/logs_2025-01-17_12-34-26/checkpoints/checkpoint.pth',
     'torch_dtype':'bfloat16',
 
 
