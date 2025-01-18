@@ -1,13 +1,14 @@
 import logging
 import os
-
 import pandas as pd
 
 from data_processing.refromat_results import reformat_results
 from utils.plotting import plot_avg_predictions_plotly, plot_predictions_plotly
 
 
-def save_results_and_generate_plots(output_dir, predictions, targets, inputs, grouped_x_timestamps, grouped_y_timestamps):
+def save_results_and_generate_plots(
+    output_dir, predictions, targets, inputs, grouped_x_timestamps=None, grouped_y_timestamps=None
+):
     """
     Save prediction results, reformat them, and generate plots.
 
@@ -15,17 +16,29 @@ def save_results_and_generate_plots(output_dir, predictions, targets, inputs, gr
     :param predictions: Array of predictions.
     :param targets: Array of ground truth values.
     :param inputs: Array of input data.
-    :param grouped_x_timestamps: List of grouped x timestamps as strings.
-    :param grouped_y_timestamps: List of grouped y timestamps as strings.
+    :param grouped_x_timestamps: (Optional) List of grouped x timestamps as strings.
+    :param grouped_y_timestamps: (Optional) List of grouped y timestamps as strings.
     """
+    # Debug: log the shapes of the inputs
+    logging.debug(f"Shape of predictions: {predictions.shape}")
+    logging.debug(f"Shape of targets: {targets.shape}")
+    logging.debug(f"Shape of inputs: {inputs.shape}")
+
+    if grouped_x_timestamps is not None:
+        logging.debug(f"Number of grouped_x_timestamps: {len(grouped_x_timestamps)}")
+    else:
+        logging.debug("grouped_x_timestamps not provided.")
+
+    if grouped_y_timestamps is not None:
+        logging.debug(f"Number of grouped_y_timestamps: {len(grouped_y_timestamps)}")
+    else:
+        logging.debug("grouped_y_timestamps not provided.")
+
     # Prepare output directory
     os.makedirs(output_dir, exist_ok=True)
 
-    # Save results to CSV
-    save_path = os.path.join(output_dir, "inference_results.csv")
+    # Build the results dictionary
     results = {
-        "x_timestamps": grouped_x_timestamps,
-        "y_timestamps": grouped_y_timestamps,
         "inputs": [
             ", ".join(map(str, inputs[i].flatten())) for i in range(len(inputs))
         ],
@@ -36,16 +49,31 @@ def save_results_and_generate_plots(output_dir, predictions, targets, inputs, gr
             ", ".join(map(str, predictions[i].flatten())) for i in range(len(predictions))
         ],
     }
+
+    # Add timestamps if provided
+    if grouped_x_timestamps is not None:
+        results["x_timestamps"] = [
+            ", ".join(map(str, grouped_x_timestamps[i])) for i in range(len(grouped_x_timestamps))
+        ]
+    if grouped_y_timestamps is not None:
+        results["y_timestamps"] = [
+            ", ".join(map(str, grouped_y_timestamps[i])) for i in range(len(grouped_y_timestamps))
+        ]
+
+    # Save results to CSV
+    save_path = os.path.join(output_dir, "inference_results.csv")
     results_df = pd.DataFrame(results)
     results_df.to_csv(save_path, index=False)
+    logging.info(f"Results saved to {save_path}")
 
     # Reformat and save the results
     reformatted_path = save_path.replace(".csv", "_reformatted.csv")
-    reformated_results_df=reformat_results(save_path, output_csv_path=reformatted_path)
-    logging.info(f"Results saved to {save_path} and reformatted results to {reformatted_path}")
+    reformated_results_df = reformat_results(save_path, output_csv_path=reformatted_path)
+    logging.info(f"Reformatted results saved to {reformatted_path}")
 
     # Generate and save plots
     plots_dir = os.path.join(output_dir, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
     plot_predictions_path = os.path.join(plots_dir, "predictions")
     plot_avg_predictions_path = os.path.join(plots_dir, "avg_predictions")
 
