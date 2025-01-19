@@ -116,11 +116,11 @@ def run(
             if data_settings['path_to_test_data'].endswith('.csv'):
                 logging.debug("Loading test data from {}.".format(data_settings['path_to_test_data']))
                 test_data = data_loader.load_from_csv(data_settings['path_to_test_data'])
-                test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
 
             # prediction
             llm_prediction,targets = llm.predict(
-                test_data=test_input_features,
+                test_data=test_data,
+                data_loader=data_loader,
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
                     'num_samples': llm_settings['num_samples'],
