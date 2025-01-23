@@ -32,29 +32,29 @@ def reformat_results(input_csv_path, output_csv_path):
         # Create a row dictionary for this sequence
         reformatted_row = {}
 
-        # Add x_timestamps and inputs
-        if 'x_timestamps' in df.columns and not pd.isna(row['x_timestamps']):
-            x_timestamps = row['x_timestamps'].split(', ')
-            assert len(x_timestamps) == context_length, (
-                f"Mismatch in x_timestamps and inputs in row {idx}: "
-                f"x_timestamps({len(x_timestamps)}), inputs({context_length})."
-            )
-            for i in range(context_length):
-                reformatted_row[f't_{i}_timestamp'] = x_timestamps[i]
+        # # Add x_timestamps and inputs
+        # if 'x_timestamps' in df.columns and not pd.isna(row['x_timestamps']):
+        #     x_timestamps = row['x_timestamps'].split(', ')
+        #     assert len(x_timestamps) == context_length, (
+        #         f"Mismatch in x_timestamps and inputs in row {idx}: "
+        #         f"x_timestamps({len(x_timestamps)}), inputs({context_length})."
+        #     )
+        #     for i in range(context_length):
+        #         reformatted_row[f't_{i}_timestamp'] = x_timestamps[i]
 
-        for i in range(context_length):
-            reformatted_row[f't_{i}_input'] = inputs[i]
+        # for i in range(context_length):
+        #     reformatted_row[f't_{i}_input'] = inputs[i]
 
-        # Add y_timestamps, ground_truth, and predictions
-        if 'y_timestamps' in df.columns and not pd.isna(row['y_timestamps']):
-            y_timestamps = row['y_timestamps'].split(', ')
-            assert len(y_timestamps) == prediction_length, (
-                f"Mismatch in y_timestamps and predictions/ground_truth in row {idx}: "
-                f"y_timestamps({len(y_timestamps)}), ground_truth({prediction_length})."
-            )
-            for i in range(prediction_length):
-                pred_idx = context_length + i
-                reformatted_row[f't_{pred_idx}_timestamp'] = y_timestamps[i]
+        # # Add y_timestamps, ground_truth, and predictions
+        # if 'y_timestamps' in df.columns and not pd.isna(row['y_timestamps']):
+        #     y_timestamps = row['y_timestamps'].split(', ')
+        #     assert len(y_timestamps) == prediction_length, (
+        #         f"Mismatch in y_timestamps and predictions/ground_truth in row {idx}: "
+        #         f"y_timestamps({len(y_timestamps)}), ground_truth({prediction_length})."
+        #     )
+        #     for i in range(prediction_length):
+        #         pred_idx = context_length + i
+        #         reformatted_row[f't_{pred_idx}_timestamp'] = y_timestamps[i]
 
         for i in range(prediction_length):
             pred_idx = context_length + i

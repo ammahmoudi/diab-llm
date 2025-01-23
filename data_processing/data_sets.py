@@ -43,8 +43,7 @@ class Dataset_T1DM(Dataset):
         self.seasonal_patterns = seasonal_patterns
         self.scaler = scaler 
         self._data_transformed = False  # Initialize the flag for scaling status
-        
-        
+
 
         self.__read_data__()
         self._log_dataset_info()

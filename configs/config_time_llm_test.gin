@@ -1,7 +1,7 @@
 run.log_dir = "./logs/"
 run.data_settings = {
-    'path_to_train_data': './data/raw/570-ws-training.csv',
-    'path_to_test_data': './data/raw/570-ws-testing.csv',
+    'path_to_train_data': './data/raw/540-ws-training.csv',
+    'path_to_test_data': './data/raw/540-ws-testing.csv',
     'input_features': ['_value'],
     'labels': ['_value'],
     'prompt_path':'./data/raw/t1dm_prompt.txt',
@@ -20,7 +20,7 @@ run.llm_settings = {
     'llm_dim':768, #4096 for llama 768 for gpt2
     'num_workers':1,
     'restore_from_checkpoint':'true', # completly remove it to avoid
-    'restore_checkpoint_path':'./logs/logs_2025-01-17_15-50-39/checkpoints/checkpoint.pth',
+    'restore_checkpoint_path':'./logs/logs_2025-01-20_09-39-50/checkpoints/checkpoint.pth',
     'torch_dtype':'bfloat16',
 
 
