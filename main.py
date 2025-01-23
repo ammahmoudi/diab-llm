@@ -11,7 +11,7 @@ import logging
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('config_path', './configs/config_time_llm.gin', 'Path to config file.')
-flags.DEFINE_string('log_level', 'INFO', 'Logging level: DEBUG, INFO, WARNING, ERROR, or FATAL.')
+flags.DEFINE_string('log_level', 'DEBUG', 'Logging level: DEBUG, INFO, WARNING, ERROR, or FATAL.')
 
 
 @gin.configurable
@@ -212,7 +212,7 @@ def run(
             llm.load_model(llm_ckpt_path)
             # inference and evaluation
             if data_settings['path_to_test_data'].endswith('.csv'):
-                test_data = data_loader.load_from_csv(data_settings['path_to_test_data'])
+                test_data = data_loader.load_from_csv(data_settings['path_to_test_data'],split='test')
 
 
             llm_prediction,targets = llm.predict(

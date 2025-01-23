@@ -23,10 +23,10 @@ run.llm_settings = {
     'min_past': 6,
     'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
     'prediction_use_auto_split': False,
-    'max_train_steps': 10000,
+    'max_train_steps': 10,
     'train_batch_size': 32,
     'random_init': False,
-    'save_steps': 1000,
+    'save_steps': 5,
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
     'restore_from_checkpoint': False,
     'restore_checkpoint_path': '/home/amma/LLM-TIME/',
