@@ -76,6 +76,7 @@ class TimeLLM(TimeSeriesLLM):
                     torch.load(checkpoint_path, map_location=self.accelerator.device)
                 )
             self.llm_model.to(self.accelerator.device)
+            # self.llm_model = self.accelerator.prepare(self.llm_model)
             self.llm_model = self.llm_model.to(torch.bfloat16)  # Align dtype if needed
 
             self.llm_model.eval()
