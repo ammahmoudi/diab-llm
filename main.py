@@ -52,7 +52,7 @@ def run(
         },
         log_dir="./logs",
         chronos_dir=".",
-        time_llm_dir="."
+
 ):
     # logging files
      # Parse the log level from the command-line arguments
@@ -69,20 +69,30 @@ def run(
     log_dir = setup_logging(log_dir, log_level=log_level)
     logging.info("Logging initialized at directory: {}".format(log_dir))
     
-    # convert torch_dtype in llm_settings
-    if 'torch_dtype' in llm_settings:
-        if llm_settings['torch_dtype'] == 'float32':
-            dtype = torch.float32
-        elif llm_settings['torch_dtype'] == 'bfloat16':
-            dtype = torch.bfloat16
-        elif llm_settings['torch_dtype'] == 'float16':
-            dtype = torch.float16
-        else:
-            logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
-            raise NotImplementedError
+    # # convert torch_dtype in llm_settings
+    # if 'torch_dtype' in llm_settings:
+    #     if llm_settings['torch_dtype'] == 'float32':
+    #         dtype = torch.float32
+    #     elif llm_settings['torch_dtype'] == 'bfloat16':
+    #         dtype = torch.bfloat16
+    #     elif llm_settings['torch_dtype'] == 'float16':
+    #         dtype = torch.float16
+    #     else:
+    #         logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
+    #         raise NotImplementedError
         
-        # Set globally
-        torch.set_default_dtype(dtype)
+    #     # Set globally
+    #     torch.set_default_dtype(dtype)
+    # convert torch_dtype in llm_settings
+    if llm_settings['torch_dtype'] == 'float32':
+        llm_settings['torch_dtype'] = torch.float32
+    elif llm_settings['torch_dtype'] == 'bfloat16':
+        llm_settings['torch_dtype'] = torch.bfloat16
+    elif llm_settings['torch_dtype'] == 'float16':
+        llm_settings['torch_dtype'] = torch.float16
+    else:
+        logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
+        raise NotImplementedError
             
 
     if llm_settings['method'] == 'chronos':
