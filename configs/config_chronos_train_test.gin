@@ -1,8 +1,8 @@
 run.log_dir = "./logs/"
 run.chronos_dir = "/home/amma/"
 run.data_settings = {
-    'path_to_train_data': './data/formated/540-ws-training.csv',
-    'path_to_test_data': './data/formated/540-ws-testing.csv',
+    'path_to_train_data': './data/formated/570-ws-training.csv',
+    'path_to_test_data': './data/formated/570-ws-testing.csv',
     'input_features': ['BG_{t-5}', 'BG_{t-4}', 'BG_{t-3}', 'BG_{t-2}', 'BG_{t-1}', 'BG_{t}'],
     'labels': ['BG_{t+1}', 'BG_{t+2}', 'BG_{t+3}', 'BG_{t+4}', 'BG_{t+5}', 'BG_{t+6}'],
     'preprocessing_method': 'min_max',
@@ -26,7 +26,7 @@ run.llm_settings = {
     'max_train_steps': 10000,
     'train_batch_size': 32,
     'random_init': False,
-    'save_steps': 5,
+    'save_steps': 1000,
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
     'restore_from_checkpoint': False,
     'restore_checkpoint_path': '',

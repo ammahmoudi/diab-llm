@@ -81,8 +81,8 @@ def run(
     #         logging.info("Torch data type {} not supported.".format(llm_settings['torch_dtype']))
     #         raise NotImplementedError
         
-    #     # Set globally
-    #     torch.set_default_dtype(dtype)
+        # Set globally
+        # torch.set_default_dtype(dtype)
     # convert torch_dtype in llm_settings
     if llm_settings['torch_dtype'] == 'float32':
         llm_settings['torch_dtype'] = torch.float32
@@ -127,13 +127,12 @@ def run(
                 data_settings['path_to_train_data'] = train_data_path
             if data_settings['path_to_test_data'].endswith('.csv'):
                 logging.debug("Loading test data from {}.".format(data_settings['path_to_test_data']))
-                test_data = data_loader.load_from_csv(data_settings['path_to_test_data'],split='test')
-                test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
+                test_data = data_loader.load_from_csv(data_settings['path_to_test_data'])
 
             # prediction
-            
-            llm_prediction = llm.predict(
-                test_data=test_input_features,
+            llm_prediction,targets = llm.predict(
+                test_data=test_data,
+                data_loader=data_loader,
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
                     'num_samples': llm_settings['num_samples'],
@@ -143,10 +142,8 @@ def run(
             )
             
             if llm_prediction is not None:
-
-                    # save_results_and_generate_plots(log_dir,predictions=llm_prediction,targets=test_labels.values,inputs=test_input_features)
                     # Evaluate metrics
-                    metric_results = llm.evaluate(llm_prediction, test_labels.values, llm_settings['eval_metrics'])
+                    metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
                     logging.info(f"Metric results: {metric_results}")
 
         elif llm_settings['mode'] == 'training':
@@ -226,29 +223,23 @@ def run(
             # load checkpoint
             llm.load_model(llm_ckpt_path)
             # inference and evaluation
-           
             if data_settings['path_to_test_data'].endswith('.csv'):
-                logging.debug("Loading test data from {}.".format(data_settings['path_to_test_data']))
                 test_data = data_loader.load_from_csv(data_settings['path_to_test_data'],split='test')
-                test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
 
 
-            # prediction
-            
-            llm_prediction = llm.predict(
-                test_data=test_input_features,
+            llm_prediction,targets = llm.predict(
+                test_data=test_data,
+                data_loader=data_loader,
                 settings={
                     'prediction_length': llm_settings['prediction_length'],
                     'num_samples': llm_settings['num_samples'],
                     'batch_size': llm_settings['prediction_batch_size'],
                     'auto_split': llm_settings['prediction_use_auto_split']
                 }
-            )     
+            )
             if llm_prediction is not None:
-
-                    # save_results_and_generate_plots(log_dir,predictions=llm_prediction,targets=test_labels.values,inputs=test_input_features)
                     # Evaluate metrics
-                    metric_results = llm.evaluate(llm_prediction, test_labels.values, llm_settings['eval_metrics'])
+                    metric_results = llm.evaluate(llm_prediction, targets, llm_settings['eval_metrics'])
                     logging.info(f"Metric results: {metric_results}")
 
     elif llm_settings['method'] == 'time_llm':

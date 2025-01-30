@@ -54,33 +54,64 @@ class ChronosLLM(TimeSeriesLLM):
         logging.info("Model checkpoint loaded successfully.")
 
     def predict(
-        self,
-        test_data,
-        settings={
-            'prediction_length': 64,
-            'num_samples': 100,
-            'batch_size': None,
-            'auto_split': False
-        }
-    ):
-        # batch dataframe into smaller sequences, e.g., always predict 64 samples (rows) at a time
+    self,
+    test_data,
+    data_loader,
+    settings={
+        'prediction_length': 64,
+        'num_samples': 100,
+        'batch_size': None,
+        'auto_split': False
+    }
+):
+        """
+        Predict method to generate predictions and save inputs, targets, and predictions.
+
+        Args:
+            test_data: DataFrame containing both input features and targets.
+            dataloader: data loader of test data
+            settings: Dictionary of settings for prediction.
+            
+
+        Returns:
+            llm_prediction: Numpy array of model predictions.
+        """
+        # Split test data into input features and labels
+        test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
+
+        # Batch the data into smaller sequences if batch size is specified
         if settings['batch_size'] is not None:
-            test_data_batches = [
-                test_data[i:i + settings['batch_size']] for i in range(0, len(test_data), settings['batch_size'])
+            test_input_batches = [
+                test_input_features[i:i + settings['batch_size']]
+                for i in range(0, len(test_input_features), settings['batch_size'])
+            ]
+            test_label_batches = [
+                test_labels[i:i + settings['batch_size']]
+                for i in range(0, len(test_labels), settings['batch_size'])
             ]
         else:
-            test_data_batches = [test_data]
+            test_input_batches = [test_input_features]
+            test_label_batches = [test_labels]
 
         prediction_results = []
-        for batch in test_data_batches:
+        input_results = []
+        target_results = []
+
+        for input_batch, target_batch in zip(test_input_batches, test_label_batches):
+            batch_inputs = input_batch.values
+            batch_targets = target_batch.values
+
+            input_results.append(batch_inputs)
+            target_results.append(batch_targets)
+
             if settings['prediction_length'] > 64 and settings['auto_split']:
                 split_results = []
-                # use a sliding window to predict the next 64 samples
                 predictions_remaining = settings['prediction_length']
                 num_splits = settings['prediction_length'] // 64
                 num_splits = num_splits if settings['prediction_length'] % 64 == 0 else num_splits + 1
+
                 current_llm_prediction = self.llm_model.predict(
-                    context=torch.tensor(batch.values),
+                    context=torch.tensor(batch_inputs),
                     prediction_length=64,
                     num_samples=settings['num_samples'],
                     limit_prediction_length=True
@@ -90,15 +121,15 @@ class ChronosLLM(TimeSeriesLLM):
 
                 split_results.append(torch.squeeze(current_llm_prediction))
 
-                # update sliding window with current prediction
-                batch.values[:, :(batch.values.shape[1] - 64)] = batch.values[:, 64:]
-                batch.values[:, :64] = current_llm_prediction
+                # Update sliding window with current prediction
+                batch_inputs[:, :(batch_inputs.shape[1] - 64)] = batch_inputs[:, 64:]
+                batch_inputs[:, :64] = current_llm_prediction
                 predictions_remaining -= 64
                 num_splits -= 1
 
                 for _ in range(num_splits):
                     current_llm_prediction = self.llm_model.predict(
-                        context=torch.tensor(batch.values),
+                        context=torch.tensor(batch_inputs),
                         prediction_length=64 if predictions_remaining > 64 else predictions_remaining,
                         num_samples=settings['num_samples'],
                         limit_prediction_length=True
@@ -108,16 +139,16 @@ class ChronosLLM(TimeSeriesLLM):
 
                     split_results.append(torch.squeeze(current_llm_prediction))
 
-                    # update sliding window with current prediction
+                    # Update sliding window with current prediction
                     if predictions_remaining > 64:
-                        batch.values[:, :(batch.values.shape[1] - 64)] = batch.values[:, 64:]
-                        batch.values[:, :64] = current_llm_prediction
+                        batch_inputs[:, :(batch_inputs.shape[1] - 64)] = batch_inputs[:, 64:]
+                        batch_inputs[:, :64] = current_llm_prediction
                         predictions_remaining -= 64
 
                 current_llm_prediction = torch.cat(split_results, dim=1)
             else:
                 current_llm_prediction = self.llm_model.predict(
-                    context=torch.tensor(batch.values),
+                    context=torch.tensor(batch_inputs),
                     prediction_length=settings['prediction_length'],
                     num_samples=settings['num_samples'],
                     limit_prediction_length=False
@@ -129,11 +160,20 @@ class ChronosLLM(TimeSeriesLLM):
 
             prediction_results.append(current_llm_prediction)
 
-        # convert to tensor with shape (n_samples, n_features)
-        llm_prediction = torch.cat(prediction_results, dim=0)
-        llm_prediction = llm_prediction.cpu().detach().numpy()
+        # Combine results
+        llm_prediction = torch.cat(prediction_results, dim=0).cpu().detach().numpy()
+        inputs = np.concatenate(input_results, axis=0)
+        targets = np.concatenate(target_results, axis=0)
 
-        return llm_prediction
+        # Save the results
+        save_results_and_generate_plots(
+            self._log_dir,
+            predictions=llm_prediction,
+            targets=targets,
+            inputs=inputs
+        )
+
+        return llm_prediction,targets
 
 
 
