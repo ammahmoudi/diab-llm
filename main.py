@@ -280,6 +280,7 @@ def run(
                 "context_length": llm_settings["context_length"],
                 "prediction_length": llm_settings["prediction_length"],
                 "percent": data_settings["percent"],
+                'val_split':data_settings['val_split']
             }
         )
 
@@ -307,7 +308,6 @@ def run(
             data_settings=data_settings,
             log_dir=log_dir,
         )
-
         # Handle modes
         if llm_settings["mode"] == "inference":
             if llm_settings["restore_from_checkpoint"]:
@@ -329,13 +329,13 @@ def run(
 
         elif llm_settings["mode"] == "training":
             llm.train(
-                train_data=train_data, train_loader=train_loader, val_loader=val_loader
+                train_data=train_data, train_loader=train_loader,         val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
             )
 
         elif llm_settings["mode"] == "training+inference":
             # Train the model and retrieve checkpoint path
             checkpoint_path = llm.train(
-                train_data=train_data, train_loader=train_loader, val_loader=val_loader
+                train_data=train_data, train_loader=train_loader,         val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
             )
 
             # Load the saved checkpoint for inference

@@ -107,13 +107,14 @@ class TimeLLMDataHandler:
                 'preprocess_label': False,
                 'frequency':'5min',
                 'num_workers': 1,
-                'sequence_length':6,
-                'context_length':6,
-                'prediction_length':6,
-                'percent':100
+                'sequence_length': 6,
+                'context_length': 6,
+                'prediction_length': 6,
+                'percent': 100,
+                'val_split': 0  # Default value for val_split
             }
     ):
-               # TODO: Fix using our own data scaler.(currently if enabled it fits the standard scaler on train set)
+                       # TODO: Fix using our own data scaler.(currently if enabled it fits the standard scaler on train set)
         # self.scaler = DataScaler(
         #     settings={
         #         'input_features': settings['input_features'],
@@ -123,11 +124,16 @@ class TimeLLMDataHandler:
         #         'preprocess_label': settings['preprocess_label']
         #     }
         # )
-        self.scaler=None
         
+        self._settings = settings
+        self.scaler = None
         self._settings = settings
 
     def load_from_csv(self, path_to_csv, batch_size=32, split='train'):
+        """
+        Load data from CSV and prepare DataLoader.
+        Handles the case when validation data is not needed (val_split == 0).
+        """
         if split == 'test':
             shuffle_flag = False
             drop_last = True
@@ -135,6 +141,17 @@ class TimeLLMDataHandler:
             shuffle_flag = True
             drop_last = True
 
+        # Handle val_split == 0, return empty val_loader
+        if self._settings['val_split'] == 0 and split == 'val':
+            val_loader = DataLoader(
+                [],
+                batch_size=batch_size,
+                shuffle=False,  # No shuffling since the loader is empty
+                num_workers=self._settings['num_workers'],
+                drop_last=False  # Avoid dropping last batch in an empty dataset
+            )
+            return pd.DataFrame(), val_loader
+        # Initialize dataset
         data_set = Dataset_T1DM(
             data_path=path_to_csv,
             flag=split,
@@ -149,8 +166,11 @@ class TimeLLMDataHandler:
             scaler=self.scaler,
             timeenc=0,
             freq=self._settings['frequency'],
-            percent=self._settings['percent']
+            percent=self._settings['percent'],
+            val_split=self._settings['val_split']  # Pass val_split to Dataset_T1DM
         )
+
+
         data_loader = DataLoader(
             data_set,
             batch_size=batch_size,
@@ -158,8 +178,9 @@ class TimeLLMDataHandler:
             num_workers=self._settings['num_workers'],
             drop_last=drop_last
         )
-        #save the fitted scaler in train mode to use in other modes
-        if(split=='train'):
-            self.scaler=data_set.scaler
+
+        # Save the fitted scaler in train mode to use in other modes
+        if split == 'train':
+            self.scaler = data_set.scaler
 
         return data_set, data_loader

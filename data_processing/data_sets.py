@@ -4,10 +4,29 @@ from torch.utils.data import Dataset
 from data_processing.data_scaler import StandardScaler
 from utils.timefeatures import time_features
 
+import logging
+import pandas as pd
+from torch.utils.data import Dataset
+from data_processing.data_scaler import StandardScaler
+from utils.timefeatures import time_features
+
+
 class Dataset_T1DM(Dataset):
-    def __init__(self, flag='train', size=None, features='S', data_path='train.csv',
-                 target='_value', scale=True, timeenc=0, freq='5min', percent=100,
-                 seasonal_patterns=None, scaler=None):
+    def __init__(
+        self,
+        flag="train",
+        size=None,
+        features="S",
+        data_path="train.csv",
+        target="_value",
+        scale=True,
+        timeenc=0,
+        freq="5min",
+        percent=100,
+        seasonal_patterns=None,
+        scaler=None,
+        val_split=0,
+    ):
         """
         Dataset for T1DM glucose levels.
 
@@ -20,10 +39,13 @@ class Dataset_T1DM(Dataset):
         :param timeenc: Whether to encode time features (0 for no, 1 for yes).
         :param freq: Frequency of the time series (default is '5min').
         :param percent: Percentage of training data (default is 100%).
-        :param scaler: external scaler ( used to pass thet train dataset fitted scaler to the test dataset)
+        :param scaler: external scaler (used to pass the train dataset fitted scaler to the test dataset)
+        :param val_split: Fraction of the data (in percentage) to be used as validation set (default is 0 for no validation data).
         """
         if size is None:
-            self.sequence_length = 12  # Default: 12 samples (60 minutes if every 5 mins)
+            self.sequence_length = (
+                12  # Default: 12 samples (60 minutes if every 5 mins)
+            )
             self.context_length = 6  # Default: 6 samples (30 minutes)
             self.prediction_length = 12  # Default: Predict 12 samples (60 minutes)
         else:
@@ -31,39 +53,57 @@ class Dataset_T1DM(Dataset):
             self.context_length = size[1]
             self.prediction_length = size[2]
 
-        assert flag in ['train', 'val', 'test']
+        assert flag in ["train", "val", "test"]
         self.flag = flag
-        self.data_path=data_path
-        self.features=features
+        self.data_path = data_path
+        self.features = features
         self.target = target
         self.scale = scale
         self.timeenc = timeenc
         self.freq = freq
         self.percent = percent
         self.seasonal_patterns = seasonal_patterns
-        self.scaler = scaler 
+        self.scaler = scaler
+        self.val_split = val_split  # New parameter for validation split
         self._data_transformed = False  # Initialize the flag for scaling status
-
 
         self.__read_data__()
         self._log_dataset_info()
 
         self.enc_in = self.data_x.shape[-1]  # Number of input features
-        self.tot_len = len(self.data_x) - self.sequence_length - self.prediction_length + 1  # Total valid sequences
-        
+        self.tot_len = (
+            len(self.data_x) - self.sequence_length - self.prediction_length + 1
+        )  # Total valid sequences
+
     def _log_dataset_info(self):
         """
         Logs the dataset size and split details.
         """
         mode = self.flag.upper()
+
+        # Calculate the number of training and validation samples
+        num_samples = len(self.data_x)
+        # num_train = int(num_samples * (100 - self.val_split) / 100)
+        # num_val = int(num_samples * self.val_split / 100)
+
+        # Log dataset details
         logging.info(f"Dataset '{mode}' initialized:")
-        logging.info(f" - Total samples after applying {self.percent}%: {len(self.data_x)}")
-        logging.info(f" - Sequence Length: {self.sequence_length}, "
-              f"Context Length: {self.context_length}, "
-              f"Prediction Length: {self.prediction_length}.")
+        logging.info(f" - Total samples after applying {self.percent}% and spliting: {num_samples}")
+        # if self.flag =='train':
+        # logging.info(f" - Training samples: {num_train}")
+        # elif self.flag == 'valid':
+        # if self.val_split > 0:
+            # logging.info(f" - Validation samples: {num_val}")
+        
+        logging.info(
+            f" - Sequence Length: {self.sequence_length}, "
+            f"Context Length: {self.context_length}, "
+            f"Prediction Length: {self.prediction_length}."
+        )
         logging.info(f" - Target Feature: {self.target}")
         logging.info(f" - Scaling Enabled: {self.scale}")
-        
+        logging.info(f" - Validation Split: {self.val_split}%")
+
     def __read_data__(self):
         """
         Reads and preprocesses the data.
@@ -72,75 +112,84 @@ class Dataset_T1DM(Dataset):
         df_raw = pd.read_csv(self.data_path)
 
         # Ensure correct columns exist
-        assert '_ts' in df_raw.columns and self.target in df_raw.columns, \
-            "Dataset must contain '_ts' (timestamp) and target columns."
+        assert (
+            "_ts" in df_raw.columns and self.target in df_raw.columns
+        ), "Dataset must contain '_ts' (timestamp) and target columns."
 
         # Sort by timestamp
-        df_raw['_ts'] = pd.to_datetime(df_raw['_ts'],format="%d-%m-%Y %H:%M:%S")
-        df_raw = df_raw.sort_values('_ts')
-        
+        df_raw["_ts"] = pd.to_datetime(df_raw["_ts"], format="%d-%m-%Y %H:%M:%S")
+        df_raw = df_raw.sort_values("_ts")
+
         # Apply the percent parameter to reduce the dataset size
         total_rows = len(df_raw)
         rows_to_include = int(total_rows * self.percent / 100)
         df_raw = df_raw.iloc[:rows_to_include]
-        
-        if self.features == 'M' or self.features == 'MS':
+
+        if self.features == "M" or self.features == "MS":
             cols_data = df_raw.columns[1:]
             df_data = df_raw[cols_data]
-        elif self.features == 'S':
+        elif self.features == "S":
             df_data = df_raw[[self.target]]
-            
+
         # Extract values
         data = df_data.values
-        
-        # Split data for train and val modes
-        num_samples = len(data)
-        num_train = int(num_samples * 0.7)
 
-        if self.flag == 'train':
+        # Calculate number of training and validation samples
+        num_samples = len(data)
+        num_train = int(num_samples * (100 - self.val_split) / 100)
+        num_val = int(num_samples * self.val_split / 100)
+
+        if self.flag == "train":
             border1, border2 = 0, num_train
-        elif self.flag == 'val':
-            border1, border2 = num_train, num_samples
-        else:  # Test mode
+        elif (
+            self.flag == "val"
+        ):  # Only allow val mode if val_split > 0
+            border1, border2 = num_train, num_train + num_val
+
+        else:  # Test mode or if val_split is 0
             border1, border2 = 0, num_samples
 
         data = data[border1:border2]
-        
-         # Use external scaler if provided, else fit during training (if use differnet x and y fix this to scale properly)
+
+        # Use external scaler if provided, else fit during training (if use different x and y fix this to scale properly)
         if self.scale:
-             if self.flag == 'train' and self.scaler is None:
-             # Fit a new scaler during training
+            if self.flag == "train" and self.scaler is None:
+                # Fit a new scaler during training
                 self.scaler = StandardScaler()
                 self.scaler.fit(data)
                 data = self.scaler.transform(data)
                 self._data_transformed = True
-                
-             elif self.scaler:  # Use the provided scaler
+            elif self.scaler:  # Use the provided scaler
                 data = self.scaler.transform(data)
                 self._data_transformed = True
-             elif self.flag in ['val', 'test']:
+            elif self.flag in ["val", "test"]:
                 # Defer scaling if scaler is not yet provided
                 self._raw_data = data
                 self._data_transformed = False
-            
-         # Process time features
-        df_stamp = df_raw.iloc[border1:border2][['_ts']]
+
+        # Process time features
+        df_stamp = df_raw.iloc[border1:border2][["_ts"]]
         if self.timeenc == 0:
             # Manually extract time-related features
-            df_stamp['month'] = df_stamp['_ts'].dt.month
-            df_stamp['day'] = df_stamp['_ts'].dt.day
-            df_stamp['weekday'] = df_stamp['_ts'].dt.weekday
-            df_stamp['hour'] = df_stamp['_ts'].dt.hour
-            df_stamp['minute'] = df_stamp['_ts'].dt.minute // (60 // 12)  # Convert minutes into bins (5-min intervals)
-            self.data_stamp = df_stamp[['month', 'day', 'weekday', 'hour', 'minute']].values
+            df_stamp["month"] = df_stamp["_ts"].dt.month
+            df_stamp["day"] = df_stamp["_ts"].dt.day
+            df_stamp["weekday"] = df_stamp["_ts"].dt.weekday
+            df_stamp["hour"] = df_stamp["_ts"].dt.hour
+            df_stamp["minute"] = df_stamp["_ts"].dt.minute // (
+                60 // 12
+            )  # Convert minutes into bins (5-min intervals)
+            self.data_stamp = df_stamp[
+                ["month", "day", "weekday", "hour", "minute"]
+            ].values
         elif self.timeenc == 1:
             # Use a learned encoding for time features
-            self.data_stamp = time_features(pd.to_datetime(df_stamp['_ts'].values), freq=self.freq)
+            self.data_stamp = time_features(
+                pd.to_datetime(df_stamp["_ts"].values), freq=self.freq
+            )
             self.data_stamp = self.data_stamp.transpose(1, 0)
-       
+
         self.data_x = data
         self.data_y = data
-        
 
     def __getitem__(self, index):
         feat_id = index // self.tot_len
@@ -149,8 +198,8 @@ class Dataset_T1DM(Dataset):
         s_end = s_begin + self.sequence_length
         r_begin = s_end - self.context_length
         r_end = r_begin + self.context_length + self.prediction_length
-        seq_x = self.data_x[s_begin:s_end, feat_id:feat_id + 1]
-        seq_y = self.data_y[r_begin:r_end, feat_id:feat_id + 1]
+        seq_x = self.data_x[s_begin:s_end, feat_id : feat_id + 1]
+        seq_y = self.data_y[r_begin:r_end, feat_id : feat_id + 1]
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
@@ -173,6 +222,7 @@ class Dataset_T1DM(Dataset):
             return self.scaler.inverse_transform(data)
         else:
             return data
+
     def set_scaler(self, scaler):
         """
         Set an external scaler for validation or test datasets and transform the data if not already scaled.
@@ -182,34 +232,38 @@ class Dataset_T1DM(Dataset):
         self.scaler = scaler
         if self.scaler and self.scale:
             # Ensure the data is transformed only if it hasn't already been scaled
-            if not hasattr(self, '_data_transformed') or not self._data_transformed:
+            if not hasattr(self, "_data_transformed") or not self._data_transformed:
                 self.data_x = self.scaler.transform(self.data_x)
                 self.data_y = self.scaler.transform(self.data_y)
                 self._data_transformed = True  # Mark that the data has been transformed
 
 
-
-
 class TimeSeriesDataset(Dataset):
     def __init__(
-            self,
-            path_to_csv,
-            size,
-            features,
-            targets,
-            flag='train',
-            scaler=None,
-            timeenc={'_ts': 0},
-            freq='h',
-            percent=100,
+        self,
+        path_to_csv,
+        size,
+        features,
+        targets,
+        flag="train",
+        scaler=None,
+        timeenc={"_ts": 0},
+        freq="h",
+        percent=100,
     ):
-        assert len(size) == 3, "Size should be a iterable of 3 integers, e.g.,  [sequence_length, context_length, prediction_length]"
+        assert (
+            len(size) == 3
+        ), "Size should be a iterable of 3 integers, e.g.,  [sequence_length, context_length, prediction_length]"
         self.sequence_length = size[0]
         self.context_length = size[1]
         self.prediction_length = size[2]
 
-        assert flag in ['train', 'test', 'val'], "Flag should be either 'train', 'test' or 'val'"
-        type_map = {'train': 0, 'val': 1, 'test': 2}
+        assert flag in [
+            "train",
+            "test",
+            "val",
+        ], "Flag should be either 'train', 'test' or 'val'"
+        type_map = {"train": 0, "val": 1, "test": 2}
         self.set_type = type_map[flag]
 
         self.features = features
@@ -223,7 +277,9 @@ class TimeSeriesDataset(Dataset):
         self.__read_data__()
 
         self.enc_in = self.data_x.shape[-1]
-        self.tot_len = len(self.data_x) - self.sequence_length - self.prediction_length + 1
+        self.tot_len = (
+            len(self.data_x) - self.sequence_length - self.prediction_length + 1
+        )
 
     def __read_data__(self):
         df_raw = pd.read_csv(self.path_to_csv)
@@ -235,10 +291,12 @@ class TimeSeriesDataset(Dataset):
         border2 = int(border2s[self.set_type])
 
         if self.set_type == 0:
-            border2 = (border2 - self.sequence_length) * self.percent // 100 + self.sequence_length
+            border2 = (
+                border2 - self.sequence_length
+            ) * self.percent // 100 + self.sequence_length
 
         df_data = df_raw[self.features]
-        df_data = df_data[border1s[0]:border2s[0]]
+        df_data = df_data[border1s[0] : border2s[0]]
 
         if self.scaler is not None:
             if self.set_type == 0:
@@ -250,15 +308,17 @@ class TimeSeriesDataset(Dataset):
         df_stamp = df_raw[self.timeenc.keys()][border1:border2]
         df_stamp[self.timeenc.keys()] = pd.to_datetime(df_stamp[self.timeenc.keys()])
         if self.timeenc == 0:
-            df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
-            df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
-            df_stamp['weekday'] = df_stamp.date.apply(lambda row: row.weekday(), 1)
-            df_stamp['hour'] = df_stamp.date.apply(lambda row: row.hour, 1)
-            df_stamp['minute'] = df_stamp.date.apply(lambda row: row.minute, 1)
-            df_stamp['minute'] = df_stamp.minute.map(lambda x: x // 15)
-            data_stamp = df_stamp.drop(['date'], 1).values
+            df_stamp["month"] = df_stamp.date.apply(lambda row: row.month, 1)
+            df_stamp["day"] = df_stamp.date.apply(lambda row: row.day, 1)
+            df_stamp["weekday"] = df_stamp.date.apply(lambda row: row.weekday(), 1)
+            df_stamp["hour"] = df_stamp.date.apply(lambda row: row.hour, 1)
+            df_stamp["minute"] = df_stamp.date.apply(lambda row: row.minute, 1)
+            df_stamp["minute"] = df_stamp.minute.map(lambda x: x // 15)
+            data_stamp = df_stamp.drop(["date"], 1).values
         elif self.timeenc == 1:
-            data_stamp = time_features(pd.to_datetime(df_stamp['date'].values), freq=self.freq)
+            data_stamp = time_features(
+                pd.to_datetime(df_stamp["date"].values), freq=self.freq
+            )
             data_stamp = data_stamp.transpose(1, 0)
 
         self.data_x = data[border1:border2]
@@ -272,15 +332,17 @@ class TimeSeriesDataset(Dataset):
         s_end = s_begin + self.sequence_length
         r_begin = s_end - self.context_length
         r_end = r_begin + self.context_length + self.prediction_length
-        seq_x = self.data_x[s_begin:s_end, feat_id:feat_id + 1]
-        seq_y = self.data_y[r_begin:r_end, feat_id:feat_id + 1]
+        seq_x = self.data_x[s_begin:s_end, feat_id : feat_id + 1]
+        seq_y = self.data_y[r_begin:r_end, feat_id : feat_id + 1]
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
-        return (len(self.data_x) - self.sequence_length - self.prediction_length + 1) * self.enc_in
+        return (
+            len(self.data_x) - self.sequence_length - self.prediction_length + 1
+        ) * self.enc_in
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)

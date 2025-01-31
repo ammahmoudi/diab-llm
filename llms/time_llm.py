@@ -170,14 +170,16 @@ class TimeLLM(TimeSeriesLLM):
             )
         )
         early_stopping_saved = False
+
         # Training loop
         for epoch in range(self._llm_settings["train_epochs"]):
+            # Training step
             train_loss = self._run_epoch(
                 train_loader, criterion, model_optim, scheduler, is_training=True
             )
 
-            # Validation
-            if val_loader is not None:
+            # Validation step (only if val_loader is not None and not empty)
+            if val_loader is not None and len(val_loader) > 0:
                 val_loss, val_mae_loss = vali(
                     self._llm_settings,
                     self.accelerator,
@@ -190,27 +192,30 @@ class TimeLLM(TimeSeriesLLM):
                     f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | Val Loss: {val_loss:.7f}"
                 )
                 early_stopping(val_loss, self.llm_model, checkpoint_dir)
+            else:
+                # If no validation data is available, log and continue without early stopping
+                self.logger.warning(f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | No validation data available.")
 
             # Adjust learning rate
             self._adjust_scheduler(scheduler, epoch, model_optim)
 
-            # Early stopping
+            # Early stopping check
             if early_stopping.early_stop:
                 self.logger.info("Early stopping triggered.")
                 early_stopping_saved = True
                 break
 
         if not early_stopping_saved:
-            self.logger.warning(
-                "Early stopping did not trigger. Saving final model checkpoint."
-            )
+            self.logger.warning("Early stopping did not trigger. Saving final model checkpoint.")
 
+        # Final checkpoint save
         final_checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
         self.logger.info(f"Saving final model checkpoint at {final_checkpoint_path}.")
         model_to_save = self.accelerator.unwrap_model(self.llm_model)
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
 
         return final_checkpoint_path
+
 
     def predict(self, test_loader, output_dir):
         """

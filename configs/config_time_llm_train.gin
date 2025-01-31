@@ -10,6 +10,7 @@ run.data_settings = {
     'preprocess_label': False,
     'frequency':'5min',
     'percent':100,
+        'val_split':0 # percent of validation spliting
 }
 run.llm_settings = {
     'task_name':'long_term_forecast',
