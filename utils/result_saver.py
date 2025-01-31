@@ -5,9 +5,19 @@ import pandas as pd
 from data_processing.refromat_results import reformat_results
 from utils.plotting import plot_avg_predictions_plotly, plot_predictions_plotly
 
+def generate_run_title(data_settings, llm_settings):
+    # Extract dataset name from the train data path
+    train_data_path = data_settings.get('path_to_train_data', '')
+    dataset_name = train_data_path.split('/')[-1].split('-')[0] if train_data_path else 'unknown'
+
+    method = llm_settings.get('method', 'unknown')
+    model = llm_settings.get('model', llm_settings.get('llm_model', 'unknown')).replace('/','-')
+    mode = llm_settings.get('mode', 'unknown')
+
+    return f"patient{dataset_name}_{method}_{model}_{mode}"
 
 def save_results_and_generate_plots(
-    output_dir, predictions, targets, inputs, grouped_x_timestamps=None, grouped_y_timestamps=None
+    output_dir, predictions, targets, inputs, grouped_x_timestamps=None, grouped_y_timestamps=None, name=None
 ):
     """
     Save prediction results, reformat them, and generate plots.
@@ -18,6 +28,7 @@ def save_results_and_generate_plots(
     :param inputs: Array of input data.
     :param grouped_x_timestamps: (Optional) List of grouped x timestamps as strings.
     :param grouped_y_timestamps: (Optional) List of grouped y timestamps as strings.
+    :param name: (Optional) A name to use in the plot and file names.
     """
     # Debug: log the shapes of the inputs
     logging.debug(f"Shape of predictions: {predictions.shape}")
@@ -60,8 +71,11 @@ def save_results_and_generate_plots(
             ", ".join(map(str, grouped_y_timestamps[i])) for i in range(len(grouped_y_timestamps))
         ]
 
+    # Use the provided name or default to "inference"
+    file_name_prefix = name if name else "inference"
+
     # Save results to CSV
-    save_path = os.path.join(output_dir, "inference_results.csv")
+    save_path = os.path.join(output_dir, f"{file_name_prefix}_results.csv")
     results_df = pd.DataFrame(results)
     results_df.to_csv(save_path, index=False)
     logging.info(f"Results saved to {save_path}")
@@ -74,10 +88,10 @@ def save_results_and_generate_plots(
     # Generate and save plots
     plots_dir = os.path.join(output_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)
-    plot_predictions_path = os.path.join(plots_dir, "predictions")
-    plot_avg_predictions_path = os.path.join(plots_dir, "avg_predictions")
+    plot_predictions_path = os.path.join(plots_dir, f"{file_name_prefix}_predictions")
+    plot_avg_predictions_path = os.path.join(plots_dir, f"{file_name_prefix}_avg_predictions")
 
-    plot_predictions_plotly(reformated_results_df, save_path=plot_predictions_path)
-    plot_avg_predictions_plotly(reformated_results_df, save_path=plot_avg_predictions_path)
+    plot_predictions_plotly(reformated_results_df, save_path=plot_predictions_path,name=name)
+    plot_avg_predictions_plotly(reformated_results_df, save_path=plot_avg_predictions_path,name=name)
 
     logging.info(f"Plots saved to {plots_dir}")
