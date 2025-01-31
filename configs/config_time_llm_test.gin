@@ -20,7 +20,7 @@ run.llm_settings = {
     'llm_dim':768, #4096 for llama 768 for gpt2
     'num_workers':1,
     'restore_from_checkpoint':'true', # completly remove it to avoid
-    'restore_checkpoint_path':'./logs/logs_2025-01-20_09-39-50/checkpoints/checkpoint.pth',
+    'restore_checkpoint_path':'./logs/logs_2025-01-31_14-53-53/checkpoints/checkpoint.pth',
     'torch_dtype':'bfloat16',
 
 
@@ -59,6 +59,8 @@ run.llm_settings = {
     'prompt_domain':0,
     'timeenc':0,
 
-    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
+    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape',
+        'seed':2021  #optional seed to reproduce results. remove to get random seed.
+
 
 }

@@ -19,23 +19,23 @@ from utils.timefeatures import decode_manual_time_features, decode_time_features
 from llms.ts_llm import TimeSeriesLLM
 from models import time_llm as TimeLLMModel
 
-os.environ["CURL_CA_BUNDLE"] = ""
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
-
-# Set fixed random seed for reproducibility
-fix_seed = 2021
-random.seed(fix_seed)
-torch.manual_seed(fix_seed)
-np.random.seed(fix_seed)
-
 
 class TimeLLM(TimeSeriesLLM):
     def __init__(self, settings, data_settings, log_dir="./logs", name="time_llm"):
+        os.environ["CURL_CA_BUNDLE"] = ""
+        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
+        
+        # Set up the logger using the root logger
+        self.logger = logging.getLogger(__name__)  # Use the module logger
+        self.logger.info("Initializing TimeLLM model...")
+
+       
         super(TimeLLM, self).__init__(name=name)
+        
         self._llm_settings = settings
         self._data_settings = data_settings
         self._log_dir = log_dir
-
+        
         # Initialize TimeLLM model
         self.llm_model = TimeLLMModel.Model(configs=self._llm_settings).float()
 
@@ -53,36 +53,83 @@ class TimeLLM(TimeSeriesLLM):
         self._llm_settings["content"] = load_txt_content(
             self._data_settings["prompt_path"]
         )
+                # Capture logs from the accelerator and other libraries like DeepSpeed
+        self._setup_external_loggers()
 
-    def load_model(self, checkpoint_path):
+    def _setup_external_loggers(self):
+        """
+        Ensures that logs from external libraries like DeepSpeed, Accelerate, etc.,
+        are captured by the root logger.
+        """
+        # List of external libraries you want to capture logs from
+        loggers_to_propagate = [
+            "accelerate", "deepspeed", "transformers", "torch.distributed", "logging"
+        ]
+        
+        for logger_name in loggers_to_propagate:
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(logging.INFO)  # Ensure they log at INFO level or higher
+            logger.propagate = True  # Propagate logs to root logger
+
+            # We don't need to add a new file handler as it's already handled by your logger file.
+            # Just ensure propagation and log level
+            for handler in logger.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    break
+            else:
+                # If the logger doesn't already have a file handler, we add the root handler
+                for handler in logging.getLogger().handlers:
+                    logger.addHandler(handler)
+        
+    def load_model(self, checkpoint_path, is_inference=False):
         """
         Load a pre-trained model checkpoint for inference.
+        This function handles the case where the checkpoint has the "module." prefix or not, depending on the mode.
 
         :param checkpoint_path: Path to the saved model checkpoint.
+        :param is_inference: Whether the model is being loaded in inference mode (True for inference, False for training).
         """
         logging.info(f"Loading model checkpoint from {checkpoint_path}")
         if os.path.exists(checkpoint_path):
             try:
-                self.llm_model.load_state_dict(
-                    torch.load(
-                        checkpoint_path,
-                        map_location=self.accelerator.device,
-                        weights_only=True,
-                    )
+                # Load model weights
+                checkpoint = torch.load(
+                    checkpoint_path,
+                    map_location=self.accelerator.device,
+                    weights_only=True,  # Ensure that only model weights are loaded
                 )
+                state_dict = checkpoint
+
+                if is_inference:
+                    # If in inference mode, check for missing 'module.' prefix and remove it
+                    if any(key.startswith('module.') for key in state_dict.keys()):
+                        logging.info("Removing 'module.' prefix for inference.")
+                        state_dict = {key[7:]: value for key, value in state_dict.items()}  # Remove 'module.' prefix
+                else:
+                    # If in training mode (train+test), ensure 'module.' prefix is present
+                    if not all(key.startswith('module.') for key in state_dict.keys()):
+                        logging.info("Adding 'module.' prefix for training.")
+                        state_dict = {f'module.{key}': value for key, value in state_dict.items()}  # Add 'module.' prefix
+
+                # Load the state_dict into the model
+                self.llm_model.load_state_dict(state_dict)
+                
             except TypeError:
-                # For older PyTorch versions without weights_only, fallback
+                # For older versions of PyTorch without weights_only, fallback
                 self.llm_model.load_state_dict(
                     torch.load(checkpoint_path, map_location=self.accelerator.device)
                 )
-            self.llm_model.to(self.accelerator.device)
-            # self.llm_model = self.accelerator.prepare(self.llm_model)
-            self.llm_model = self.llm_model.to(torch.bfloat16)  # Align dtype if needed
 
-            self.llm_model.eval()
+            # Move model to the correct device and dtype
+            self.llm_model.to(self.accelerator.device)
+            self.llm_model = self.llm_model.to(self._llm_settings['torch_dtype'])  # Align dtype if needed
+            
             logging.info("Model checkpoint loaded successfully.")
         else:
             raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
+
+
+
 
     def train(self, train_data, train_loader, val_loader=None):
         """
@@ -94,7 +141,7 @@ class TimeLLM(TimeSeriesLLM):
         if hasattr(train_data, "scaler"):
             self.fitted_scaler = train_data.scaler
 
-        logging.info("Starting Training...")
+        self.logger.info("Starting Training...")
         train_steps = len(train_loader)
 
         # Initialize optimizer, scheduler, and early stopping
@@ -139,7 +186,7 @@ class TimeLLM(TimeSeriesLLM):
                     criterion,
                     mae_metric,
                 )
-                logging.info(
+                self.logger.info(
                     f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | Val Loss: {val_loss:.7f}"
                 )
                 early_stopping(val_loss, self.llm_model, checkpoint_dir)
@@ -149,17 +196,17 @@ class TimeLLM(TimeSeriesLLM):
 
             # Early stopping
             if early_stopping.early_stop:
-                logging.info("Early stopping triggered.")
+                self.logger.info("Early stopping triggered.")
                 early_stopping_saved = True
                 break
 
         if not early_stopping_saved:
-            logging.warning(
+            self.logger.warning(
                 "Early stopping did not trigger. Saving final model checkpoint."
             )
 
         final_checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
-        logging.info(f"Saving final model checkpoint at {final_checkpoint_path}.")
+        self.logger.info(f"Saving final model checkpoint at {final_checkpoint_path}.")
         model_to_save = self.accelerator.unwrap_model(self.llm_model)
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
 
@@ -184,7 +231,7 @@ class TimeLLM(TimeSeriesLLM):
         )
 
         if len(test_loader) == 0:
-            logging.info("Warning: The test loader is empty. No data to predict.")
+            self.logger.info("Warning: The test loader is empty. No data to predict.")
             return None, None
 
         with torch.no_grad():
@@ -236,20 +283,28 @@ class TimeLLM(TimeSeriesLLM):
         if self._llm_settings["timeenc"] == 0:
             for batch in input_timestamps:
                 decoded_x_timestamps.extend(
-                    decode_manual_time_features(batch, freq=self._data_settings["frequency"])
+                    decode_manual_time_features(
+                        batch, freq=self._data_settings["frequency"]
+                    )
                 )
         else:
-            decoded_x_timestamps = decode_time_features(input_timestamps.T, freq=self._data_settings["frequency"])
+            decoded_x_timestamps = decode_time_features(
+                input_timestamps.T, freq=self._data_settings["frequency"]
+            )
 
         # Decode y timestamps
         decoded_y_timestamps = []
         if self._llm_settings["timeenc"] == 0:
             for batch in output_timestamps:
                 decoded_y_timestamps.extend(
-                    decode_manual_time_features(batch, freq=self._data_settings["frequency"])
+                    decode_manual_time_features(
+                        batch, freq=self._data_settings["frequency"]
+                    )
                 )
         else:
-            decoded_y_timestamps = decode_time_features(output_timestamps.T, freq=self._data_settings["frequency"])
+            decoded_y_timestamps = decode_time_features(
+                output_timestamps.T, freq=self._data_settings["frequency"]
+            )
 
         grouped_x_timestamps = [
             decoded_x_timestamps[
@@ -328,7 +383,7 @@ class TimeLLM(TimeSeriesLLM):
             # Non-TST scheduler adjustment
             if self._llm_settings["lradj"] == "COS":
                 scheduler.step()
-                logging.info(
+                self.logger.info(
                     f"Epoch {epoch + 1} | Learning rate after epoch: {optimizer.param_groups[0]['lr']:.10f}"
                 )
             else:
@@ -336,7 +391,7 @@ class TimeLLM(TimeSeriesLLM):
                     self._llm_settings["learning_rate"] = optimizer.param_groups[0][
                         "lr"
                     ]
-                    logging.info(
+                    self.logger.info(
                         f"Epoch {epoch + 1} | Initial learning rate: {optimizer.param_groups[0]['lr']:.10f}"
                     )
                 adjust_learning_rate(
@@ -349,7 +404,7 @@ class TimeLLM(TimeSeriesLLM):
                 )
         else:
             # TST scheduler adjustment (log current learning rate)
-            logging.info(
+            self.logger.info(
                 f"Epoch {epoch + 1} | Learning rate (TST): {scheduler.get_last_lr()[0]:.10f}"
             )
 
@@ -406,7 +461,7 @@ class TimeLLM(TimeSeriesLLM):
                         self._llm_settings,
                         printout=False,
                     )
-                    logging.info(
+                    self.logger.info(
                         f"Iteration {iter_count + 1} | Learning rate (TST): {scheduler.get_last_lr()[0]:.10f}"
                     )
 
@@ -415,7 +470,7 @@ class TimeLLM(TimeSeriesLLM):
             # Logging every 100 iterations
             iter_count += 1
             if (i + 1) % 100 == 0:
-                logging.info(
+                self.logger.info(
                     f"Iteration {i + 1}, Loss: {loss.item():.7f}, Avg Loss: {np.mean(epoch_loss):.7f}"
                 )
                 speed = (time.time() - time_now) / iter_count
@@ -423,7 +478,7 @@ class TimeLLM(TimeSeriesLLM):
                     (len(loader) - (i + 1))
                     + len(loader) * (self._llm_settings["train_epochs"] - 1)
                 )
-                logging.info(
+                self.logger.info(
                     f"\tSpeed: {speed:.4f}s/iter; Remaining time: {left_time:.4f}s"
                 )
                 iter_count = 0

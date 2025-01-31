@@ -30,4 +30,6 @@ run.llm_settings = {
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
     'restore_from_checkpoint': False,
     'restore_checkpoint_path': '',
+        'seed':2021  #optional seed to reproduce results. remove to get random seed.
+
 }

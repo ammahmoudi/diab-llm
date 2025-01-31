@@ -9,7 +9,7 @@ run.data_settings = {
     'preprocess_input_features': False,
     'preprocess_label': False,
     'frequency':'5min',
-    'percent':100,
+    'percent':10,
 }
 run.llm_settings = {
     'task_name':'long_term_forecast',
@@ -57,6 +57,8 @@ run.llm_settings = {
     'prompt_domain':0,
     'timeenc':0,
 
-    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
+    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape',
+        'seed':2021  #optional seed to reproduce results. remove to get random seed.
+
 
 }

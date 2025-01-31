@@ -57,6 +57,8 @@ run.llm_settings = {
     'prompt_domain':0,
     'timeenc':0,
 
-    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
+    'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape',
+        'seed':2021  #optional seed to reproduce results. remove to get random seed.
+
 
 }

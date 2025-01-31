@@ -13,8 +13,8 @@ run.data_settings = {
 run.llm_settings = {
     'mode': 'inference',    # available modes: 'inference', 'training', 'training+inference'
     'method': 'chronos',    # available methods: 'chronos'
-    'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
-    'torch_dtype': 'bfloat16',   # available dtypes: 'float16', 'bfloat16', 'float32'
+    'model': 'amazon/chronos-t5-large',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
+    'torch_dtype': 'float16',   # available dtypes: 'float16', 'bfloat16', 'float32'
     'ntokens': 4096,
     'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}",
     'prediction_length': 6,    # Note: maximal prediction length is 64 for chronos pretrained models
@@ -30,4 +30,5 @@ run.llm_settings = {
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
     'restore_from_checkpoint': False,
     'restore_checkpoint_path': '',
+    'seed':2021  #optional seed to reproduce results. remove to get random seed.
 }
