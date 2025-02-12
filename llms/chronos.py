@@ -245,6 +245,8 @@ class ChronosLLM(TimeSeriesLLM):
         data_loaded["per_device_train_batch_size"] = settings["batch_size"]
         data_loaded["max_steps"] = settings["max_steps"]
         data_loaded["save_steps"] = settings["save_steps"]
+        if(self._llm_settings['seed']):
+            data_loaded['seed']=self._llm_settings['seed']
 
         output_dir = self._log_dir + "/{}".format(
             self._llm_settings["model"].split("/")[-1]

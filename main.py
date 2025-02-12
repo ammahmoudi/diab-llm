@@ -118,6 +118,7 @@ def run(
                 'mode':llm_settings['mode'],
                'method':llm_settings['method'],
                'llm_model':llm_settings["model"],
+               'seed':llm_settings['seed']
             },
             data_settings=data_loader._settings,
             log_dir=log_dir,
