@@ -13,7 +13,7 @@ run.data_settings = {
 run.llm_settings = {
     'mode': 'inference',    # available modes: 'inference', 'training', 'training+inference'
     'method': 'chronos',    # available methods: 'chronos'
-    'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
+    'model': 'amazon/chronos-t5-tiny',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
     'torch_dtype': 'float16',   # available dtypes: 'float16', 'bfloat16', 'float32'
     'ntokens': 4096,
     'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}",

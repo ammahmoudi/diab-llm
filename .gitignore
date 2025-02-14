@@ -6,3 +6,5 @@ formated
 data
 .vscode
 *:Zone.Identifier
+experiment_configs
+experiment_results.csv
