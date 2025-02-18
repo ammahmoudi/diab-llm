@@ -26,25 +26,34 @@ for root, dirs, files in os.walk(base_dir):
 
             # Extract experiment details from the folder structure
             path_parts = log_path.split(os.sep)  # Split by folder separators
-
+            
             try:
-                # Automatically find the main experiment folder
-                experiment_folder = next(
-                    part for part in path_parts if part.startswith("seed_")
-                )
+                # Extract the experiment folder that contains all the settings
+                for part in path_parts:
+                    if part.startswith("seed_"):
+                        experiment_folder = part
+                        break
+                else:
+                    raise ValueError("Experiment folder not found in path")
 
-                # Extract values dynamically
-                seed = experiment_folder.split("_")[1]
-                model = experiment_folder.split("_")[3]
-                dtype = experiment_folder.split("_")[5]
-                mode = experiment_folder.split("_")[7]
-                context_length = experiment_folder.split("_")[9]
-                prediction_length = experiment_folder.split("_")[11]
+                # Extract patient folder
+                for part in path_parts:
+                    if part.startswith("patient_"):
+                        patient_folder = part
+                        break
+                else:
+                    raise ValueError("Patient folder not found in path")
 
-                # Extract patient ID from folder structure
-                patient_folder = next(
-                    part for part in path_parts if part.startswith("patient_")
-                )
+                # Parse experiment folder details dynamically
+                experiment_details = experiment_folder.split("_")
+
+                # Extract values from folder structure
+                seed = experiment_details[1]
+                model = experiment_details[3] + "-" + experiment_details[4]  # Fix model extraction
+                dtype = experiment_details[6]
+                mode = experiment_details[8]
+                context_length = experiment_details[10]
+                prediction_length = experiment_details[12]
                 patient_id = patient_folder.split("_")[1]
 
                 # Read the log file and extract the last metrics line

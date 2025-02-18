@@ -16,17 +16,17 @@ run.llm_settings = {
     'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
     'torch_dtype': 'bfloat16',   # available dtypes: 'float16', 'bfloat16', 'float32'
     'ntokens': 4096,
-    'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}",
-    'prediction_length': 6,    # Note: maximal prediction length is 64 for chronos pretrained models
-    'num_samples': 1,
-    'context_length': 6,
-    'min_past': 6,
+    'tokenizer_kwargs': "{'low_limit': -15,'high_limit': 15}",
+    'prediction_length': 64,    # Note: maximal prediction length is 64 for chronos pretrained models
+    'num_samples': 20,
+    'context_length': 512,
+    'min_past': 60,
     'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
     'prediction_use_auto_split': False,
-    'max_train_steps': 10,
+    'max_train_steps': 200_000,
     'train_batch_size': 32,
     'random_init': False,
-    'save_steps': 1000,
+    'save_steps': 100_000,
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
     'restore_from_checkpoint': False,
     'restore_checkpoint_path': '/home/amma/LLM-TIME/',
