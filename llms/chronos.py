@@ -49,9 +49,11 @@ class ChronosLLM(TimeSeriesLLM):
         # Load the Chronos pipeline with logging
         try:
             self.llm_model = ChronosPipeline.from_pretrained(
-                settings["model"],
+                 pretrained_model_name_or_path=settings["model"],
+                 
                 device_map=settings["device_map"],
                 torch_dtype=settings["torch_dtype"],
+                cache_dir=self._log_dir,
             )
             self.logger.info("Chronos LLM model loaded successfully.")
         except Exception as e:
@@ -67,11 +69,13 @@ class ChronosLLM(TimeSeriesLLM):
         """
         self.logger.info(f"Loading model checkpoint from {ckpt_path}")
         self.llm_model = ChronosPipeline.from_pretrained(
-            ckpt_path,
+            pretrained_model_name_or_path=ckpt_path,
             device_map=self._llm_settings["device_map"],
             torch_dtype=self._llm_settings["torch_dtype"],
+            cache_dir=self._log_dir,
         )
         self.logger.info("Model checkpoint loaded successfully.")
+
 
     def predict(
         self,
@@ -89,17 +93,18 @@ class ChronosLLM(TimeSeriesLLM):
 
         Args:
             test_data: DataFrame containing both input features and targets.
-            dataloader: data loader of test data
+            data_loader: Data loader of test data
             settings: Dictionary of settings for prediction.
-
 
         Returns:
             llm_prediction: Numpy array of model predictions.
         """
+        
+        logging.info("Starting prediction process...")
+
         # Split test data into input features and labels
-        test_input_features, test_labels = (
-            data_loader.split_dataframe_input_features_vs_labels(test_data)
-        )
+        test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
+        logging.debug(f"Split test data into input features (shape: {test_input_features.shape}) and labels (shape: {test_labels.shape})")
 
         # Batch the data into smaller sequences if batch size is specified
         if settings["batch_size"] is not None:
@@ -111,91 +116,80 @@ class ChronosLLM(TimeSeriesLLM):
                 test_labels[i : i + settings["batch_size"]]
                 for i in range(0, len(test_labels), settings["batch_size"])
             ]
+            logging.info(f"Data is batched with batch size: {settings['batch_size']}")
         else:
             test_input_batches = [test_input_features]
             test_label_batches = [test_labels]
+            logging.info("Processing data without batching.")
 
         prediction_results = []
         input_results = []
         target_results = []
 
-        for input_batch, target_batch in zip(test_input_batches, test_label_batches):
+        for batch_idx, (input_batch, target_batch) in enumerate(zip(test_input_batches, test_label_batches)):
             batch_inputs = input_batch.values
             batch_targets = target_batch.values
 
             input_results.append(batch_inputs)
             target_results.append(batch_targets)
 
+            logging.debug(f"Processing batch {batch_idx+1}/{len(test_input_batches)} with input shape {batch_inputs.shape}")
+
             if settings["prediction_length"] > 64 and settings["auto_split"]:
+                logging.info("Using auto-split mode for long sequence prediction.")
                 split_results = []
                 predictions_remaining = settings["prediction_length"]
                 num_splits = settings["prediction_length"] // 64
-                num_splits = (
-                    num_splits
-                    if settings["prediction_length"] % 64 == 0
-                    else num_splits + 1
-                )
+                num_splits = num_splits if settings["prediction_length"] % 64 == 0 else num_splits + 1
 
-                current_llm_prediction = self.llm_model.predict(
-                    context=torch.tensor(batch_inputs),
-                    prediction_length=64,
-                    num_samples=settings["num_samples"],
-                    limit_prediction_length=True,
-                )
-                if settings["num_samples"] > 1:
-                    current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
+                for split_idx in range(num_splits):
+                    prediction_length = min(64, predictions_remaining)
 
-                split_results.append(torch.squeeze(current_llm_prediction))
+                    logging.debug(f"Split {split_idx+1}/{num_splits}: Predicting {prediction_length} time steps.")
 
-                # Update sliding window with current prediction
-                batch_inputs[:, : (batch_inputs.shape[1] - 64)] = batch_inputs[:, 64:]
-                batch_inputs[:, :64] = current_llm_prediction
-                predictions_remaining -= 64
-                num_splits -= 1
-
-                for _ in range(num_splits):
                     current_llm_prediction = self.llm_model.predict(
                         context=torch.tensor(batch_inputs),
-                        prediction_length=(
-                            64 if predictions_remaining > 64 else predictions_remaining
-                        ),
+                        prediction_length=prediction_length,
                         num_samples=settings["num_samples"],
                         limit_prediction_length=True,
                     )
+
                     if settings["num_samples"] > 1:
-                        current_llm_prediction = torch.mean(
-                            current_llm_prediction, dim=1
-                        )
+                        current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
 
                     split_results.append(torch.squeeze(current_llm_prediction))
 
-                    # Update sliding window with current prediction
                     if predictions_remaining > 64:
-                        batch_inputs[:, : (batch_inputs.shape[1] - 64)] = batch_inputs[
-                            :, 64:
-                        ]
+                        batch_inputs[:, : (batch_inputs.shape[1] - 64)] = batch_inputs[:, 64:]
                         batch_inputs[:, :64] = current_llm_prediction
                         predictions_remaining -= 64
+                        logging.debug(f"Sliding window updated: {predictions_remaining} steps remaining.")
 
                 current_llm_prediction = torch.cat(split_results, dim=1)
+
             else:
+                logging.info("Predicting in a single pass without auto-split.")
                 current_llm_prediction = self.llm_model.predict(
                     context=torch.tensor(batch_inputs),
                     prediction_length=settings["prediction_length"],
                     num_samples=settings["num_samples"],
                     limit_prediction_length=False,
                 )
+
                 if settings["num_samples"] > 1:
                     current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
 
                 current_llm_prediction = torch.squeeze(current_llm_prediction)
 
             prediction_results.append(current_llm_prediction)
+            logging.debug(f"Batch {batch_idx+1} prediction completed.")
 
         # Combine results
         llm_prediction = torch.cat(prediction_results, dim=0).cpu().detach().numpy()
         inputs = np.concatenate(input_results, axis=0)
         targets = np.concatenate(target_results, axis=0)
+
+        logging.info(f"Prediction process completed. Shape of predictions: {llm_prediction.shape}")
 
         # Save the results
         short_name = generate_run_title(self._data_settings, self._llm_settings)
@@ -206,8 +200,11 @@ class ChronosLLM(TimeSeriesLLM):
             inputs=inputs,
             name=short_name,
         )
+        
+        logging.info("Results saved successfully.")
 
         return llm_prediction, targets
+
 
     def train(
         self,

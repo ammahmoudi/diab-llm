@@ -11,10 +11,11 @@ PyYAML==6.0.2
 reformer_pytorch==1.4.4
 torch==2.4.1
 tqdm==4.67.1
-transformers==4.47.1
+transformers
 plotly==5.24.1
 kaleido
 nbformat
 ipykernel
+autogluon.timeseries
 chronos-forecasting @ git+https://github.com/amazon-science/chronos-forecasting.git@main
 chronos-forecasting[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main
