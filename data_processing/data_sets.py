@@ -10,6 +10,8 @@ from torch.utils.data import Dataset
 from data_processing.data_scaler import StandardScaler
 from utils.timefeatures import time_features
 
+import numpy as np
+import random
 
 class Dataset_T1DM(Dataset):
     def __init__(
@@ -26,6 +28,7 @@ class Dataset_T1DM(Dataset):
         seasonal_patterns=None,
         scaler=None,
         val_split=0,
+        missed=None
     ):
         """
         Dataset for T1DM glucose levels.
@@ -66,6 +69,7 @@ class Dataset_T1DM(Dataset):
         self.scaler = scaler
         self.val_split = val_split  # New parameter for validation split
         self._data_transformed = False  # Initialize the flag for scaling status
+        self.missed=missed
 
         self.__read_data__()
         self._log_dataset_info()
@@ -188,8 +192,36 @@ class Dataset_T1DM(Dataset):
             )
             self.data_stamp = self.data_stamp.transpose(1, 0)
 
+        if self.missed is not None:
+            data = self.apply_missingness(data)
+            print('test')
+        
         self.data_x = data
         self.data_y = data
+    
+    def apply_missingness(self, data : np.ndarray, miss_rate=0.1, missing_type='periodic'):
+        if missing_type == 'random':
+            num_values = data.size
+            num_missing = int(num_values * miss_rate)
+            missing_indices = random.sample(range(num_values), num_missing)
+            data_flat = data.flatten()
+            for idx in missing_indices:
+                data_flat[idx] = 0
+            data = data_flat.reshape(data.shape)
+        elif missing_type == 'periodic':
+            window_size = 6
+            num_rows = data.shape[0]
+            num_missing = int(num_rows * miss_rate)
+            num_periods = max(1, num_missing // window_size)
+            step = max(1, num_rows // num_periods)
+            data_flat = data.flatten()
+            for start_idx in range(0, num_rows, step):
+                if start_idx + window_size <= num_rows:
+                    data_flat[start_idx:start_idx + window_size] = 0
+            data = data_flat.reshape(data.shape)
+        else:
+            raise ValueError("Invalid missing type. Choose either 'random', 'synthetic', or 'periodic'.")
+        return data
 
     def __getitem__(self, index):
         feat_id = index // self.tot_len

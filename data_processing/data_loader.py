@@ -129,7 +129,7 @@ class TimeLLMDataHandler:
         self.scaler = None
         self._settings = settings
 
-    def load_from_csv(self, path_to_csv, batch_size=32, split='train'):
+    def load_from_csv(self, path_to_csv, batch_size=32, split='train', missed=None):
         """
         Load data from CSV and prepare DataLoader.
         Handles the case when validation data is not needed (val_split == 0).
@@ -167,9 +167,9 @@ class TimeLLMDataHandler:
             timeenc=0,
             freq=self._settings['frequency'],
             percent=self._settings['percent'],
-            val_split=self._settings['val_split']  # Pass val_split to Dataset_T1DM
+            val_split=self._settings['val_split'],
+            missed=missed
         )
-
 
         data_loader = DataLoader(
             data_set,
@@ -179,7 +179,6 @@ class TimeLLMDataHandler:
             drop_last=drop_last
         )
 
-        # Save the fitted scaler in train mode to use in other modes
         if split == 'train':
             self.scaler = data_set.scaler
 

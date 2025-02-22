@@ -60,11 +60,18 @@ class Model(nn.Module):
         logging.debug("Initializing LLM based on config")
         if configs["llm_model"] == "LLAMA":
             logging.debug("LLM model is LLAMA")
+            # self.llama_config = LlamaConfig.from_pretrained("huggyllama/llama-7b")
             self.llama_config = LlamaConfig.from_pretrained("huggyllama/llama-7b")
             self.llama_config.num_hidden_layers = configs["llm_layers"]
             self.llama_config.output_attentions = True
             self.llama_config.output_hidden_states = True
             try:
+                # self.llm_model = LlamaModel.from_pretrained(
+                #     "huggyllama/llama-7b",
+                #     trust_remote_code=True,
+                #     local_files_only=True,
+                #     config=self.llama_config,
+                # )
                 self.llm_model = LlamaModel.from_pretrained(
                     "huggyllama/llama-7b",
                     trust_remote_code=True,
@@ -219,9 +226,10 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         logging.debug("Model forward pass")
         if self.task_name in ["long_term_forecast", "short_term_forecast"]:
-            dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.prediction_length :, :]
-        return None
+            dec_out, attn_weights = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
+            return dec_out[:, -self.prediction_length :, :], attn_weights
+        return None, None
+
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         logging.debug("Starting forecast function")
@@ -272,7 +280,10 @@ class Model(nn.Module):
             enc_out, source_embeddings, source_embeddings
         )
         llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1)
-        dec_out = self.llm_model(inputs_embeds=llama_enc_out).last_hidden_state
+        llm_output = self.llm_model(inputs_embeds=llama_enc_out, output_attentions=True)
+        dec_out = llm_output.last_hidden_state
+        attn_weights = llm_output.attentions  # Extract attention maps
+
         dec_out = dec_out[:, :, : self.d_ff]
 
         dec_out = torch.reshape(
@@ -285,7 +296,7 @@ class Model(nn.Module):
         dec_out = self.normalize_layers(dec_out, "denorm")
 
         logging.debug("Forecasting complete with output shape: %s", dec_out.shape)
-        return dec_out
+        return dec_out, attn_weights
 
     def calcute_lags(self, x_enc):
         logging.debug("Calculating lags")

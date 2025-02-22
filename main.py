@@ -10,6 +10,7 @@ from llms.chronos import ChronosLLM
 from llms.time_llm import TimeLLM
 from utils.logger import setup_logging
 import logging
+import pickle
 
 
 FLAGS = flags.FLAGS
@@ -289,6 +290,7 @@ def run(
             data_settings["path_to_train_data"],
             batch_size=llm_settings["train_batch_size"],
             split="train",
+            missed=True
         )
         val_data, val_loader = data_loader.load_from_csv(
             data_settings["path_to_train_data"],
@@ -299,6 +301,7 @@ def run(
             data_settings["path_to_test_data"],
             batch_size=llm_settings["prediction_batch_size"],
             split="test",
+            missed=True
         )
 
         # Initialize TimeLLM
@@ -328,9 +331,11 @@ def run(
                     logging.info(f"Metric results: {metric_results}")
 
         elif llm_settings["mode"] == "training":
-            llm.train(
+            final_checkpoint_path, train_loss, val_loss = llm.train(
                 train_data=train_data, train_loader=train_loader,         val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
             )
+            with open(log_dir + "/loss.pkl", "wb") as f:
+                pickle.dump((train_loss, val_loss), f)
 
         elif llm_settings["mode"] == "training+inference":
             # Train the model and retrieve checkpoint path

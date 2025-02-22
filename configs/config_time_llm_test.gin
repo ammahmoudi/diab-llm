@@ -1,7 +1,7 @@
 run.log_dir = "./logs/"
 run.data_settings = {
-    'path_to_train_data': './data/raw/540-ws-training.csv',
-    'path_to_test_data': './data/raw/540-ws-testing.csv',
+    'path_to_train_data': './data/raw/588-ws-training.csv',
+    'path_to_test_data': './data/raw/588-ws-testing.csv',
     'input_features': ['_value'],
     'labels': ['_value'],
     'prompt_path':'./data/raw/t1dm_prompt.txt',
@@ -21,7 +21,7 @@ run.llm_settings = {
     'llm_dim':768, #4096 for llama 768 for gpt2
     'num_workers':1,
     'restore_from_checkpoint':'true', # completly remove it to avoid
-    'restore_checkpoint_path':'./logs/logs_2025-01-31_14-53-53/checkpoints/checkpoint.pth',
+    'restore_checkpoint_path':'./logs/logs_2025-02-03_11-02-21/checkpoints/checkpoint.pth',
     'torch_dtype':'bfloat16',
 
 
@@ -30,14 +30,14 @@ run.llm_settings = {
 
     'sequence_length': 6,
     'context_length': 6,
-    'prediction_length': 6,
+    'prediction_length': 9,
     'patch_len':6,
     'stride': 8,
 
     'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
     'train_batch_size': 1,
     'learning_rate':0.001,
-    'train_epochs':1,
+    'train_epochs':20,
     'features':'S',
 
     'd_model':32,

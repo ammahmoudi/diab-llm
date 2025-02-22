@@ -170,6 +170,8 @@ class TimeLLM(TimeSeriesLLM):
             )
         )
         early_stopping_saved = False
+        train_loss_l = []
+        val_loss_l = []
 
         # Training loop
         for epoch in range(self._llm_settings["train_epochs"]):
@@ -177,6 +179,7 @@ class TimeLLM(TimeSeriesLLM):
             train_loss = self._run_epoch(
                 train_loader, criterion, model_optim, scheduler, is_training=True
             )
+            train_loss_l.append(train_loss)
 
             # Validation step (only if val_loader is not None and not empty)
             if val_loader is not None and len(val_loader) > 0:
@@ -188,6 +191,7 @@ class TimeLLM(TimeSeriesLLM):
                     criterion,
                     mae_metric,
                 )
+                val_loss_l.append(val_loss)
                 self.logger.info(
                     f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | Val Loss: {val_loss:.7f}"
                 )
@@ -214,7 +218,7 @@ class TimeLLM(TimeSeriesLLM):
         model_to_save = self.accelerator.unwrap_model(self.llm_model)
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
 
-        return final_checkpoint_path
+        return final_checkpoint_path, train_loss_l, val_loss_l
 
 
     def predict(self, test_loader, output_dir):
@@ -227,12 +231,13 @@ class TimeLLM(TimeSeriesLLM):
         :return: Tuple of (predictions, targets) as numpy arrays for evaluation.
         """
         self.llm_model.eval()
-        predictions, targets, inputs, input_timestamps, output_timestamps = (
+        predictions, targets, inputs, input_timestamps, output_timestamps, attention_maps = (
             [],
             [],
             [],
             [],
             [],
+            []
         )
 
         if len(test_loader) == 0:
@@ -257,11 +262,12 @@ class TimeLLM(TimeSeriesLLM):
                     dim=1,
                 )
 
-                outputs = self.llm_model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                outputs, attn_weights = self.llm_model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 f_dim = -1 if self._llm_settings["features"] == "MS" else 0
                 outputs = outputs[:, -self._llm_settings["prediction_length"] :, f_dim:]
 
                 predictions.append(outputs.cpu().numpy())
+                # print(outputs.cpu().numpy().shape)
                 targets.append(
                     batch_y[:, -self._llm_settings["prediction_length"] :, f_dim:]
                     .cpu()
@@ -271,6 +277,11 @@ class TimeLLM(TimeSeriesLLM):
                 input_timestamps.append(batch_x_mark.cpu().numpy())
                 output_timestamps.append(batch_y_mark.cpu().numpy())
 
+                # attention_maps.append(attn_weights[-1].to(torch.float32).cpu().numpy())
+                # print("=====================", (attn_weights[-1].to(torch.float32).cpu().numpy()).shape, len(attention_maps))
+                # attn_array = attn_weights[-1].to(torch.float32).cpu().numpy()
+                # print("Attention shape:", attn_array.shape)
+
         if not predictions:
             logging.error(
                 "No predictions were made. Ensure the test loader contains data."
@@ -278,6 +289,7 @@ class TimeLLM(TimeSeriesLLM):
             return None, None
 
         predictions = np.concatenate(predictions, axis=0)
+        print(predictions.shape)
         targets = np.concatenate(targets, axis=0)
         inputs = np.concatenate(inputs, axis=0)
         input_timestamps = np.concatenate(input_timestamps, axis=0)
@@ -349,6 +361,9 @@ class TimeLLM(TimeSeriesLLM):
             grouped_x_timestamps,
             grouped_y_timestamps,
         )
+
+        # np.save(os.path.join(output_dir, "attention_maps.npy"), np.concatenate(attention_maps, axis=0))
+        # print("attentions saved.")
 
         return predictions, targets
 
