@@ -1,37 +1,102 @@
 import os
 import json
 from itertools import product
-
+import random
 # Define parameter sets that must be consistent
 feature_label_sets = [
     {
-        "input_features": ["BG_{t-5}", "BG_{t-4}", "BG_{t-3}", "BG_{t-2}", "BG_{t-1}", "BG_{t}"],
-        "labels": ["BG_{t+1}", "BG_{t+2}", "BG_{t+3}", "BG_{t+4}", "BG_{t+5}", "BG_{t+6}"],
+        "input_features": [
+            "BG_{t-5}",
+            "BG_{t-4}",
+            "BG_{t-3}",
+            "BG_{t-2}",
+            "BG_{t-1}",
+            "BG_{t}",
+        ],
+        "labels": [
+            "BG_{t+1}",
+            "BG_{t+2}",
+            "BG_{t+3}",
+            "BG_{t+4}",
+            "BG_{t+5}",
+            "BG_{t+6}",
+        ],
         "prediction_length": 6,
-        "context_length": 6
+        "context_length": 6,
     },
     {
-        "input_features": [ "BG_{t-8}", "BG_{t-7}", "BG_{t-6}", "BG_{t-5}", "BG_{t-4}", "BG_{t-3}", "BG_{t-2}", "BG_{t-1}", "BG_{t}"],
-        "labels": ["BG_{t+1}", "BG_{t+2}", "BG_{t+3}", "BG_{t+4}", "BG_{t+5}", "BG_{t+6}", "BG_{t+7}", "BG_{t+8}", "BG_{t+9}"],
+        "input_features": [
+            "BG_{t-8}",
+            "BG_{t-7}",
+            "BG_{t-6}",
+            "BG_{t-5}",
+            "BG_{t-4}",
+            "BG_{t-3}",
+            "BG_{t-2}",
+            "BG_{t-1}",
+            "BG_{t}",
+        ],
+        "labels": [
+            "BG_{t+1}",
+            "BG_{t+2}",
+            "BG_{t+3}",
+            "BG_{t+4}",
+            "BG_{t+5}",
+            "BG_{t+6}",
+            "BG_{t+7}",
+            "BG_{t+8}",
+            "BG_{t+9}",
+        ],
         "prediction_length": 9,
-        "context_length": 9
-    }
+        "context_length": 9,
+    },
 ]
 
 # Define the parameters to iterate over
-patients = ["540", "544", "552","559","563","567","570","575","584","588","591","596"]  # List of patient IDs
-seeds = [2021, 2022]  # List of seeds
-models = ["amazon/chronos-t5-tiny","amazon/chronos-t5-mini","amazon/chronos-t5-small", "amazon/chronos-t5-base","amazon/chronos-t5-large"]  # Different models
-torch_dtypes = ["float16","bfloat16", "float32"]  # Different torch dtypes
+patients = [
+    "540",
+    "544",
+    "552",
+    "559",
+    "563",
+    "567",
+    "570",
+    "575",
+    "584",
+    "588",
+    "591",
+    "596",
+]  # List of patient IDs
+# seeds = [2021, 2022]  # List of seeds
+
+
+# Generate 10 random seeds between 0 and 999999 (or any range you like)
+seeds = [random.randint(0, 999999) for _ in range(10)]
+
+print(seeds)
+
+
+models = [
+    "amazon/chronos-t5-tiny",
+    "amazon/chronos-t5-mini",
+    "amazon/chronos-t5-small",
+    "amazon/chronos-t5-base",
+    "amazon/chronos-t5-large",
+]  # Different models
+torch_dtypes = [
+    # "float16",
+    "bfloat16", 
+    "float32"
+    ]  # Different torch dtypes
 modes = ["inference"]  # Different modes
 
 # Define max_train_steps manually for each model (or any criteria you want)
 max_train_steps_mapping = {
     "amazon/chronos-t5-tiny": 10000,
-     "amazon/chronos-t5-mini": 10000,
-      "amazon/chronos-t5-small": 10000,
+    "amazon/chronos-t5-mini": 10000,
+    "amazon/chronos-t5-small": 10000,
     "amazon/chronos-t5-base": 10000,
-     "amazon/chronos-t5-large": 10000,
+    "amazon/chronos-t5-large": 10000,
 }
 
 # Base directory for configurations and logs
@@ -39,20 +104,24 @@ base_output_dir = "./experiment_configs/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files for all combinations
-for seed, feature_label_set, model, torch_dtype, mode in product(seeds, feature_label_sets, models, torch_dtypes, modes):
+for seed, feature_label_set, model, torch_dtype, mode in product(
+    seeds, feature_label_sets, models, torch_dtypes, modes
+):
     context_len = feature_label_set["context_length"]
     pred_len = feature_label_set["prediction_length"]
-    
+
     # Set min_past to match context_length
     min_past = context_len
 
     # Get max_train_steps from mapping
-    max_train_steps = max_train_steps_mapping.get(model, 10000)  # Default to 10k if model is missing
+    max_train_steps = max_train_steps_mapping.get(
+        model, 10000
+    )  # Default to 10k if model is missing
 
     # Define a unique folder for this configuration
     config_folder = os.path.join(
         base_output_dir,
-        f"seed_{seed}_model_{model.replace('/', '_')}_dtype_{torch_dtype}_mode_{mode}_context_{context_len}_pred_{pred_len}"
+        f"seed_{seed}_model_{model.replace('/', '_')}_dtype_{torch_dtype}_mode_{mode}_context_{context_len}_pred_{pred_len}",
     )
     os.makedirs(config_folder, exist_ok=True)
 
