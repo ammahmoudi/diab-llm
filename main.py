@@ -119,6 +119,7 @@ def run(
                 'mode':llm_settings['mode'],
                'method':llm_settings['method'],
                'llm_model':llm_settings["model"],
+               'seed':llm_settings['seed']
             },
             data_settings=data_loader._settings,
             log_dir=log_dir,
@@ -199,6 +200,10 @@ def run(
                     "min_past": llm_settings["min_past"],
                     "ntokens": llm_settings["ntokens"],
                     "tokenizer_kwargs": llm_settings["tokenizer_kwargs"],
+                    "log_steps":llm_settings['log_steps'],
+                    "learning_rate":llm_settings['learning_rate'],
+                    
+                
                 },
             )
 
