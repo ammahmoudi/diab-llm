@@ -1,7 +1,7 @@
 run.log_dir = "./logs/"
 run.data_settings = {
-    'path_to_train_data': './data/raw/540-ws-training.csv',
-    'path_to_test_data': './data/raw/540-ws-testing.csv',
+    'path_to_train_data': './data/raw/544-ws-training.csv',
+    'path_to_test_data': './data/raw/544-ws-testing.csv',
     'input_features': ['_value'],
     'labels': ['_value'],
     'prompt_path':'./data/raw/t1dm_prompt.txt',
@@ -28,12 +28,12 @@ run.llm_settings = {
 
     'sequence_length': 6,
     'context_length': 6,
-    'prediction_length': 6,
+    'prediction_length': 9,
     'patch_len':6,
     'stride': 8,
 
-    'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
-    'train_batch_size': 1,
+    'prediction_batch_size': 64,    
+    'train_batch_size': 8,
     'learning_rate':0.001,
     'train_epochs':1,
     'features':'S',

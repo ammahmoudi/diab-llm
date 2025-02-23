@@ -11,6 +11,7 @@ from llms.time_llm import TimeLLM
 from utils.logger import setup_logging
 import logging
 import pickle
+import shutil
 
 
 FLAGS = flags.FLAGS
@@ -294,8 +295,7 @@ def run(
         train_data, train_loader = data_loader.load_from_csv(
             data_settings["path_to_train_data"],
             batch_size=llm_settings["train_batch_size"],
-            split="train",
-            missed=True
+            split="train"
         )
         val_data, val_loader = data_loader.load_from_csv(
             data_settings["path_to_train_data"],
@@ -305,8 +305,7 @@ def run(
         test_data, test_loader = data_loader.load_from_csv(
             data_settings["path_to_test_data"],
             batch_size=llm_settings["prediction_batch_size"],
-            split="test",
-            missed=True
+            split="test"
         )
 
         # Initialize TimeLLM
@@ -344,12 +343,15 @@ def run(
 
         elif llm_settings["mode"] == "training+inference":
             # Train the model and retrieve checkpoint path
-            checkpoint_path = llm.train(
-                train_data=train_data, train_loader=train_loader,         val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
+            final_checkpoint_path, train_loss, val_loss = llm.train(
+                train_data=train_data, train_loader=train_loader, val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
             )
+            print(final_checkpoint_path)
+            with open(log_dir + "/loss.pkl", "wb") as f:
+                pickle.dump((train_loss, val_loss), f)
 
             # Load the saved checkpoint for inference
-            llm.load_model(checkpoint_path)
+            llm.load_model(final_checkpoint_path)
 
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
@@ -361,6 +363,10 @@ def run(
                         llm_prediction, targets, llm_settings["eval_metrics"]
                     )
                     logging.info(f"Metric results: {metric_results}")
+                    
+            path = log_dir + '/checkpoints'
+            shutil.rmtree(path)
+            print("successfully deleted checkpoints")
 
         else:
             logging.error(f"Unsupported mode: {llm_settings['mode']}")

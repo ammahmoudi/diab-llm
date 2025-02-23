@@ -16,9 +16,9 @@ run.llm_settings = {
     'task_name':'long_term_forecast',
     'mode': 'training',    # available modes: 'inference', 'training', 'training+inference'
     'method': 'time_llm',    # available methods: 'chronos','time_llm'
-    'llm_model': 'LLAMA',  # available models: 'LLAMA', 'GPT2', 'BERT'
+    'llm_model': 'GPT2',  # available models: 'LLAMA', 'GPT2', 'BERT'
     'llm_layers':32,
-    'llm_dim':4096, #4096 for llama 768 for gpt2
+    'llm_dim':768, #4096 for llama 768 for gpt2
     'num_workers':1,
     'torch_dtype':'bfloat16',
 
@@ -33,9 +33,9 @@ run.llm_settings = {
     'stride': 8,
 
     'prediction_batch_size': 64,    # Note: Large batch size may cause OOM error
-    'train_batch_size': 16,
+    'train_batch_size': 8,
     'learning_rate':0.001,
-    'train_epochs':20,
+    'train_epochs':1,
     'features':'S',
 
     'd_model':32,

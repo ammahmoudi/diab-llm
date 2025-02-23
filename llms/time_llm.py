@@ -262,7 +262,7 @@ class TimeLLM(TimeSeriesLLM):
                     dim=1,
                 )
 
-                outputs, attn_weights = self.llm_model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                outputs = self.llm_model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 f_dim = -1 if self._llm_settings["features"] == "MS" else 0
                 outputs = outputs[:, -self._llm_settings["prediction_length"] :, f_dim:]
 
@@ -289,7 +289,6 @@ class TimeLLM(TimeSeriesLLM):
             return None, None
 
         predictions = np.concatenate(predictions, axis=0)
-        print(predictions.shape)
         targets = np.concatenate(targets, axis=0)
         inputs = np.concatenate(inputs, axis=0)
         input_timestamps = np.concatenate(input_timestamps, axis=0)

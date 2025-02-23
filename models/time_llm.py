@@ -226,8 +226,8 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         logging.debug("Model forward pass")
         if self.task_name in ["long_term_forecast", "short_term_forecast"]:
-            dec_out, attn_weights = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.prediction_length :, :], attn_weights
+            dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
+            return dec_out[:, -self.prediction_length :, :]
         return None, None
 
 
@@ -296,7 +296,7 @@ class Model(nn.Module):
         dec_out = self.normalize_layers(dec_out, "denorm")
 
         logging.debug("Forecasting complete with output shape: %s", dec_out.shape)
-        return dec_out, attn_weights
+        return dec_out
 
     def calcute_lags(self, x_enc):
         logging.debug("Calculating lags")
