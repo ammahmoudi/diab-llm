@@ -1,2 +1,83 @@
-# LLM-TIME
-Large Language Models for Time Series Prediction
+
+# BG Data Prediction Using LLMs
+
+This project aims to make predictions using Large Language Models (LLMs) with a dataset for time-series and inference tasks. Follow the instructions below to set up the environment and run the scripts to generate and execute configurations.
+
+## Setup Instructions
+
+### 1. Create a Virtual Environment
+
+Create a virtual environment called `venv`:
+
+```bash
+python3 -m venv venv
+```
+
+### 2. Activate the Virtual Environment
+
+To activate the virtual environment, use the following command:
+
+```bash
+source venv/bin/activate
+```
+
+### 3. Install Required Packages
+
+After activating the virtual environment, install the required dependencies listed in the `requirements.txt` file:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Folder Structure
+
+Before running the configuration scripts, ensure the following folders are available in the root directory and contain the necessary configuration files:
+
+- `experiment_configs_time_llm/` – Contains configurations for the time-series LLM model.
+- `experiment_configs_chronos_inference/` – Contains configurations for the Chronos inference model.
+
+---
+
+## Running Configurations
+
+To run the configurations for both tasks, use the following commands:
+
+```bash
+python ./scripts/run_configs_time_llm.py
+python ./scripts/run_configs_chronos_inference.py
+```
+
+These scripts will process all the configurations in the respective folders and save the results in a CSV file located in the root directory.
+
+---
+
+## Generating Custom Configurations
+
+If you wish to create your own custom configuration combinations, you can use the following scripts:
+
+- `config_generator_chronos.py` – For generating custom configurations for Chronos.
+- `config_generator_time_llm.py` – For generating custom configurations for the Time LLM model.
+
+---
+
+## Data Preprocessing
+
+### 1. Standardize Raw Data Folder
+
+To convert and standardize the raw dataset folder, run:
+
+```bash
+python ./scripts/format_files.py
+```
+
+### 2. Convert Data to Sequence & Prediction Length
+
+For converting the data into sequence format and prediction-length rows, use the following script:
+
+```bash
+python ./scripts/reformat_bg_Data_folder.py
+```
+
+---
