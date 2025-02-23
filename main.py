@@ -21,6 +21,11 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "log_level", "DEBUG", "Logging level: DEBUG, INFO, WARNING, ERROR, or FATAL."
 )
+flags.DEFINE_bool(
+    "remove_checkpoints",
+    False,
+    "Whether to remove checkpoint files/folders after training+inference.",
+)
 
 
 @gin.configurable
@@ -94,7 +99,7 @@ def run(
         )
         raise NotImplementedError
     # Set globally
-    logging.info(f'setting torch dtype to {llm_settings['torch_dtype']}')
+    logging.info(f"setting torch dtype to {llm_settings['torch_dtype']}")
     torch.set_default_dtype(llm_settings["torch_dtype"])
 
     if llm_settings["method"] == "chronos":
@@ -108,7 +113,7 @@ def run(
                 "preprocess_input_features": data_settings["preprocess_input_features"],
                 "preprocess_label": data_settings["preprocess_label"],
                 "percent": data_settings["percent"],
-                'path_to_train_data': data_settings["path_to_train_data"],
+                "path_to_train_data": data_settings["path_to_train_data"],
             }
         )
         logging.info("Running Chronos model.")
@@ -117,10 +122,10 @@ def run(
                 "model": llm_settings["model"],
                 "device_map": "cuda",
                 "torch_dtype": llm_settings["torch_dtype"],
-                'mode':llm_settings['mode'],
-               'method':llm_settings['method'],
-               'llm_model':llm_settings["model"],
-               'seed':llm_settings['seed']
+                "mode": llm_settings["mode"],
+                "method": llm_settings["method"],
+                "llm_model": llm_settings["model"],
+                "seed": llm_settings["seed"],
             },
             data_settings=data_loader._settings,
             log_dir=log_dir,
@@ -201,10 +206,8 @@ def run(
                     "min_past": llm_settings["min_past"],
                     "ntokens": llm_settings["ntokens"],
                     "tokenizer_kwargs": llm_settings["tokenizer_kwargs"],
-                    "log_steps":llm_settings['log_steps'],
-                    "learning_rate":llm_settings['learning_rate'],
-                    
-                
+                    "log_steps": llm_settings["log_steps"],
+                    "learning_rate": llm_settings["learning_rate"],
                 },
             )
 
@@ -270,6 +273,18 @@ def run(
                     llm_prediction, targets, llm_settings["eval_metrics"]
                 )
                 logging.info(f"Metric results: {metric_results}")
+             # Check if we need to remove checkpoints
+            if FLAGS.remove_checkpoints:
+                if os.path.exists(llm_ckpt_path):
+                    if os.path.isdir(llm_ckpt_path):
+                        shutil.rmtree(llm_ckpt_path)  # Delete the entire folder
+                        logging.info(f"Successfully deleted checkpoint folder: {llm_ckpt_path}")
+                    elif os.path.isfile(llm_ckpt_path):
+                        os.remove(llm_ckpt_path)  # Delete the file
+                        logging.info(f"Successfully deleted checkpoint file: {llm_ckpt_path}")
+                else:
+                    logging.warning(f"Checkpoint path {llm_ckpt_path} does not exist, nothing to remove.")
+
 
     elif llm_settings["method"] == "time_llm":
 
@@ -287,7 +302,7 @@ def run(
                 "context_length": llm_settings["context_length"],
                 "prediction_length": llm_settings["prediction_length"],
                 "percent": data_settings["percent"],
-                'val_split':data_settings['val_split']
+                "val_split": data_settings["val_split"],
             }
         )
 
@@ -295,7 +310,7 @@ def run(
         train_data, train_loader = data_loader.load_from_csv(
             data_settings["path_to_train_data"],
             batch_size=llm_settings["train_batch_size"],
-            split="train"
+            split="train",
         )
         val_data, val_loader = data_loader.load_from_csv(
             data_settings["path_to_train_data"],
@@ -305,7 +320,7 @@ def run(
         test_data, test_loader = data_loader.load_from_csv(
             data_settings["path_to_test_data"],
             batch_size=llm_settings["prediction_batch_size"],
-            split="test"
+            split="test",
         )
 
         # Initialize TimeLLM
@@ -318,7 +333,9 @@ def run(
         # Handle modes
         if llm_settings["mode"] == "inference":
             if llm_settings["restore_from_checkpoint"]:
-                llm.load_model(llm_settings["restore_checkpoint_path"],is_inference=True)
+                llm.load_model(
+                    llm_settings["restore_checkpoint_path"], is_inference=True
+                )
 
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
@@ -336,7 +353,11 @@ def run(
 
         elif llm_settings["mode"] == "training":
             final_checkpoint_path, train_loss, val_loss = llm.train(
-                train_data=train_data, train_loader=train_loader,         val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
+                train_data=train_data,
+                train_loader=train_loader,
+                val_loader=(
+                    val_loader if len(val_loader) > 0 else None
+                ),  # Pass None if val_loader is empty
             )
             with open(log_dir + "/loss.pkl", "wb") as f:
                 pickle.dump((train_loss, val_loss), f)
@@ -344,7 +365,11 @@ def run(
         elif llm_settings["mode"] == "training+inference":
             # Train the model and retrieve checkpoint path
             final_checkpoint_path, train_loss, val_loss = llm.train(
-                train_data=train_data, train_loader=train_loader, val_loader=val_loader if len(val_loader) > 0 else None  # Pass None if val_loader is empty
+                train_data=train_data,
+                train_loader=train_loader,
+                val_loader=(
+                    val_loader if len(val_loader) > 0 else None
+                ),  # Pass None if val_loader is empty
             )
             print(final_checkpoint_path)
             with open(log_dir + "/loss.pkl", "wb") as f:
@@ -363,10 +388,24 @@ def run(
                         llm_prediction, targets, llm_settings["eval_metrics"]
                     )
                     logging.info(f"Metric results: {metric_results}")
-                    
-            path = log_dir + '/checkpoints'
-            shutil.rmtree(path)
-            print("successfully deleted checkpoints")
+
+            # Check if we need to remove checkpoints
+            if FLAGS.remove_checkpoints:
+                if os.path.exists(final_checkpoint_path):
+                    if os.path.isdir(final_checkpoint_path):
+                        shutil.rmtree(final_checkpoint_path)  # Delete the entire folder
+                        logging.info(
+                            f"Successfully deleted checkpoint folder: {final_checkpoint_path}"
+                        )
+                    elif os.path.isfile(final_checkpoint_path):
+                        os.remove(final_checkpoint_path)  # Delete the file
+                        logging.info(
+                            f"Successfully deleted checkpoint file: {final_checkpoint_path}"
+                        )
+                else:
+                    logging.warning(
+                        f"Checkpoint path {final_checkpoint_path} does not exist, nothing to remove."
+                    )
 
         else:
             logging.error(f"Unsupported mode: {llm_settings['mode']}")
