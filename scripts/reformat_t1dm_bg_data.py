@@ -47,11 +47,11 @@ def reformat_t1dm_bg_data(
     offset = parameters['input_window_size']
     for i in range((len(data) - parameters['prediction_window_size']) // parameters['input_window_size']):
         # input_data = data['_value'][i * parameters['input_window_size']: (i + 1) * parameters['input_window_size']]
-        input_data = data['_value'][i: parameters['input_window_size'] + i]
+        input_data = data['target'][i: parameters['input_window_size'] + i]
         for feature, value in zip(parameters['input_features'], input_data):
             transformed_data[feature].append(value)
         # label_data = data['_value'][offset + (i * parameters['prediction_window_size']): offset + ((i + 1) * parameters['prediction_window_size'])]
-        label_data = data['_value'][offset + i: offset + parameters['prediction_window_size'] + i]
+        label_data = data['target'][offset + i: offset + parameters['prediction_window_size'] + i]
         for label, value in zip(parameters['labels'], label_data):
             transformed_data[label].append(value)
 

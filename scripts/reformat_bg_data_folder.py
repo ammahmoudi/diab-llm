@@ -41,10 +41,10 @@ def process_files(input_folder, output_folder, input_window_size, prediction_win
 
 if __name__ == '__main__':
     # User-defined parameters
-    input_folder = '/home/amma/LLM-TIME/data/raw/'
+    input_folder = '/home/amma/LLM-TIME/data/standardized/'
     output_folder = '/home/amma/LLM-TIME/data/formatted/'
     input_window_size = 6
-    prediction_window_size = 6
+    prediction_window_size = 9
     
     # Process all CSV files
     process_files(input_folder, output_folder, input_window_size, prediction_window_size)

@@ -1,0 +1,57 @@
+run.log_dir = "./experiment_configs_time_llm/seed_596448_model_GPT2_dim_768_seq_6_context_6_pred_6_patch_6_epochs_20/patient_563/logs"
+run.data_settings = {
+    'path_to_train_data': './data/standardized/563-ws-training.csv',
+    'path_to_test_data': './data/standardized/563-ws-testing.csv',
+    'input_features': ['_value'],
+    'labels': ['_value'],
+    'prompt_path': './data/standardized/t1dm_prompt.txt',
+    'preprocessing_method': 'min_max',
+    'preprocess_input_features': False,
+    'preprocess_label': False,
+    'frequency': '5min',
+    'percent': 100,
+    'val_split': 0
+}
+
+run.llm_settings = {
+    'task_name': 'long_term_forecast',
+    'mode': 'training+inference',
+    'method': 'time_llm',
+    'llm_model': 'GPT2',
+    'llm_layers': 32,
+    'llm_dim': 768,  # 4096 for LLAMA, 768 for GPT2
+    'num_workers': 1,
+    'torch_dtype': 'bfloat16',
+    'model_id': 'test',
+    'sequence_length': 6,
+    'context_length': 6,
+    'prediction_length': 6,
+    'patch_len': 6,
+    'stride': 8,
+    'prediction_batch_size': 64,
+    'train_batch_size': 1,
+    'learning_rate': 0.001,
+    'train_epochs': 20,  # Added train_epochs here
+    'features': 'S',
+    'd_model': 32,
+    'd_ff': 32,
+    'factor': 1,
+    'enc_in': 1,
+    'dec_in': 1,
+    'c_out': 1,
+    'e_layers': 2,
+    'd_layers': 1,
+    'n_heads': 8,
+    'dropout': 0.1,
+    'moving_avg': 25,
+    'activation': 'gelu',
+    'embed': 'timeF',
+    'patience': 10,
+    'lradj': 'COS',
+    'des': 'test',
+    'model_comment': 'time_llm_GPT2_768_6_6_6_6',
+    'prompt_domain': 0,  # You can change this domain if needed
+    'timeenc': 0,
+    'eval_metrics': ['rmse', 'mae', 'mape'],
+    'seed': 596448
+}

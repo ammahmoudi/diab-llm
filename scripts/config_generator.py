@@ -2,6 +2,7 @@ import os
 import json
 from itertools import product
 import random
+
 # Define parameter sets that must be consistent
 feature_label_sets = [
     {
@@ -26,9 +27,6 @@ feature_label_sets = [
     },
     {
         "input_features": [
-            "BG_{t-8}",
-            "BG_{t-7}",
-            "BG_{t-6}",
             "BG_{t-5}",
             "BG_{t-4}",
             "BG_{t-3}",
@@ -48,7 +46,7 @@ feature_label_sets = [
             "BG_{t+9}",
         ],
         "prediction_length": 9,
-        "context_length": 9,
+        "context_length": 6,
     },
 ]
 
@@ -85,9 +83,9 @@ models = [
 ]  # Different models
 torch_dtypes = [
     # "float16",
-    "bfloat16", 
-    "float32"
-    ]  # Different torch dtypes
+    "bfloat16",
+    "float32",
+]  # Different torch dtypes
 modes = ["inference"]  # Different modes
 
 # Define max_train_steps manually for each model (or any criteria you want)
@@ -100,7 +98,7 @@ max_train_steps_mapping = {
 }
 
 # Base directory for configurations and logs
-base_output_dir = "./experiment_configs/"
+base_output_dir = "./experiment_configs_chronos_inference/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files for all combinations
