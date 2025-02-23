@@ -117,12 +117,12 @@ class Dataset_T1DM(Dataset):
 
         # Ensure correct columns exist
         assert (
-            "_ts" in df_raw.columns and self.target in df_raw.columns
-        ), "Dataset must contain '_ts' (timestamp) and target columns."
+            "timestamp" in df_raw.columns and self.target in df_raw.columns
+        ), "Dataset must contain 'timestamp' (timestamp) and target columns."
 
         # Sort by timestamp
-        df_raw["_ts"] = pd.to_datetime(df_raw["_ts"], format="%d-%m-%Y %H:%M:%S")
-        df_raw = df_raw.sort_values("_ts")
+        df_raw["timestamp"] = pd.to_datetime(df_raw["timestamp"], format="%d-%m-%Y %H:%M:%S")
+        df_raw = df_raw.sort_values("timestamp")
 
         # Apply the percent parameter to reduce the dataset size
         total_rows = len(df_raw)
@@ -172,14 +172,14 @@ class Dataset_T1DM(Dataset):
                 self._data_transformed = False
 
         # Process time features
-        df_stamp = df_raw.iloc[border1:border2][["_ts"]]
+        df_stamp = df_raw.iloc[border1:border2][["timestamp"]]
         if self.timeenc == 0:
             # Manually extract time-related features
-            df_stamp["month"] = df_stamp["_ts"].dt.month
-            df_stamp["day"] = df_stamp["_ts"].dt.day
-            df_stamp["weekday"] = df_stamp["_ts"].dt.weekday
-            df_stamp["hour"] = df_stamp["_ts"].dt.hour
-            df_stamp["minute"] = df_stamp["_ts"].dt.minute // (
+            df_stamp["month"] = df_stamp["timestamp"].dt.month
+            df_stamp["day"] = df_stamp["timestamp"].dt.day
+            df_stamp["weekday"] = df_stamp["timestamp"].dt.weekday
+            df_stamp["hour"] = df_stamp["timestamp"].dt.hour
+            df_stamp["minute"] = df_stamp["timestamp"].dt.minute // (
                 60 // 12
             )  # Convert minutes into bins (5-min intervals)
             self.data_stamp = df_stamp[
@@ -188,7 +188,7 @@ class Dataset_T1DM(Dataset):
         elif self.timeenc == 1:
             # Use a learned encoding for time features
             self.data_stamp = time_features(
-                pd.to_datetime(df_stamp["_ts"].values), freq=self.freq
+                pd.to_datetime(df_stamp["timestamp"].values), freq=self.freq
             )
             self.data_stamp = self.data_stamp.transpose(1, 0)
 
@@ -279,7 +279,7 @@ class TimeSeriesDataset(Dataset):
         targets,
         flag="train",
         scaler=None,
-        timeenc={"_ts": 0},
+        timeenc={"timestamp": 0},
         freq="h",
         percent=100,
     ):

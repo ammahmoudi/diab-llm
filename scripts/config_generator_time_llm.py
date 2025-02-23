@@ -87,8 +87,8 @@ run.log_dir = "{log_folder}"
 run.data_settings = {{
     'path_to_train_data': '{data_folder}/{patient_id}-ws-training.csv',
     'path_to_test_data': '{data_folder}/{patient_id}-ws-testing.csv',
-    'input_features': ['_value'],
-    'labels': ['_value'],
+    'input_features': ['target'],
+    'labels': ['target'],
     'prompt_path': '{data_folder}/t1dm_prompt.txt',
     'preprocessing_method': 'min_max',
     'preprocess_input_features': False,
