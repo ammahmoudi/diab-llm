@@ -69,13 +69,13 @@ class Model(nn.Module):
                 # self.llm_model = LlamaModel.from_pretrained(
                 #     "huggyllama/llama-7b",
                 #     trust_remote_code=True,
-                #     local_files_only=True,
+                #     local_files_only=False,
                 #     config=self.llama_config,
                 # )
                 self.llm_model = LlamaModel.from_pretrained(
                     "huggyllama/llama-7b",
                     trust_remote_code=True,
-                    local_files_only=True,
+                    local_files_only=False,
                     config=self.llama_config,
                 )
             except EnvironmentError:
@@ -110,7 +110,7 @@ class Model(nn.Module):
                 self.llm_model = GPT2Model.from_pretrained(
                     "openai-community/gpt2",
                     trust_remote_code=True,
-                    local_files_only=True,
+                    local_files_only=False,
                     config=self.gpt2_config,
                 )
             except EnvironmentError:
@@ -126,7 +126,7 @@ class Model(nn.Module):
                 self.tokenizer = GPT2Tokenizer.from_pretrained(
                     "openai-community/gpt2",
                     trust_remote_code=True,
-                    local_files_only=True,
+                    local_files_only=False,
                 )
             except EnvironmentError:
                 logging.info(
@@ -149,7 +149,7 @@ class Model(nn.Module):
                 self.llm_model = BertModel.from_pretrained(
                     "google-bert/bert-base-uncased",
                     trust_remote_code=True,
-                    local_files_only=True,
+                    local_files_only=False,
                     config=self.bert_config,
                 )
             except EnvironmentError:
@@ -165,7 +165,7 @@ class Model(nn.Module):
                 self.tokenizer = BertTokenizer.from_pretrained(
                     "google-bert/bert-base-uncased",
                     trust_remote_code=True,
-                    local_files_only=True,
+                    local_files_only=False,
                 )
             except EnvironmentError:
                 logging.info(

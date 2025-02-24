@@ -16,7 +16,7 @@ for root, _, files in os.walk(base_output_dir):
 # Run `run_main.sh` for each config instead of calling main.py directly
 for config_path in config_files:
     # Prepare the command to run the .sh script with the necessary arguments
-    command = f"./run_main.sh --config_path {config_path} --log_level {log_level}"
+    command = f"./run_main.sh --config_path {config_path} --log_level {log_level} --remove_checkpoints True"
     
     print(f"Running: {command}")
     subprocess.run(command, shell=True)

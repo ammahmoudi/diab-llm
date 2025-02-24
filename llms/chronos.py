@@ -53,7 +53,7 @@ class ChronosLLM(TimeSeriesLLM):
                  
                 device_map=settings["device_map"],
                 torch_dtype=settings["torch_dtype"],
-                cache_dir=self._log_dir,
+                # cache_dir=self._log_dir,
             )
             self.logger.info("Chronos LLM model loaded successfully.")
         except Exception as e:
@@ -72,7 +72,7 @@ class ChronosLLM(TimeSeriesLLM):
             pretrained_model_name_or_path=ckpt_path,
             device_map=self._llm_settings["device_map"],
             torch_dtype=self._llm_settings["torch_dtype"],
-            cache_dir=self._log_dir,
+            # cache_dir=self._log_dir,
         )
         self.logger.info("Model checkpoint loaded successfully.")
 
