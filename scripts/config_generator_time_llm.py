@@ -95,7 +95,7 @@ run.llm_settings = {{
     'patch_len': {patch_len},
     'stride': 8,
     'prediction_batch_size': 64,
-    'train_batch_size': 1,
+    'train_batch_size': 32,
     'learning_rate': 0.001,
     'train_epochs': {train_epochs},
     'features': 'S',
