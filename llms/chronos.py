@@ -34,7 +34,7 @@ class ChronosLLM(TimeSeriesLLM):
 
         super(ChronosLLM, self).__init__(name=name)
         self._llm_settings = settings
-        self._data_settings=data_settings
+        self._data_settings = data_settings
         self._log_dir = log_dir
 
         # Get the existing root logger from setup_logging
@@ -49,8 +49,7 @@ class ChronosLLM(TimeSeriesLLM):
         # Load the Chronos pipeline with logging
         try:
             self.llm_model = ChronosPipeline.from_pretrained(
-                 pretrained_model_name_or_path=settings["model"],
-                 
+                pretrained_model_name_or_path=settings["model"],
                 device_map=settings["device_map"],
                 torch_dtype=settings["torch_dtype"],
                 # cache_dir=self._log_dir,
@@ -76,7 +75,6 @@ class ChronosLLM(TimeSeriesLLM):
         )
         self.logger.info("Model checkpoint loaded successfully.")
 
-
     def predict(
         self,
         test_data,
@@ -99,12 +97,16 @@ class ChronosLLM(TimeSeriesLLM):
         Returns:
             llm_prediction: Numpy array of model predictions.
         """
-        
+
         logging.info("Starting prediction process...")
 
         # Split test data into input features and labels
-        test_input_features, test_labels = data_loader.split_dataframe_input_features_vs_labels(test_data)
-        logging.debug(f"Split test data into input features (shape: {test_input_features.shape}) and labels (shape: {test_labels.shape})")
+        test_input_features, test_labels = (
+            data_loader.split_dataframe_input_features_vs_labels(test_data)
+        )
+        logging.debug(
+            f"Split test data into input features (shape: {test_input_features.shape}) and labels (shape: {test_labels.shape})"
+        )
 
         # Batch the data into smaller sequences if batch size is specified
         if settings["batch_size"] is not None:
@@ -126,26 +128,36 @@ class ChronosLLM(TimeSeriesLLM):
         input_results = []
         target_results = []
 
-        for batch_idx, (input_batch, target_batch) in enumerate(zip(test_input_batches, test_label_batches)):
+        for batch_idx, (input_batch, target_batch) in enumerate(
+            zip(test_input_batches, test_label_batches)
+        ):
             batch_inputs = input_batch.values
             batch_targets = target_batch.values
 
             input_results.append(batch_inputs)
             target_results.append(batch_targets)
 
-            logging.debug(f"Processing batch {batch_idx+1}/{len(test_input_batches)} with input shape {batch_inputs.shape}")
+            logging.debug(
+                f"Processing batch {batch_idx+1}/{len(test_input_batches)} with input shape {batch_inputs.shape}"
+            )
 
             if settings["prediction_length"] > 64 and settings["auto_split"]:
                 logging.info("Using auto-split mode for long sequence prediction.")
                 split_results = []
                 predictions_remaining = settings["prediction_length"]
                 num_splits = settings["prediction_length"] // 64
-                num_splits = num_splits if settings["prediction_length"] % 64 == 0 else num_splits + 1
+                num_splits = (
+                    num_splits
+                    if settings["prediction_length"] % 64 == 0
+                    else num_splits + 1
+                )
 
                 for split_idx in range(num_splits):
                     prediction_length = min(64, predictions_remaining)
 
-                    logging.debug(f"Split {split_idx+1}/{num_splits}: Predicting {prediction_length} time steps.")
+                    logging.debug(
+                        f"Split {split_idx+1}/{num_splits}: Predicting {prediction_length} time steps."
+                    )
 
                     current_llm_prediction = self.llm_model.predict(
                         context=torch.tensor(batch_inputs),
@@ -155,15 +167,21 @@ class ChronosLLM(TimeSeriesLLM):
                     )
 
                     if settings["num_samples"] > 1:
-                        current_llm_prediction = torch.mean(current_llm_prediction, dim=1)
+                        current_llm_prediction = torch.mean(
+                            current_llm_prediction, dim=1
+                        )
 
                     split_results.append(torch.squeeze(current_llm_prediction))
 
                     if predictions_remaining > 64:
-                        batch_inputs[:, : (batch_inputs.shape[1] - 64)] = batch_inputs[:, 64:]
+                        batch_inputs[:, : (batch_inputs.shape[1] - 64)] = batch_inputs[
+                            :, 64:
+                        ]
                         batch_inputs[:, :64] = current_llm_prediction
                         predictions_remaining -= 64
-                        logging.debug(f"Sliding window updated: {predictions_remaining} steps remaining.")
+                        logging.debug(
+                            f"Sliding window updated: {predictions_remaining} steps remaining."
+                        )
 
                 current_llm_prediction = torch.cat(split_results, dim=1)
 
@@ -189,7 +207,9 @@ class ChronosLLM(TimeSeriesLLM):
         inputs = np.concatenate(input_results, axis=0)
         targets = np.concatenate(target_results, axis=0)
 
-        logging.info(f"Prediction process completed. Shape of predictions: {llm_prediction.shape}")
+        logging.info(
+            f"Prediction process completed. Shape of predictions: {llm_prediction.shape}"
+        )
 
         # Save the results
         short_name = generate_run_title(self._data_settings, self._llm_settings)
@@ -200,11 +220,10 @@ class ChronosLLM(TimeSeriesLLM):
             inputs=inputs,
             name=short_name,
         )
-        
+
         logging.info("Results saved successfully.")
 
         return llm_prediction, targets
-
 
     def train(
         self,
@@ -242,11 +261,11 @@ class ChronosLLM(TimeSeriesLLM):
         data_loaded["per_device_train_batch_size"] = settings["batch_size"]
         data_loaded["max_steps"] = settings["max_steps"]
         data_loaded["save_steps"] = settings["save_steps"]
-        data_loaded["learning_rate"]=settings["learning_rate"]
-        data_loaded["log_steps"]=settings["log_steps"]
+        data_loaded["learning_rate"] = settings["learning_rate"]
+        data_loaded["log_steps"] = settings["log_steps"]
 
-        if(self._llm_settings['seed']):
-            data_loaded['seed']=self._llm_settings['seed']
+        if self._llm_settings["seed"]:
+            data_loaded["seed"] = self._llm_settings["seed"]
 
         output_dir = self._log_dir + "/{}".format(
             self._llm_settings["model"].split("/")[-1]

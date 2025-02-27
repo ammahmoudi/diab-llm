@@ -24,18 +24,17 @@ class TimeLLM(TimeSeriesLLM):
     def __init__(self, settings, data_settings, log_dir="./logs", name="time_llm"):
         os.environ["CURL_CA_BUNDLE"] = ""
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
-        
+
         # Set up the logger using the root logger
         self.logger = logging.getLogger(__name__)  # Use the module logger
         self.logger.info("Initializing TimeLLM model...")
 
-       
         super(TimeLLM, self).__init__(name=name)
-        
+
         self._llm_settings = settings
         self._data_settings = data_settings
         self._log_dir = log_dir
-        
+
         # Initialize TimeLLM model
         self.llm_model = TimeLLMModel.Model(configs=self._llm_settings).float()
 
@@ -53,7 +52,7 @@ class TimeLLM(TimeSeriesLLM):
         self._llm_settings["content"] = load_txt_content(
             self._data_settings["prompt_path"]
         )
-                # Capture logs from the accelerator and other libraries like DeepSpeed
+        # Capture logs from the accelerator and other libraries like DeepSpeed
         self._setup_external_loggers()
 
     def _setup_external_loggers(self):
@@ -63,9 +62,13 @@ class TimeLLM(TimeSeriesLLM):
         """
         # List of external libraries you want to capture logs from
         loggers_to_propagate = [
-            "accelerate", "deepspeed", "transformers", "torch.distributed", "logging"
+            "accelerate",
+            "deepspeed",
+            "transformers",
+            "torch.distributed",
+            "logging",
         ]
-        
+
         for logger_name in loggers_to_propagate:
             logger = logging.getLogger(logger_name)
             logger.setLevel(logging.INFO)  # Ensure they log at INFO level or higher
@@ -80,40 +83,95 @@ class TimeLLM(TimeSeriesLLM):
                 # If the logger doesn't already have a file handler, we add the root handler
                 for handler in logging.getLogger().handlers:
                     logger.addHandler(handler)
-        
+
     def load_model(self, checkpoint_path, is_inference=False):
         """
-        Load a pre-trained model checkpoint for inference.
-        This function handles the case where the checkpoint has the "module." prefix or not, depending on the mode.
+        Load a pre-trained model checkpoint for inference or training.
+        Dynamically handles cases where the checkpoint has the "module." prefix or not.
 
         :param checkpoint_path: Path to the saved model checkpoint.
         :param is_inference: Whether the model is being loaded in inference mode (True for inference, False for training).
         """
         logging.info(f"Loading model checkpoint from {checkpoint_path}")
+
         if os.path.exists(checkpoint_path):
             try:
                 # Load model weights
                 checkpoint = torch.load(
                     checkpoint_path,
                     map_location=self.accelerator.device,
-                    weights_only=True,  # Ensure that only model weights are loaded
+                    weights_only=True,  # Ensure only model weights are loaded
                 )
                 state_dict = checkpoint
 
                 if is_inference:
-                    # If in inference mode, check for missing 'module.' prefix and remove it
-                    if any(key.startswith('module.') for key in state_dict.keys()):
+                    if any(key.startswith("module.") for key in state_dict.keys()):
                         logging.info("Removing 'module.' prefix for inference.")
-                        state_dict = {key[7:]: value for key, value in state_dict.items()}  # Remove 'module.' prefix
+                        state_dict = {
+                            key[7:]: value for key, value in state_dict.items()
+                        }
                 else:
-                    # If in training mode (train+test), ensure 'module.' prefix is present
-                    if not all(key.startswith('module.') for key in state_dict.keys()):
+                    if not all(key.startswith("module.") for key in state_dict.keys()):
                         logging.info("Adding 'module.' prefix for training.")
-                        state_dict = {f'module.{key}': value for key, value in state_dict.items()}  # Add 'module.' prefix
+                        state_dict = {
+                            f"module.{key}": value for key, value in state_dict.items()
+                        }
 
-                # Load the state_dict into the model
+                # Attempt to load the state_dict into the model
                 self.llm_model.load_state_dict(state_dict)
-                
+
+            except RuntimeError as e:
+                error_msg = str(e)
+                logging.error(
+                    f"RuntimeError encountered while loading model: {error_msg}"
+                )
+
+                # Detect missing or unexpected keys
+                if (
+                    "Missing key(s) in state_dict" in error_msg
+                    and "Unexpected key(s) in state_dict" in error_msg
+                ):
+                    missing_keys = set()
+                    unexpected_keys = set()
+
+                    for line in error_msg.split("\n"):
+                        if "Missing key(s) in state_dict" in line:
+                            missing_keys.update(
+                                line.split(":")[1].strip().replace('"', "").split(", ")
+                            )
+                        elif "Unexpected key(s) in state_dict" in line:
+                            unexpected_keys.update(
+                                line.split(":")[1].strip().replace('"', "").split(", ")
+                            )
+
+                    # Check if we need to add or remove 'module.' prefix
+                    if all(k.startswith("module.") for k in unexpected_keys):
+                        logging.info(
+                            "Detected 'module.' prefix issue. Removing 'module.' prefix..."
+                        )
+                        state_dict = {
+                            k[len("module.") :]: v for k, v in state_dict.items()
+                        }
+                    elif all("module." + k in unexpected_keys for k in missing_keys):
+                        logging.info(
+                            "Detected missing 'module.' prefix. Adding 'module.' prefix..."
+                        )
+                        state_dict = {
+                            ("module." + k if k in missing_keys else k): v
+                            for k, v in state_dict.items()
+                        }
+
+                    # Try loading again
+                    try:
+                        self.llm_model.load_state_dict(state_dict)
+                        logging.info(
+                            "Model loaded successfully after prefix adjustment."
+                        )
+                    except RuntimeError as final_e:
+                        logging.error(
+                            f"Failed to load model even after key adjustments: {final_e}"
+                        )
+
             except TypeError:
                 # For older versions of PyTorch without weights_only, fallback
                 self.llm_model.load_state_dict(
@@ -122,14 +180,13 @@ class TimeLLM(TimeSeriesLLM):
 
             # Move model to the correct device and dtype
             self.llm_model.to(self.accelerator.device)
-            self.llm_model = self.llm_model.to(self._llm_settings['torch_dtype'])  # Align dtype if needed
-            
+            self.llm_model = self.llm_model.to(
+                self._llm_settings["torch_dtype"]
+            )  # Align dtype if needed
+
             logging.info("Model checkpoint loaded successfully.")
         else:
             raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
-
-
-
 
     def train(self, train_data, train_loader, val_loader=None):
         """
@@ -198,7 +255,9 @@ class TimeLLM(TimeSeriesLLM):
                 early_stopping(val_loss, self.llm_model, checkpoint_dir)
             else:
                 # If no validation data is available, log and continue without early stopping
-                self.logger.warning(f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | No validation data available.")
+                self.logger.warning(
+                    f"Epoch {epoch + 1} | Train Loss: {train_loss:.7f} | No validation data available."
+                )
 
             # Adjust learning rate
             self._adjust_scheduler(scheduler, epoch, model_optim)
@@ -210,7 +269,9 @@ class TimeLLM(TimeSeriesLLM):
                 break
 
         if not early_stopping_saved:
-            self.logger.warning("Early stopping did not trigger. Saving final model checkpoint.")
+            self.logger.warning(
+                "Early stopping did not trigger. Saving final model checkpoint."
+            )
 
         # Final checkpoint save
         final_checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
@@ -219,7 +280,6 @@ class TimeLLM(TimeSeriesLLM):
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
 
         return final_checkpoint_path, train_loss_l, val_loss_l
-
 
     def predict(self, test_loader, output_dir):
         """
@@ -231,14 +291,14 @@ class TimeLLM(TimeSeriesLLM):
         :return: Tuple of (predictions, targets) as numpy arrays for evaluation.
         """
         self.llm_model.eval()
-        predictions, targets, inputs, input_timestamps, output_timestamps, attention_maps = (
-            [],
-            [],
-            [],
-            [],
-            [],
-            []
-        )
+        (
+            predictions,
+            targets,
+            inputs,
+            input_timestamps,
+            output_timestamps,
+            attention_maps,
+        ) = ([], [], [], [], [], [])
 
         if len(test_loader) == 0:
             self.logger.info("Warning: The test loader is empty. No data to predict.")

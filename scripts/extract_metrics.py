@@ -6,6 +6,7 @@ import csv
 def extract_metrics_to_csv(base_dir, output_csv):
     # Regex pattern to find the metric results line
     metrics_pattern = re.compile(r"Metric results: (\{.*\})")
+    log_datetime_pattern = re.compile(r"logs_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})")
 
     # List to store extracted results
     results = []
@@ -17,8 +18,14 @@ def extract_metrics_to_csv(base_dir, output_csv):
             if file == "log.log":  # Targeting the log files
                 log_path = os.path.join(root, file)
 
+                # Extract log date-time from the log folder path
+                log_datetime_match = log_datetime_pattern.search(log_path)
+                log_datetime = (
+                    log_datetime_match.group(1) if log_datetime_match else "Unknown"
+                )
+
                 # Extract experiment details from the folder structure
-                path_parts = log_path.split(os.sep)  # Split by folder separators
+                path_parts = log_path.split(os.sep)
 
                 try:
                     # Extract the experiment folder and patient folder
@@ -51,6 +58,9 @@ def extract_metrics_to_csv(base_dir, output_csv):
                     # Add patient_id from the patient folder
                     patient_id = patient_folder.split("_")[1]
                     experiment_params["patient_id"] = patient_id
+                    experiment_params["log_datetime"] = (
+                        log_datetime  # Add the extracted timestamp
+                    )
 
                     # Read the log file and extract the last metrics line
                     with open(log_path, "r") as f:
@@ -70,7 +80,6 @@ def extract_metrics_to_csv(base_dir, output_csv):
 
                         # Dynamically generate the header if this is the first file
                         if not csv_header:
-                            # Build header dynamically from the experiment_params keys
                             csv_header = list(experiment_params.keys()) + [
                                 "rmse",
                                 "mae",
@@ -86,25 +95,16 @@ def extract_metrics_to_csv(base_dir, output_csv):
                                 metrics.get("mape"),
                             ]
                         )
-
-                        print(
-                            f"Extracted metrics for {experiment_params['patient_id']} from {log_path}"
-                        )
                     else:
                         # If no metrics found, append empty values to the results
                         if not csv_header:
-                            # Build header dynamically from the experiment_params keys
                             csv_header = list(experiment_params.keys()) + [
                                 "rmse",
                                 "mae",
                                 "mape",
                             ]
 
-                        # Append the experiment data with empty metric values
                         results.append(list(experiment_params.values()) + ["", "", ""])
-                        print(
-                            f"No metrics found for {experiment_params['patient_id']} in {log_path}"
-                        )
 
                 except Exception as e:
                     print(f"Error processing {log_path}: {e}")
