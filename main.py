@@ -27,6 +27,10 @@ flags.DEFINE_bool(
     "Whether to remove checkpoint files/folders after training+inference.",
 )
 
+import torch.distributed as dist
+
+if dist.is_initialized() and dist.get_rank() != 0:
+    logging.getLogger().setLevel(logging.WARNING)  # Suppress logging for non-main processes
 
 @gin.configurable
 def run(
