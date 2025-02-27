@@ -20,5 +20,4 @@ for config_path in config_files:
     
     print(f"Running: {command}")
     subprocess.run(command, shell=True)
-
-extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')
+    extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')

@@ -2,6 +2,7 @@ import os
 import json
 from itertools import product
 import random
+from seeds import fixed_seeds
 
 # Define parameter sets that must be consistent
 feature_label_sets = [
@@ -69,9 +70,9 @@ patients = [
 
 
 # Generate 10 random seeds between 0 and 999999 (or any range you like)
-seeds = [random.randint(0, 999999) for _ in range(10)]
-
-print(seeds)
+# seeds = [random.randint(0, 999999) for _ in range(10)]
+seeds = fixed_seeds
+# print(seeds)
 
 
 models = [
@@ -88,14 +89,6 @@ torch_dtypes = [
 ]  # Different torch dtypes
 modes = ["inference"]  # Different modes
 
-# Define max_train_steps manually for each model (or any criteria you want)
-max_train_steps_mapping = {
-    "amazon/chronos-t5-tiny": 10000,
-    "amazon/chronos-t5-mini": 10000,
-    "amazon/chronos-t5-small": 10000,
-    "amazon/chronos-t5-base": 10000,
-    "amazon/chronos-t5-large": 10000,
-}
 
 # Base directory for configurations and logs
 base_output_dir = "./experiment_configs_chronos_inference/"
@@ -111,15 +104,10 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
     # Set min_past to match context_length
     min_past = context_len
 
-    # Get max_train_steps from mapping
-    max_train_steps = max_train_steps_mapping.get(
-        model, 10000
-    )  # Default to 10k if model is missing
-
     # Define a unique folder for this configuration
     config_folder = os.path.join(
         base_output_dir,
-        f"seed_{seed}_model_{model.replace('/', '_')}_dtype_{torch_dtype}_mode_{mode}_context_{context_len}_pred_{pred_len}",
+        f"seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_{mode}_context_{context_len}_pred_{pred_len}",
     )
     os.makedirs(config_folder, exist_ok=True)
 
@@ -156,18 +144,12 @@ run.llm_settings = {{
     'method': 'chronos',    
     'model': '{model}',  
     'torch_dtype': '{torch_dtype}',   
-    'ntokens': 4096,
-    'tokenizer_kwargs': "{{'low_limit': 35,'high_limit': 500}}",
     'prediction_length': {pred_len},    
     'num_samples': 1,
     'context_length': {context_len},
     'min_past': {min_past},
     'prediction_batch_size': 64,    
     'prediction_use_auto_split': False,
-    'max_train_steps': {max_train_steps},
-    'train_batch_size': 32,
-    'random_init': False,
-    'save_steps': 1000,
     'eval_metrics': ['rmse', 'mae', 'mape'],    
     'restore_from_checkpoint': False,
     'restore_checkpoint_path': '',

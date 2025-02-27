@@ -1,6 +1,7 @@
 import os
 import random
 from itertools import product
+from seeds import fixed_seeds
 
 # Define parameter sets that must be consistent (only change for this new config is the patients' data path)
 feature_label_sets = [
@@ -29,7 +30,8 @@ patients = [
 ]
 
 # Generate 10 random seeds between 0 and 999999 (or any range you like)
-seeds = [random.randint(0, 999999) for _ in range(1)]
+# seeds = [random.randint(0, 999999) for _ in range(1)]
+seeds=fixed_seeds
 
 # Available models
 models = [

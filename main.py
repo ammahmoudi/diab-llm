@@ -132,16 +132,16 @@ def run(
         )
         if llm_settings["mode"] == "inference":
             # check if train and test data are csv files
-            if data_settings["path_to_train_data"].endswith(".csv"):
-                logging.debug(
-                    "Loading train data from {}.".format(
-                        data_settings["path_to_train_data"]
-                    )
-                )
-                train_data_path = data_loader.convert_csv_to_arrow(
-                    data_settings["path_to_train_data"], split="train"
-                )
-                data_settings["path_to_train_data"] = train_data_path
+            # if data_settings["path_to_train_data"].endswith(".csv"):
+            #     logging.debug(
+            #         "Loading train data from {}.".format(
+            #             data_settings["path_to_train_data"]
+            #         )
+            #     )
+            #     train_data_path = data_loader.convert_csv_to_arrow(
+            #         data_settings["path_to_train_data"], split="train"
+            #     )
+                # data_settings["path_to_train_data"] = train_data_path
             if data_settings["path_to_test_data"].endswith(".csv"):
                 logging.debug(
                     "Loading test data from {}.".format(

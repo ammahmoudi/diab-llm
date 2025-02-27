@@ -1,0 +1,30 @@
+run.log_dir = "./experiment_configs_chronos_inference/seed_427368_model_amazon-chronos-t5-large_dtype_float32_mode_inference_context_6_pred_9/patient_567/logs"
+run.chronos_dir = "/home/amma/"
+
+run.data_settings = {
+    'path_to_train_data': './data/formatted/6_9/567-ws-training.csv',
+    'path_to_test_data': './data/formatted/6_9/567-ws-testing.csv',
+    'input_features': ['BG_{t-5}', 'BG_{t-4}', 'BG_{t-3}', 'BG_{t-2}', 'BG_{t-1}', 'BG_{t}'],
+    'labels': ['BG_{t+1}', 'BG_{t+2}', 'BG_{t+3}', 'BG_{t+4}', 'BG_{t+5}', 'BG_{t+6}', 'BG_{t+7}', 'BG_{t+8}', 'BG_{t+9}'],
+    'preprocessing_method': 'min_max',
+    'preprocess_input_features': False,
+    'preprocess_label': False,
+    'percent': 100
+}
+
+run.llm_settings = {
+    'mode': 'inference',    
+    'method': 'chronos',    
+    'model': 'amazon/chronos-t5-large',  
+    'torch_dtype': 'float32',   
+    'prediction_length': 9,    
+    'num_samples': 1,
+    'context_length': 6,
+    'min_past': 6,
+    'prediction_batch_size': 64,    
+    'prediction_use_auto_split': False,
+    'eval_metrics': ['rmse', 'mae', 'mape'],    
+    'restore_from_checkpoint': False,
+    'restore_checkpoint_path': '',
+    'seed': 427368  
+}
