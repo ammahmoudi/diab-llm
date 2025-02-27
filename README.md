@@ -35,7 +35,8 @@ pip install -r requirements.txt
 
 Before running the configuration scripts, ensure the following folders are available in the root directory and contain the necessary configuration files:
 
-- `experiment_configs_time_llm/` – Contains configurations for the time-series LLM model.
+- `experiment_configs_time_llm_inference/` – Contains configurations for the time-series LLM  inference model.
+- `experiment_configs_time_llm_training/` – Contains configurations for the time-series LLM  training+testing model.
 - `experiment_configs_chronos_inference/` – Contains configurations for the Chronos inference model.
 
 ---
@@ -45,11 +46,12 @@ Before running the configuration scripts, ensure the following folders are avail
 To run the configurations for both tasks, use the following commands:
 
 ```bash
-python ./scripts/run_configs_time_llm.py
+python ./scripts/run_configs_time_llm_inference.py
+python ./scripts/run_configs_time_llm_training.py
 python ./scripts/run_configs_chronos_inference.py
 ```
 
-These scripts will process all the configurations in the respective folders and save the results in a CSV file located in the root directory.
+These scripts will process all the configurations in the respective folders and save the results in a CSV file located in the root directory. For Time-LLM you can change the order of models or filter them by type by editing the order list in the run_configs_time_llm_ .py files. also for multi gpu runs you can edit the run_main.sh file.
 
 ---
 
@@ -57,7 +59,8 @@ These scripts will process all the configurations in the respective folders and 
 
 If you wish to create your own custom configuration combinations, you can use the following scripts:
 
-- `config_generator_chronos.py` – For generating custom configurations for Chronos.
+- `config_generator_chronos_inference.py` – For generating custom configurations for Chronos.
+- `config_generator_chronos_training.py` – For generating custom configurations for Chronos.
 - `config_generator_time_llm.py` – For generating custom configurations for the Time LLM model.
 
 ---
