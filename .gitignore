@@ -10,3 +10,4 @@ experiment_configs
 experiment_results.csv
 experiment_configs_old
 AutogluonModels
+results
