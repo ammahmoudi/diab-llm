@@ -325,6 +325,7 @@ def run(
             data_settings["path_to_test_data"],
             batch_size=llm_settings["prediction_batch_size"],
             split="test",
+            missed=False
         )
 
         # Initialize TimeLLM

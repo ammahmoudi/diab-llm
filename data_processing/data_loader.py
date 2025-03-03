@@ -6,6 +6,8 @@ from data_processing.data_sets import Dataset_T1DM, TimeSeriesDataset
 from torch.utils.data import DataLoader
 from gluonts.dataset.arrow import ArrowWriter
 
+from scripts.convert_to_arrow import convert_to_arrow, load_csv_and_prepare_data
+
 
 class ChronosDataHandler:
     def __init__(
@@ -73,41 +75,48 @@ class ChronosDataHandler:
         # Load the data (assuming self.load_from_csv is a method that reads the CSV and returns a DataFrame)
         dataframe = self.load_from_csv(path_to_csv, split=split)
 
-        # Extract the labels and input features from the settings
-        labels = self._settings["labels"]
-        input_features = self._settings["input_features"]
+        # # Extract the labels and input features from the settings
+        # labels = self._settings["labels"]
+        # input_features = self._settings["input_features"]
 
-        # Ensure there's no overlap between target and input features
-        if set(labels).intersection(input_features):
-            logging.warning(
-                f"Target and input features share column names: {set(labels).intersection(input_features)}"
-            )
-            # Handle the overlap case here, e.g., separate them or prioritize one column as the target.
-            # For this example, let's assume we treat the first 'label' as the target and the rest as input features.
-            input_features = list(set(input_features) - set(labels))
+        # # Ensure there's no overlap between target and input features
+        # if set(labels).intersection(input_features):
+        #     logging.warning(
+        #         f"Target and input features share column names: {set(labels).intersection(input_features)}"
+        #     )
+        #     # Handle the overlap case here, e.g., separate them or prioritize one column as the target.
+        #     # For this example, let's assume we treat the first 'label' as the target and the rest as input features.
+        #     input_features = list(set(input_features) - set(labels))
 
-        # Select relevant columns for input features and target values
-        df_values = dataframe[labels + input_features].values
+        # # Select relevant columns for input features and target values
+        # df_values = dataframe[labels + input_features].values
 
-        # Ensure the timestamp column is parsed correctly (assuming it's called 'timestamp')
-        timestamps = pd.to_datetime(dataframe["timestamp"],format='%d-%m-%Y %H:%M:%S').values
+        # # Ensure the timestamp column is parsed correctly (assuming it's called 'timestamp')
+        # timestamps = pd.to_datetime(dataframe["timestamp"],format='%d-%m-%Y %H:%M:%S').values
 
-        # Convert the DataFrame to a list of series, each with the target values and corresponding timestamps
-        dataset = [
-            {
-                "start": timestamps[
-                    i
-                ],  # Use the first timestamp in each time series as the start time
-                "target": np.array(value, np.float32),
-            }
-            for i, value in enumerate(df_values)
-        ]
+        # # Convert the DataFrame to a list of series, each with the target values and corresponding timestamps
+        # dataset = [
+        #     {
+        #         "start": timestamps[
+        #             i
+        #         ],  # Use the first timestamp in each time series as the start time
+        #         "target": np.array(value, np.float32),
+        #     }
+        #     for i, value in enumerate(df_values)
+        # ]
 
-        # Output path for the Arrow file (replace the .csv extension with .arrow)
+        # # Output path for the Arrow file (replace the .csv extension with .arrow)
         arrow_path = path_to_csv.replace(".csv", ".arrow")
 
-        # Write the dataset to Arrow format with compression
-        ArrowWriter(compression="lz4").write_to_file(dataset, arrow_path)
+        # # Write the dataset to Arrow format with compression
+        # ArrowWriter(compression="lz4").write_to_file(dataset, arrow_path)
+        
+                # Load the data from the CSV file and prepare it
+        time_series, timestamps = load_csv_and_prepare_data(path_to_csv)
+
+        # Convert to GluonTS Arrow format and store in a file
+        convert_to_arrow(arrow_path, time_series=time_series, timestamps=timestamps)
+
 
         logging.info(f"Arrow file saved at {arrow_path}.")
         return arrow_path
