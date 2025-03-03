@@ -6,9 +6,9 @@ from seeds import fixed_seeds
 
 # Define parameter sets that must be consistent
 llm_model_sets = [
-    {"llm_model": "GPT2", "llm_dim": 768},
+    # {"llm_model": "GPT2", "llm_dim": 768},
     {"llm_model": "LLAMA", "llm_dim": 4096},
-    {"llm_model": "BERT", "llm_dim": 768},
+    # {"llm_model": "BERT", "llm_dim": 768},
 ]
 
 patients = ["540", "544", "552", "559", "563", "567", "570", "575", "584", "588", "591", "596"]
@@ -95,7 +95,7 @@ run.llm_settings = {{
     'patch_len': {patch_len},
     'stride': 8,
     'prediction_batch_size': 64,
-    'train_batch_size': 32,
+    'train_batch_size': 2,
     'learning_rate': 0.001,
     'train_epochs': {train_epochs},
     'features': 'S',

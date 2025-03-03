@@ -1,8 +1,8 @@
 run.log_dir = "./logs/"
 run.chronos_dir = "/home/amma/"
 run.data_settings = {
-    'path_to_train_data': './data/formatted/6_6/596-ws-training.csv',
-    'path_to_test_data': './data/formatted/6_6/596-ws-testing.csv',
+    'path_to_test_data': './data/formatted/6_6/596-ws-training.csv',
+    'path_to_train_data': './data/formatted/6_6/596-ws-testing.csv',
     'input_features': ['BG_{t-5}', 'BG_{t-4}', 'BG_{t-3}', 'BG_{t-2}', 'BG_{t-1}', 'BG_{t}'],
     'labels': ['BG_{t+1}', 'BG_{t+2}', 'BG_{t+3}', 'BG_{t+4}', 'BG_{t+5}', 'BG_{t+6}'],
     'preprocessing_method': 'min_max',
@@ -13,8 +13,8 @@ run.data_settings = {
 run.llm_settings = {
     'mode': 'inference',    # available modes: 'inference', 'training', 'training+inference'
     'method': 'chronos',    # available methods: 'chronos'
-    'model': 'amazon/chronos-t5-tiny',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
-    'torch_dtype': 'float16',   # available dtypes: 'float16', 'bfloat16', 'float32'
+    'model': 'amazon/chronos-t5-base',  # available models: 'amazon/chronos-t5-tiny', '...-mini', '...-small', '...base', '...-large'
+    'torch_dtype': 'bfloat16',   # available dtypes: 'float16', 'bfloat16', 'float32'
     'ntokens': 4096,
     'tokenizer_kwargs': "{'low_limit': 35,'high_limit': 500}",
     'prediction_length': 6,    # Note: maximal prediction length is 64 for chronos pretrained models
@@ -28,7 +28,7 @@ run.llm_settings = {
     'random_init': False,
     'save_steps': 1000,
     'eval_metrics': ['rmse', 'mae', 'mape'],    # available metrics: 'rmse', 'mae', 'mape'
-    'restore_from_checkpoint': False,
-    'restore_checkpoint_path': '',
-    'seed':2021  #optional seed to reproduce results. remove to get random seed.
+    'restore_from_checkpoint': True,
+    'restore_checkpoint_path': './logs/logs_2025-03-03_15-30-03/chronos-t5-base/run-0/checkpoint-final',
+    'seed':202231   #optional seed to reproduce results. remove to get random seed.
 }
