@@ -114,6 +114,7 @@ class Dataset_T1DM(Dataset):
         """
         # Load the data
         df_raw = pd.read_csv(self.data_path)
+        print(df_raw.head())
 
         # Ensure correct columns exist
         assert (

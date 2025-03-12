@@ -95,3 +95,61 @@ def save_results_and_generate_plots(
     plot_avg_predictions_plotly(reformated_results_df, save_path=plot_avg_predictions_path,name=name)
 
     logging.info(f"Plots saved to {plots_dir}")
+
+
+
+
+import pandas as pd
+
+def convert_window_to_single_prediction(input_file, output_file="single_step_predictions.csv"):
+    """
+    Converts windowed time-series predictions into a single-step format by:
+    1. Extracting the first step's true and predicted values.
+    2. Extracting the last row's true and predicted values, ensuring all steps are captured.
+    
+    Saves the result to a new CSV file with "true" and "pred" columns.
+
+    Parameters:
+        input_file (str): Path to the input CSV file.
+        output_file (str): Path to save the processed CSV file (default: "single_step_predictions.csv").
+    """
+    # Load the CSV file
+    df = pd.read_csv(input_file)
+
+    # Identify true and pred columns
+    true_cols = [col for col in df.columns if "_true" in col]
+    pred_cols = [col for col in df.columns if "_pred" in col]
+
+    # Ensure there are true and pred columns
+    if not true_cols or not pred_cols:
+        print("No valid columns found in the CSV.")
+        return
+
+    # Select only the first true and predicted column (first step)
+    selected_true = true_cols[0]
+    selected_pred = pred_cols[0]
+
+    # Extract the first step's true and predicted values
+    first_step_df = df[[selected_true, selected_pred]].copy()
+    first_step_df.columns = ["true", "pred"]  # Rename columns
+
+    # Extract the last row
+    last_row = df.iloc[-1]
+
+    # Separate the last row into true and pred values
+    last_true_values = last_row[true_cols].reset_index(drop=True)
+    last_pred_values = last_row[pred_cols].reset_index(drop=True)
+
+    # Create DataFrames for true and pred values
+    last_true_df = pd.DataFrame(last_true_values, columns=["true"])
+    last_pred_df = pd.DataFrame(last_pred_values, columns=["pred"])
+
+    # Concatenate first step data with last row data
+    result_df = pd.concat([first_step_df, last_true_df, last_pred_df], ignore_index=True)
+
+    # Save the result to a new CSV file
+    result_df.to_csv(output_file, index=False)
+    print(f"Converted window predictions saved to {output_file}")
+
+# Example Usage:
+# convert_window_to_single_prediction("your_file.csv", "single_step_predictions.csv")

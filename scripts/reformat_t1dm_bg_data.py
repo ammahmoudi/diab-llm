@@ -29,37 +29,36 @@ prediction_window_size = args.prediction_window_size
 input_features = args.input_features
 labels = args.labels
 
-def reformat_t1dm_bg_data(
-        parameters={
-            'data_path': '.',
-            'save_path': '.',
-            'input_window_size': 6,
-            'prediction_window_size': 6,
-            'input_features': ["BG_{t-5}", "BG_{t-4}", "BG_{t-3}", "BG_{t-2}", "BG_{t-1}", "BG_{t}"],
-            'labels': ["BG_{t+1}", "BG_{t+2}", "BG_{t+3}", "BG_{t+4}", "BG_{t+5}", "BG_{t+6}"]
-        }
-):
-    # load data
+def reformat_t1dm_bg_data(parameters):
+    # Load data
     data = pd.read_csv(parameters['data_path'])
+    print(f'Initial data size: {data.shape}')
+
     transformed_data = {
         feature: [] for feature in parameters['input_features'] + parameters['labels']
     }
-    offset = parameters['input_window_size']
-    for i in range((len(data) - parameters['prediction_window_size']) // parameters['input_window_size']):
-        # input_data = data['_value'][i * parameters['input_window_size']: (i + 1) * parameters['input_window_size']]
-        input_data = data['target'][i: parameters['input_window_size'] + i]
+
+    input_size = parameters['input_window_size']
+    output_size = parameters['prediction_window_size']
+    total_size = input_size + output_size
+
+    # Use a rolling window to extract all valid sequences
+    for i in range(len(data) - total_size + 1):  # Move by one step at a time
+        input_data = data['target'][i: i + input_size].values
+        label_data = data['target'][i + input_size: i + total_size].values
+
+        # Append input data
         for feature, value in zip(parameters['input_features'], input_data):
             transformed_data[feature].append(value)
-        # label_data = data['_value'][offset + (i * parameters['prediction_window_size']): offset + ((i + 1) * parameters['prediction_window_size'])]
-        label_data = data['target'][offset + i: offset + parameters['prediction_window_size'] + i]
+
+        # Append label data
         for label, value in zip(parameters['labels'], label_data):
             transformed_data[label].append(value)
 
     transformed_data = pd.DataFrame(transformed_data)
-    transformed_data.to_csv(
-        parameters['save_path'],
-        index=False
-    )
+    print(f'Final transformed data shape: {transformed_data.shape}')
+
+    transformed_data.to_csv(parameters['save_path'], index=False)
 
 if __name__ == '__main__':
     # parse config file

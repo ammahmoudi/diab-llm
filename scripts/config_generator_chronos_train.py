@@ -31,11 +31,11 @@ patients = [
 
 # Generate 10 random seeds between 0 and 999999 (or any range you like)
 # seeds = [random.randint(0, 999999) for _ in range(1)]
-seeds=fixed_seeds
+seeds=fixed_seeds[:1]
 
 # Available models
 models = [
-    # "amazon/chronos-t5-tiny",
+    "amazon/chronos-t5-tiny",
     # "amazon/chronos-t5-mini",
     # "amazon/chronos-t5-small",
     "amazon/chronos-t5-base",
@@ -44,8 +44,8 @@ models = [
 
 # Torch dtypes
 torch_dtypes = [
-    "bfloat16",
-    # "float32",
+    # "bfloat16",
+    "float32",
 ]
 
 # Modes (always 'training' in this case)
@@ -53,11 +53,11 @@ modes = ["training"]
 
 # Max train steps for each model
 max_train_steps_mapping = {
-    # "amazon/chronos-t5-tiny": 10000,
+    "amazon/chronos-t5-tiny": 1000,
     # "amazon/chronos-t5-mini": 10000,
     # "amazon/chronos-t5-small": 10000,
-    "amazon/chronos-t5-base": 200000,
-    # "amazon/chronos-t5-large": 200000,
+    "amazon/chronos-t5-base": 1000,
+    # "amazon/chronos-t5-large": 1000,
 }
 
 # Base output directory
@@ -101,7 +101,7 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
 
         # Prepare .gin configuration content
         config_content = f"""
-run.log_dir = "./logs/"
+run.log_dir = "{log_folder}"
 run.chronos_dir = "/home/amma/"
 
 run.data_settings = {{
@@ -128,9 +128,9 @@ run.llm_settings = {{
     'min_past': {min_past},
     'learning_rate': 0.001,
     'max_train_steps': {max_train_steps},
-    'save_steps': 100000,
-    'log_steps': 500,
-    'train_batch_size': 32,
+    'save_steps': 500,
+    'log_steps': 200,
+    'train_batch_size': 8,
     'random_init': False,
     'seed': {seed}  
 }}
