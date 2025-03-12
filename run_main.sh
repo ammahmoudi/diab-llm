@@ -7,7 +7,7 @@ CONFIG_PATH="./configs/config_time_llm.gin"
 LOG_LEVEL="INFO"
 REMOVE_CHECKPOINTS="False"  # Default value for the flag
 master_port=1234
-num_process=2
+num_process=1
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -21,7 +21,7 @@ done
 
 # Execute the Python script with accelerate launch and provided arguments
 accelerate launch  \
- --multi_gpu --num_processes $num_process \
+ --num_processes $num_process \
  --main_process_port $master_port\
  --num_machines=1 --dynamo_backend=no --mixed_precision bf16 \
     main.py \
