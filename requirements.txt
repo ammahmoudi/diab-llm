@@ -9,7 +9,7 @@ numpy
 pandas==2.2.3
 PyYAML==6.0.2
 reformer_pytorch==1.4.4
-torch==2.4.1
+torch>=2.4.1
 tqdm==4.67.1
 transformers
 plotly==5.24.1
