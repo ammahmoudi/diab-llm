@@ -12,17 +12,17 @@ llm_model_sets = [
 ]
 
 patients = ["540",
-            # "544", "552", "559", "563", "567", "570", "575", "584", "588", "591", "596"
+            "544", "552", "559", "563", "567", "570", "575", "584", "588", "591", "596"
             ]
 
 length_sets = [
-    # {"sequence_length": 6, "context_length": 6, "prediction_length": 6, "patch_len": 6},
+    {"sequence_length": 6, "context_length": 6, "prediction_length": 6, "patch_len": 6},
     {"sequence_length": 6, "context_length": 6, "prediction_length": 9, "patch_len": 6},
 ]
 
-train_epochs_set = [0]
+train_epochs_set = [10]
 
-seeds = fixed_seeds[:1]
+seeds = fixed_seeds[:2]
 
 
 modes = ["training+inference"]
@@ -87,7 +87,7 @@ run.llm_settings = {{
     'mode': '{mode}',
     'method': 'time_llm',
     'llm_model': '{llm_model}',
-    'llm_layers': 32,
+    'llm_layers': 8,
     'llm_dim': {llm_dim},
     'num_workers': 1,
     'torch_dtype': '{torch_dtype}',
@@ -98,7 +98,7 @@ run.llm_settings = {{
     'patch_len': {patch_len},
     'stride': 8,
     'prediction_batch_size': 64,
-    'train_batch_size': 1,
+    'train_batch_size': 32,
     'learning_rate': 0.001,
     'train_epochs': {train_epochs},
     'features': 'S',
