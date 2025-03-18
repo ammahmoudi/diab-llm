@@ -467,7 +467,35 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
         # Show the plot
         fig.show()
 
-def plot_mae_steps(df, title, file_path):  
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+def plot_mae_steps(df: pd.DataFrame, title: str, file_path: str):
+    """
+    Plots the Mean Absolute Error (MAE) for each future timestep and saves the plot.
+
+    This function calculates the absolute errors between true and predicted values 
+    for multiple timesteps, then visualizes the mean MAE with a shaded ±1 standard deviation 
+    (SD) range.
+
+    The plot is saved as both `.svg` and `.png` files in the current directory.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing true and predicted values for multiple timesteps.
+        title (str): Title of the plot.
+        file_path (str): Path of the input CSV file to derive the output filename.
+
+    Saves:
+        - A `.svg` version of the plot.
+        - A `.png` version of the plot.
+
+    Example:
+        >>> plot_mae_steps(df, "MAE Across Future Timesteps", "results/data.csv")
+    """
+    
     # Identify the true and predicted columns
     true_cols = [col for col in df.columns if "true" in col]
     pred_cols = [col for col in df.columns if "pred" in col]
@@ -521,36 +549,68 @@ def plot_mae_steps(df, title, file_path):
     plt.legend()
     plt.grid(True, alpha=0.5)
 
-    # Save figures
-    plt.savefig(file_path.replace('.csv', '.svg'), format='svg')
-    plt.savefig(file_path.replace('.csv', '.png'), format='png')
+    # Generate file names based on title and save figures
+    base_filename = os.path.splitext(os.path.basename(file_path))[0]
+    safe_title = title.lower().replace(" ", "_").replace("-", "_")
+    svg_filename = f"{base_filename}_{safe_title}.svg"
+    png_filename = f"{base_filename}_{safe_title}.png"
+
+    plt.savefig(svg_filename, format='svg')
+    plt.savefig(png_filename, format='png')
 
     plt.show()
 
-def plot_mae_steps_box_plot(df):
+def plot_mae_steps_box_plot(df: pd.DataFrame, file_path: str):
+    """
+    Generates a boxplot showing the distribution of absolute errors for each prediction order.
+
+    This function calculates the absolute errors between true and predicted values 
+    and visualizes them as a boxplot, helping to understand error distribution at different
+    prediction orders.
+
+    The plot is saved as both `.svg` and `.png` files in the current directory.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing true and predicted values.
+        file_path (str): Path of the input CSV file to derive the output filename.
+
+    Saves:
+        - A `.svg` version of the plot.
+        - A `.png` version of the plot.
+
+    Example:
+        >>> plot_mae_steps_box_plot(df, "results/data.csv")
+    """
+    
+    # Identify the true and predicted columns
     true_cols = [col for col in df.columns if "true" in col]
     pred_cols = [col for col in df.columns if "pred" in col]
 
     # Compute absolute errors for each prediction order and store metrics
     error_data = {}
-    mean_errors = []
-    std_devs = []
 
     for i, (true_col, pred_col) in enumerate(zip(true_cols, pred_cols)):
         # Absolute errors per prediction order
         abs_error = np.abs(df[true_col] - df[pred_col])
         error_data[f"Prediction_Order_{i+1}"] = abs_error
 
-        # Compute mean and standard deviation
-        mean_errors.append(abs_error.mean())
-        std_devs.append(abs_error.std())
-
     # Prepare data for visualization
-    # --- Boxplot: Distribution of Absolute Errors (MAE) by Prediction Order ---
     error_melted = pd.DataFrame(error_data).melt(var_name="Prediction_Order", value_name="Absolute_Error")
+    
+    # --- Boxplot: Distribution of Absolute Errors (MAE) by Prediction Order ---
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Prediction_Order", y="Absolute_Error", data=error_melted)
     plt.title("Distribution of Absolute Errors by Prediction Order")
     plt.xlabel("Prediction Order (1 = most recent prediction)")
     plt.ylabel("Absolute Error")
+    plt.grid(True, alpha=0.5)
+
+    # Generate file names based on input file name
+    base_filename = os.path.splitext(os.path.basename(file_path))[0]
+    svg_filename = f"{base_filename}_mae_boxplot.svg"
+    png_filename = f"{base_filename}_mae_boxplot.png"
+
+    plt.savefig(svg_filename, format='svg')
+    plt.savefig(png_filename, format='png')
+
     plt.show()
