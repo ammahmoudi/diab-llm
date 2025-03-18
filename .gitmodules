@@ -1,0 +1,3 @@
+[submodule "models/chronos"]
+	path = models/chronos
+	url = https://github.com/ammahmoudi/chronos-forecasting.git
