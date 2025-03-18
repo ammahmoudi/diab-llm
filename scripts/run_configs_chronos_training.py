@@ -4,7 +4,7 @@ import subprocess
 from extract_metrics import extract_metrics_to_csv
 
 # Base directory where config files are stored
-base_output_dir = "./experiment_configs_chronos_training/"
+base_output_dir = "./experiment_configs_chronos_training_lora/"
 log_level = "DEBUG"
 
 # Recursively find all `config.gin` files

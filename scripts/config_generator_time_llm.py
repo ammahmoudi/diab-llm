@@ -20,7 +20,7 @@ length_sets = [
     {"sequence_length": 6, "context_length": 6, "prediction_length": 9, "patch_len": 6},
 ]
 
-train_epochs_set = [10]
+train_epochs_set = [0]
 
 seeds = fixed_seeds[:2]
 

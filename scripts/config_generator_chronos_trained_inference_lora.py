@@ -1,10 +1,63 @@
 import os
+import glob
 import json
 from itertools import product
-import random
 from seeds import fixed_seeds
 
-# Define parameter sets that must be consistent
+
+def find_latest_checkpoint(training_folder_pattern, patient_id):
+    """
+    Finds the latest 'checkpoint-final' inside the correct patient folder.
+    Example path:
+    experiment_configs_chronos_training/seed_*_model_amazon_chronos-t5-*/patient_575/logs/logs_YYYY-MM-DD_HH-MM-SS/chronos-t5-*/run-0/checkpoint-final
+    """
+    print(
+        f"\n🔍 Searching for checkpoint in: {training_folder_pattern} for patient {patient_id}"
+    )
+
+    try:
+        # Expand wildcard pattern (match any seed)
+        training_folders = glob.glob(training_folder_pattern)
+        if not training_folders:
+            print(
+                f"⚠️ No matching training folders found for {training_folder_pattern}!"
+            )
+            return ""
+
+        # Find all checkpoint-final files in the correct patient logs
+        checkpoint_paths = []
+        for folder in training_folders:
+            patient_logs_path = os.path.join(folder, f"patient_{patient_id}", "logs")
+            checkpoints = glob.glob(
+                os.path.join(patient_logs_path, "**", "lora-final"),
+                recursive=True,
+            )
+            if checkpoints:
+                checkpoint_paths.extend(checkpoints)
+
+        if not checkpoint_paths:
+            print(
+                f"⚠️ No 'lora-final' found for patient {patient_id} in {training_folder_pattern}!"
+            )
+            return ""
+
+        # Sort checkpoints by modification time (latest first)
+        checkpoint_paths.sort(key=os.path.getmtime, reverse=True)
+
+        latest_checkpoint = checkpoint_paths[0]  # Pick the most recent one
+        print(
+            f"✅ Found latest checkpoint for patient {patient_id}: {latest_checkpoint}\n"
+        )
+        return latest_checkpoint
+
+    except Exception as e:
+        print(
+            f"❌ Error finding checkpoint for patient {patient_id} in {training_folder_pattern}: {e}"
+        )
+        return ""
+
+
+# Define parameter sets
 feature_label_sets = [
     {
         "input_features": [
@@ -51,7 +104,7 @@ feature_label_sets = [
     },
 ]
 
-# Define the parameters to iterate over
+# Define parameters to iterate over
 patients = [
     "540",
     "544",
@@ -65,65 +118,46 @@ patients = [
     "588",
     "591",
     "596",
-]  # List of patient IDs
-# seeds = [2021, 2022]  # List of seeds
-
-
-# Generate 10 random seeds between 0 and 999999 (or any range you like)
-# seeds = [random.randint(0, 999999) for _ in range(10)]
+]
 seeds = fixed_seeds
-# print(seeds)
+models = ["amazon/chronos-t5-base", "amazon/chronos-t5-tiny"]
+torch_dtypes = ["float32"]
+modes = ["inference"]
 
-
-models = [
-    "amazon/chronos-t5-tiny",
-    # "amazon/chronos-t5-mini",
-    # "amazon/chronos-t5-small",
-    "amazon/chronos-t5-base",
-    # "amazon/chronos-t5-large",
-]  # Different models
-torch_dtypes = [
-    # "float16",
-    # "bfloat16",
-    "float32",
-]  # Different torch dtypes
-modes = ["inference"]  # Different modes
-
-
-# Base directory for configurations and logs
-base_output_dir = "./experiment_configs_chronos_inference/"
+# Base directory for configurations
+base_output_dir = "./experiment_configs_chronos_training_inference_lora/"
 os.makedirs(base_output_dir, exist_ok=True)
 
-# Generate config files for all combinations
+# Generate config files
 for seed, feature_label_set, model, torch_dtype, mode in product(
     seeds, feature_label_sets, models, torch_dtypes, modes
 ):
     context_len = feature_label_set["context_length"]
     pred_len = feature_label_set["prediction_length"]
-
-    # Set min_past to match context_length
     min_past = context_len
 
-    # Define a unique folder for this configuration
     config_folder = os.path.join(
         base_output_dir,
-        f"seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_{mode}_context_{context_len}_pred_{pred_len}",
+        f"seed_{seed}_model_{model.replace('/', '-')}_dtype_{torch_dtype}_mode_{mode}_context_{context_len}_pred_{pred_len}",
     )
     os.makedirs(config_folder, exist_ok=True)
 
     for patient_id in patients:
-        # Create a patient-specific subfolder within the config group
+        # Determine the correct model checkpoint path for this patient
+        if "base" in model:
+            training_folder_pattern = "./experiment_configs_chronos_training_lora/seed_*_model_amazon_chronos-t5-base_dtype_*"
+        else:
+            training_folder_pattern = "./experiment_configs_chronos_training_lora/seed_*_model_amazon_chronos-t5-tiny_dtype_*"
+
+        checkpoint_path = find_latest_checkpoint(training_folder_pattern, patient_id)
+
         patient_folder = os.path.join(config_folder, f"patient_{patient_id}")
         os.makedirs(patient_folder, exist_ok=True)
-
-        # Define log directory inside the same patient folder
         log_folder = os.path.join(patient_folder, "logs")
         os.makedirs(log_folder, exist_ok=True)
 
-        # Define the dynamic data path using context and prediction lengths
         data_folder = f"./data/formatted/{context_len}_{pred_len}"
 
-        # Prepare .gin configuration content
         config_content = f"""
 run.log_dir = "{log_folder}"
 run.chronos_dir = "/home/amma/"
@@ -151,17 +185,16 @@ run.llm_settings = {{
     'prediction_batch_size': 64,    
     'prediction_use_auto_split': False,
     'eval_metrics': ['rmse', 'mae', 'mape'],    
-    'restore_from_checkpoint': False,
-    'restore_checkpoint_path': '',
+    'use_peft': {bool(checkpoint_path)},
+    'lora_path': '{checkpoint_path}',
     'seed': {seed}  
 }}
 """
 
-        # Save .gin config file inside the patient-specific folder
         config_filename = "config.gin"
         config_path = os.path.join(patient_folder, config_filename)
 
         with open(config_path, "w") as f:
             f.write(config_content.strip())
 
-        print(f"Generated: {config_path} with logs stored in {log_folder}")
+        print(f"✅ Generated: {config_path} with logs stored in {log_folder}")

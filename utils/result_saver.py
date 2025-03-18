@@ -3,6 +3,7 @@ import os
 import pandas as pd
 
 from data_processing.refromat_results import reformat_results
+from utils.latex_tools import generate_latex_table
 from utils.plotting import plot_avg_predictions_plotly, plot_predictions_plotly
 
 def generate_run_title(data_settings, llm_settings):
@@ -153,3 +154,156 @@ def convert_window_to_single_prediction(input_file, output_file="single_step_pre
 
 # Example Usage:
 # convert_window_to_single_prediction("your_file.csv", "single_step_predictions.csv")
+
+
+
+def summarize_by_column(df: pd.DataFrame, columns: list[str], filter_seq_pred: bool = False) -> dict[str, pd.DataFrame] | pd.DataFrame:
+    """
+    Summarizes the given DataFrame by computing the mean and standard deviation 
+    of specific metrics while grouping by configuration columns.
+
+    This function removes predefined metric columns (`'rmse'`, `'mae'`, `'mape'`) 
+    and user-specified columns from the grouping columns. It then groups the 
+    remaining data by the configuration columns and calculates the mean and 
+    standard deviation for each metric.
+
+    If `filter_seq_pred` is set to `True`, the function dynamically identifies 
+    all unique (`seq`, `pred`) pairs present in the dataset and returns a 
+    dictionary of DataFrames, where keys represent (`seq`, `pred`) pairs such as 
+    `"6_6"` or `"8_10"`.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the data to summarize.
+        columns (list[str]): A list of column names to exclude from the 
+                             configuration columns (e.g., 'seed', 'log_datetime').
+        filter_seq_pred (bool, optional): If True, returns a dictionary of DataFrames
+                                          filtered by unique (`seq`, `pred`) pairs 
+                                          found in the dataset. Defaults to False.
+
+    Returns:
+        dict[str, pd.DataFrame] | pd.DataFrame: 
+            - If `filter_seq_pred` is False, returns a single summary DataFrame.
+            - If `filter_seq_pred` is True, returns a dictionary of DataFrames,
+              where keys are `"seq_pred"` pairs (e.g., `"6_6"`, `"8_10"`).
+
+    Example:
+        >>> summary_dict = summarize_by_column(df, ["seed", "log_datetime"], filter_seq_pred=True)
+        >>> summary_dict.keys()  # Shows all unique ('seq', 'pred') pairs in the data
+        >>> summary_dict["6_6"].head()  # Access DataFrame filtered for seq=6, pred=6
+
+    The output DataFrame will have columns formatted as `metric_mean` and `metric_std`.
+    """
+
+    # Define the configuration columns (excluding 'seed', 'patient_id', 'log_datetime')
+    config_columns = list(df.columns)
+    
+    # Metrics to summarize
+    metrics = ['rmse', 'mae', 'mape']
+    
+    # Remove metric columns from the grouping columns
+    for metric in metrics:
+        if metric in config_columns:
+            config_columns.remove(metric)
+    
+    # Remove user-specified columns from the grouping columns
+    for column in columns:
+        if column in config_columns:
+            config_columns.remove(column)
+
+    # Group by configuration columns and calculate mean and standard deviation for each metric
+    summary_df = df.groupby(config_columns)[metrics].agg(['mean', 'std']).reset_index()
+
+    # Rename columns for clarity
+    summary_df.columns = ['_'.join(col).rstrip('_') for col in summary_df.columns]
+
+    # Convert 'seq' and 'pred' to integers if they exist in the DataFrame
+    if 'seq' in summary_df.columns and 'pred' in summary_df.columns:
+        summary_df['seq'] = summary_df['seq'].astype(int)
+        summary_df['pred'] = summary_df['pred'].astype(int)
+
+        # If filtering is enabled, dynamically find all unique (seq, pred) pairs
+        if filter_seq_pred:
+            unique_pairs = summary_df[['seq', 'pred']].drop_duplicates().values.tolist()
+            filtered_dfs = {}
+
+            for seq_val, pred_val in unique_pairs:
+                filtered_df = summary_df[(summary_df['seq'] == seq_val) & (summary_df['pred'] == pred_val)]
+                filtered_dfs[f"{seq_val}_{pred_val}"] = filtered_df
+
+            return filtered_dfs  # Return dictionary of DataFrames
+
+    return summary_df  # Return a single DataFrame if no filtering is applied
+
+
+import pandas as pd
+
+def generate_latex_tables(
+    df: pd.DataFrame,
+    title_template: str = "Zero-shot Performance for Time-LLM Models ({time_horizon}-minute Forecast)",
+    label_template: str = "tab:timellm_zero_shot_{time_horizon}min",
+    columns: list[str]=['log_datetime','seed'],
+    freq: int=5,
+    save: bool = False
+):
+    """
+    Automates the process of summarizing data, generating LaTeX tables, and optionally saving them.
+
+    This function:
+    1. Summarizes the input DataFrame using `summarize_by_column`, identifying all (`seq`, `pred`) pairs.
+    2. Generates LaTeX tables for each (`seq`, `pred`) pair, embedding the correct time horizon 
+       in the title and label based on user-defined templates.
+    3. Optionally saves each LaTeX table using the LaTeX label as the filename.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame to summarize and generate LaTeX tables from.
+        columns (list[str]): A list of columns to exclude from the grouping.
+        freq (int): The forecasting frequency (e.g., 30 for 30-minute forecasts).
+        title_template (str, optional): A template for the LaTeX table title.
+                                        Use `{seq}` for sequence value and `{time_horizon}` for computed time horizon.
+                                        Defaults to "Zero-shot Performance for Time-LLM Models ({time_horizon}-minute Forecast)".
+        label_template (str, optional): A template for the LaTeX table label.
+                                        Use `{seq}` for sequence value and `{time_horizon}` for computed time horizon.
+                                        Defaults to "tab:timellm_zero_shot_{time_horizon}min".
+        save (bool, optional): If True, saves the generated LaTeX tables to `.tex` files using the label as the filename.
+                               Defaults to False.
+
+    Returns:
+        dict[str, str]: A dictionary where keys are `"seq_pred"` pairs (e.g., `"6_6"`, `"8_10"`) 
+                        and values are the corresponding LaTeX table strings.
+
+    Example:
+        >>> latex_tables = generate_latex_tables(
+                df, ["seed", "log_datetime"], freq=30, save=True,
+                title_template="Performance of Time-LLM ({time_horizon} min)",
+                label_template="tab:timellm_{time_horizon}min"
+            )
+        >>> print(latex_tables["6_6"])  # Print LaTeX table for seq=6, pred=6
+    """
+
+    # Step 1: Summarize Data and Find Unique Pairs
+    summarized_dfs = summarize_by_column(df, columns, filter_seq_pred=True)
+
+    # Step 2: Generate LaTeX Tables for Each (`seq`, `pred`) Pair
+    latex_tables = {}
+    for seq_pred, summarized_df in summarized_dfs.items():
+        seq, pred = map(int, seq_pred.split("_"))  # Extract sequence and prediction values
+
+        # Compute the time horizon based on freq and pred
+        time_horizon = pred * freq
+
+        # Generate title and label dynamically using templates
+        title = title_template.format(seq=seq, time_horizon=time_horizon)
+        label = label_template.format(seq=seq, time_horizon=time_horizon)
+
+        # Generate LaTeX table
+        latex_table = generate_latex_table(summarized_df, title, label)
+        latex_tables[seq_pred] = latex_table
+
+        # Step 3: Save the LaTeX Table to a File (If Required)
+        if save:
+            # Use the label as the filename, replacing colons with underscores for compatibility
+            filename = f"{label.replace(':', '_')}.tex"
+            with open(filename, "w") as f:
+                f.write(latex_table)
+
+    return latex_tables

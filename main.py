@@ -30,7 +30,10 @@ flags.DEFINE_bool(
 import torch.distributed as dist
 
 if dist.is_initialized() and dist.get_rank() != 0:
-    logging.getLogger().setLevel(logging.WARNING)  # Suppress logging for non-main processes
+    logging.getLogger().setLevel(
+        logging.WARNING
+    )  # Suppress logging for non-main processes
+
 
 @gin.configurable
 def run(
@@ -134,6 +137,22 @@ def run(
             data_settings=data_loader._settings,
             log_dir=log_dir,
         )
+        if 'use_peft' not in llm_settings: llm_settings['use_peft']=False
+        if 'restore_from_checkpoint' not in llm_settings: llm_settings['restore_from_checkpoint']=False
+
+        if llm_settings["restore_from_checkpoint"]:
+            if llm_settings["use_peft"]:
+                llm.load_model(
+                    llm_settings["restore_checkpoint_path"], llm_settings["lora_path"]
+                )
+                logging.info("loaded from checkpoint and lora")
+            else:
+                llm.load_model(llm_settings["restore_checkpoint_path"])
+                logging.info("loaded from checkpoint")
+        elif llm_settings["use_peft"] and llm_settings['mode']=='inference':
+            llm.load_model(None, llm_settings["lora_path"])
+            logging.info("loaded from base model and lora")
+
         if llm_settings["mode"] == "inference":
             # check if train and test data are csv files
             # if data_settings["path_to_train_data"].endswith(".csv"):
@@ -145,7 +164,7 @@ def run(
             #     train_data_path = data_loader.convert_csv_to_arrow(
             #         data_settings["path_to_train_data"], split="train"
             #     )
-                # data_settings["path_to_train_data"] = train_data_path
+            # data_settings["path_to_train_data"] = train_data_path
             if data_settings["path_to_test_data"].endswith(".csv"):
                 logging.debug(
                     "Loading test data from {}.".format(
@@ -177,12 +196,12 @@ def run(
 
         elif llm_settings["mode"] == "training":
             # check if chronos-forecasting repo is already cloned
-            if not os.path.exists("{}/chronos-forecasting".format(chronos_dir)):
+            if not os.path.exists("{}/chronos".format(chronos_dir)):
                 root_dir = os.getcwd()
                 # clone repo from https://github.com/amazon-science/chronos-forecasting.git
                 os.chdir("cd {}".format(chronos_dir))
                 os.system(
-                    "git clone https://github.com/amazon-science/chronos-forecasting.git"
+                    "git clone https://github.com/amazon-science/chronos-forecasting.git ./chronos"
                 )
                 os.chdir(root_dir)
 
@@ -212,17 +231,21 @@ def run(
                     "tokenizer_kwargs": llm_settings["tokenizer_kwargs"],
                     "log_steps": llm_settings["log_steps"],
                     "learning_rate": llm_settings["learning_rate"],
+                    "use_peft": llm_settings["use_peft"],
+                    "lora_r": llm_settings["lora_r"],
+                    "lora_alpha": llm_settings["lora_alpha"],
+                    "lora_dropout": llm_settings["lora_dropout"],
                 },
             )
 
         elif llm_settings["mode"] == "training+inference":
             # check if chronos-forecasting repo is already cloned
-            if not os.path.exists("{}/chronos-forecasting".format(chronos_dir)):
+            if not os.path.exists("{}/chronos".format(chronos_dir)):
                 root_dir = os.getcwd()
                 # clone repo from https://github.com/amazon-science/chronos-forecasting.git
                 os.chdir(chronos_dir)
                 os.system(
-                    "git clone https://github.com/amazon-science/chronos-forecasting.git"
+                    "git clone https://github.com/amazon-science/chronos-forecasting.git ./chronos"
                 )
                 os.chdir(root_dir)
 
@@ -277,18 +300,23 @@ def run(
                     llm_prediction, targets, llm_settings["eval_metrics"]
                 )
                 logging.info(f"Metric results: {metric_results}")
-             # Check if we need to remove checkpoints
+            # Check if we need to remove checkpoints
             if FLAGS.remove_checkpoints:
                 if os.path.exists(llm_ckpt_path):
                     if os.path.isdir(llm_ckpt_path):
                         shutil.rmtree(llm_ckpt_path)  # Delete the entire folder
-                        logging.info(f"Successfully deleted checkpoint folder: {llm_ckpt_path}")
+                        logging.info(
+                            f"Successfully deleted checkpoint folder: {llm_ckpt_path}"
+                        )
                     elif os.path.isfile(llm_ckpt_path):
                         os.remove(llm_ckpt_path)  # Delete the file
-                        logging.info(f"Successfully deleted checkpoint file: {llm_ckpt_path}")
+                        logging.info(
+                            f"Successfully deleted checkpoint file: {llm_ckpt_path}"
+                        )
                 else:
-                    logging.warning(f"Checkpoint path {llm_ckpt_path} does not exist, nothing to remove.")
-
+                    logging.warning(
+                        f"Checkpoint path {llm_ckpt_path} does not exist, nothing to remove."
+                    )
 
     elif llm_settings["method"] == "time_llm":
 
@@ -324,7 +352,7 @@ def run(
         test_data, test_loader = data_loader.load_from_csv(
             data_settings["path_to_test_data"],
             batch_size=llm_settings["prediction_batch_size"],
-            split="test"
+            split="test",
         )
 
         # Initialize TimeLLM

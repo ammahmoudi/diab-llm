@@ -2,13 +2,15 @@ import io
 import logging
 import os
 import random
+from typing import Optional
 import numpy as np
 import yaml
 import torch
 from llms.ts_llm import TimeSeriesLLM
-from chronos import ChronosPipeline
 
+from models.chronos.src.chronos.chronos import ChronosPipeline
 from utils.result_saver import generate_run_title, save_results_and_generate_plots
+from peft import PeftModel
 
 
 class ChronosLLM(TimeSeriesLLM):
@@ -59,21 +61,51 @@ class ChronosLLM(TimeSeriesLLM):
             self.logger.error(f"Failed to load Chronos LLM model: {e}")
             raise
 
-    def load_model(self, ckpt_path):
+    def load_model(self, ckpt_path=None, lora_path: Optional[str] = None):
         """
-        Load a model checkpoint.
+        Load a model checkpoint with optional LoRA adapters.
 
-        Args:
-            ckpt_path (str): Path to the checkpoint file.
+        Parameters:
+        -----------
+        ckpt_path : str
+            Path to the base model checkpoint directory.
+        lora_path : Optional[str], default=None
+            Optional path to a LoRA checkpoint. If None, will check inside `ckpt_path`.
         """
-        self.logger.info(f"Loading model checkpoint from {ckpt_path}")
-        self.llm_model = ChronosPipeline.from_pretrained(
-            pretrained_model_name_or_path=ckpt_path,
-            device_map=self._llm_settings["device_map"],
-            torch_dtype=self._llm_settings["torch_dtype"],
-            # cache_dir=self._log_dir,
-        )
-        self.logger.info("Model checkpoint loaded successfully.")
+        if ckpt_path:
+            self.logger.info(f"Loading model checkpoint from {ckpt_path}")
+            
+
+            # If lora_path is not provided, check inside ckpt_path for a LoRA checkpoint
+            if lora_path is None:
+                default_lora_path = ckpt_path.replace("checkpoint-final", "lora-final")
+                lora_path = default_lora_path if os.path.exists(default_lora_path) else None
+
+            # Load the model with optional LoRA support
+            self.llm_model = ChronosPipeline.from_pretrained(
+                pretrained_model_name_or_path=ckpt_path,
+                device_map=self._llm_settings["device_map"],
+                torch_dtype=self._llm_settings["torch_dtype"],
+                lora_path=lora_path,
+            )
+
+            if lora_path:
+                self.logger.info(f"LoRA adapters loaded from {lora_path}")
+            else:
+                self.logger.info("No LoRA adapters found, using checkpoint model.")
+        elif lora_path:
+            self.llm_model = ChronosPipeline.from_pretrained(
+                pretrained_model_name_or_path=self._llm_settings["model"],
+                device_map=self._llm_settings["device_map"],
+                torch_dtype=self._llm_settings["torch_dtype"],
+                lora_path=lora_path,
+                
+            )
+            if lora_path:
+                self.logger.info(f"LoRA adapters loaded from {lora_path} with base model {self._llm_settings['model']}")
+            else:
+                self.logger.info("No LoRA adapters found, using base model.")
+            
 
     def predict(
         self,
@@ -239,16 +271,22 @@ class ChronosLLM(TimeSeriesLLM):
             "min_past": 64,
             "ntokens": 4096,
             "tokenizer_kwargs": "{'low_limit': 35,'high_limit': 500}",
+            "use_peft": True,  # New: Enable PEFT training
+            "lora_r": 16,
+            "lora_alpha": 32,
+            "lora_dropout": 0.05,
         },
     ):
+        # Load YAML config
         with open(
-            "{}/chronos-forecasting/scripts/training/configs/{}.yaml".format(
+            "{}/chronos/scripts/training/configs/{}.yaml".format(
                 chronos_dir, self._llm_settings["model"].split("/")[-1]
             ),
             "r",
         ) as stream:
             data_loaded = yaml.safe_load(stream)
 
+        # Update config for training
         data_loaded["model_id"] = self._llm_settings["model"]
         data_loaded["training_data_paths"] = [train_data_path]
         data_loaded["probability"] = [1.0]
@@ -264,6 +302,13 @@ class ChronosLLM(TimeSeriesLLM):
         data_loaded["learning_rate"] = settings["learning_rate"]
         data_loaded["log_steps"] = settings["log_steps"]
 
+        # Enable PEFT fine-tuning
+        if settings["use_peft"]:
+            data_loaded["use_peft"] = True  # New setting for LoRA
+            data_loaded["lora_r"] = settings["lora_r"]
+            data_loaded["lora_alpha"] = settings["lora_alpha"]
+            data_loaded["lora_dropout"] = settings["lora_dropout"]
+
         if self._llm_settings["seed"]:
             data_loaded["seed"] = self._llm_settings["seed"]
 
@@ -271,22 +316,38 @@ class ChronosLLM(TimeSeriesLLM):
             self._llm_settings["model"].split("/")[-1]
         )
         data_loaded["output_dir"] = output_dir
-        # store yaml file
-        with io.open(
-            "{}/chronos-forecasting/scripts/training/configs/{}_custom.yaml".format(
+        # Save updated config
+        custom_config_path = (
+            "{}/chronos/scripts/training/configs/{}_custom.yaml".format(
                 chronos_dir, self._llm_settings["model"].split("/")[-1]
-            ),
-            "w",
-            encoding="utf8",
-        ) as outfile:
-            yaml.dump(data_loaded, outfile)
-
-        os.system(
-            "python {}/chronos-forecasting/scripts/training/train.py --config {}/chronos-forecasting/scripts/training/configs/{}_custom.yaml".format(
-                chronos_dir, chronos_dir, self._llm_settings["model"].split("/")[-1]
             )
         )
-        output_dir = "{}/run-0/checkpoint-final".format(output_dir)
+        with io.open(custom_config_path, "w", encoding="utf8") as outfile:
+            yaml.dump(data_loaded, outfile)
+
+        # Train the model
+        os.system(
+            f"python {chronos_dir}/chronos/scripts/training/train_lora.py --config {custom_config_path}"
+        )
+
+        # Load the trained model with LoRA
+        if settings["use_peft"]:
+            output_dir = "{}/run-0/lora-final".format(self._log_dir)
+        else:
+            output_dir = "{}/run-0/checkpoint-final".format(self._log_dir)
+
+        # lora_ckpt_path = os.path.join(output_dir, "lora_checkpoint")
+
+        # if os.path.exists(lora_ckpt_path):
+        #     self.logger.info(
+        #         f"LoRA checkpoint found at {lora_ckpt_path}, loading model with adapters."
+        #     )
+        #     self.llm_model = PeftModel.from_pretrained(self.llm_model, lora_ckpt_path)
+        # else:
+        #     self.logger.info(
+        #         f"No LoRA checkpoint found, loading base model from {output_dir}."
+        #     )
+        #     self.load_model(output_dir)
         self.logger.info(output_dir)
 
         return output_dir

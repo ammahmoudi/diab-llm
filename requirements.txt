@@ -17,5 +17,5 @@ kaleido
 nbformat
 ipykernel
 autogluon.timeseries
-chronos-forecasting @ git+https://github.com/amazon-science/chronos-forecasting.git@main
-chronos-forecasting[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main
+# chronos-forecasting @ git+https://github.com/amazon-science/chronos-forecasting.git@main
+# chronos-forecasting[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main

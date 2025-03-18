@@ -53,15 +53,15 @@ modes = ["training"]
 
 # Max train steps for each model
 max_train_steps_mapping = {
-    "amazon/chronos-t5-tiny": 1000,
+    "amazon/chronos-t5-tiny": 2000,
     # "amazon/chronos-t5-mini": 10000,
     # "amazon/chronos-t5-small": 10000,
-    "amazon/chronos-t5-base": 1000,
+    "amazon/chronos-t5-base": 2000,
     # "amazon/chronos-t5-large": 1000,
 }
 
 # Base output directory
-base_output_dir = "./experiment_configs_chronos_training/"
+base_output_dir = "./experiment_configs_chronos_training_lora/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files for all combinations of seeds, models, torch_dtypes, and modes
@@ -102,7 +102,7 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
         # Prepare .gin configuration content
         config_content = f"""
 run.log_dir = "{log_folder}"
-run.chronos_dir = "/home/amma/"
+run.chronos_dir = "/home/amma/LLM-TIME/models/"
 
 run.data_settings = {{
     'path_to_train_data': '{data_folder}',
@@ -121,18 +121,22 @@ run.llm_settings = {{
     'model': '{model}',  
     'torch_dtype': '{torch_dtype}',   
     'ntokens': 4096,
-    'tokenizer_kwargs': "{{'low_limit': -15,'high_limit': 15}}",
+    'tokenizer_kwargs': "{{'low_limit': -30,'high_limit': 30}}",
     'prediction_length': {pred_len},    
     'num_samples': 20,
     'context_length': {context_len},
     'min_past': {min_past},
     'learning_rate': 0.001,
     'max_train_steps': {max_train_steps},
-    'save_steps': 500,
+    'save_steps': 1000,
     'log_steps': 200,
     'train_batch_size': 8,
     'random_init': False,
-    'seed': {seed}  
+    'seed': {seed},
+    'use_peft': True,
+    'lora_r': 16,
+    'lora_alpha': 32,
+    'lora_dropout': 0.05
 }}
 """
 

@@ -106,18 +106,18 @@ feature_label_sets = [
 
 # Define parameters to iterate over
 patients = [
-    "540",
-    "544",
-    "552",
-    "559",
-    "563",
-    "567",
-    "570",
-    "575",
+    # "540",
+    # "544",
+    # "552",
+    # "559",
+    # "563",
+    # "567",
+    # "570",
+    # "575",
     "584",
-    "588",
-    "591",
-    "596",
+    # "588",
+    # "591",
+    # "596",
 ]
 seeds = fixed_seeds
 models = ["amazon/chronos-t5-base", "amazon/chronos-t5-tiny"]

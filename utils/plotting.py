@@ -6,11 +6,9 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import os
-
-import os
-import plotly.graph_objects as go
-import pandas as pd
-import logging
+import seaborn as sns
+from matplotlib import rcParams
+from scipy.stats import sem
 
 def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
     """
@@ -468,3 +466,91 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
     else:
         # Show the plot
         fig.show()
+
+def plot_mae_steps(df, title, file_path):  
+    # Identify the true and predicted columns
+    true_cols = [col for col in df.columns if "true" in col]
+    pred_cols = [col for col in df.columns if "pred" in col]
+
+    # Compute absolute errors for each future timestep and store metrics
+    error_data = {}
+    mean_errors = []
+    std_devs = []
+
+    for i, (true_col, pred_col) in enumerate(zip(true_cols, pred_cols)):
+        # Absolute errors per timestep
+        abs_error = np.abs(df[true_col] - df[pred_col])
+        error_data[f"Future_Timestep_t{i+1}"] = abs_error
+
+        # Compute mean and standard deviation
+        mean_errors.append(abs_error.mean())
+        std_devs.append(abs_error.std())
+
+    # Prepare data for visualization
+    future_timesteps = np.arange(1, len(mean_errors) + 1)
+
+    # --- Enhanced Line Plot with SD Range ---
+    plt.figure(figsize=(10, 6))
+
+    # Plot Mean Absolute Error
+    plt.plot(
+        future_timesteps,
+        mean_errors,
+        marker="o",
+        label="Mean Absolute Error",
+        color="blue",
+    )
+
+    # Add shaded region for ±1 SD
+    lower_bound = np.array(mean_errors) - np.array(std_devs)
+    upper_bound = np.array(mean_errors) + np.array(std_devs)
+    plt.fill_between(
+        future_timesteps,
+        lower_bound,
+        upper_bound,
+        color="blue",
+        alpha=0.2,
+        label="±1 SD",
+    )
+
+    # Additional plot settings
+    plt.title(title, fontsize=14)
+    plt.xlabel("Future Timestep $t_k$", fontsize=12)
+    plt.ylabel("Mean Absolute Error (mg/dL)", fontsize=12)
+    plt.xticks(ticks=future_timesteps)
+    plt.legend()
+    plt.grid(True, alpha=0.5)
+
+    # Save figures
+    plt.savefig(file_path.replace('.csv', '.svg'), format='svg')
+    plt.savefig(file_path.replace('.csv', '.png'), format='png')
+
+    plt.show()
+
+def plot_mae_steps_box_plot(df):
+    true_cols = [col for col in df.columns if "true" in col]
+    pred_cols = [col for col in df.columns if "pred" in col]
+
+    # Compute absolute errors for each prediction order and store metrics
+    error_data = {}
+    mean_errors = []
+    std_devs = []
+
+    for i, (true_col, pred_col) in enumerate(zip(true_cols, pred_cols)):
+        # Absolute errors per prediction order
+        abs_error = np.abs(df[true_col] - df[pred_col])
+        error_data[f"Prediction_Order_{i+1}"] = abs_error
+
+        # Compute mean and standard deviation
+        mean_errors.append(abs_error.mean())
+        std_devs.append(abs_error.std())
+
+    # Prepare data for visualization
+    # --- Boxplot: Distribution of Absolute Errors (MAE) by Prediction Order ---
+    error_melted = pd.DataFrame(error_data).melt(var_name="Prediction_Order", value_name="Absolute_Error")
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x="Prediction_Order", y="Absolute_Error", data=error_melted)
+    plt.title("Distribution of Absolute Errors by Prediction Order")
+    plt.xlabel("Prediction Order (1 = most recent prediction)")
+    plt.ylabel("Absolute Error")
+    plt.show()
