@@ -1,0 +1,24 @@
+
+\begin{table}[h]
+    \centering
+    \caption{Model Performance Comparison (Seq 6, Pred 9)}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Model} & \textbf{RMSE} & \textbf{MAE} \\
+        \midrule
+        TimeLLM (Fine-tuned) (BERT) & 21.59 & 13.49 \\
+        TimeLLM (Fine-tuned) (LLAMA 7B (8 layers)) & 21.27 & 13.52 \\
+        TimeLLM (Fine-tuned) (LLAMA 7B (16 layers)) & 21.40 & 13.60 \\
+        TimeLLM (Fine-tuned) (GPT2) & 21.47 & 13.62 \\
+        Chronos (Fine-tuned) (amazon-chronos-t5-base) & 27.22 & 17.26 \\
+        Chronos (Zero-shot) (amazon-chronos-t5-base) & 28.79 & 18.38 \\
+        Chronos (Fine-tuned) (amazon-chronos-t5-tiny) & 29.14 & 19.05 \\
+        TimeLLM (Zero-shot) (GPT2) & 28.23 & 19.75 \\
+        Chronos (Zero-shot) (amazon-chronos-t5-tiny) & 29.90 & 19.77 \\
+        TimeLLM (Zero-shot) (BERT) & 28.45 & 19.84 \\
+        TimeLLM (Zero-shot) (LLAMA 7B (8 layers)) & 28.74 & 19.97 \\
+        TimeLLM (Zero-shot) (LLAMA 7B (16 layers)) & 29.45 & 20.31 \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:models_performance_comparison}
+\end{table}

@@ -1,0 +1,30 @@
+
+\begin{table}[h]
+    \centering
+    \caption{Fine-tunned Performance for Chronos Models (45-minute Forecast)}
+    \resizebox{\columnwidth}{!}{%
+    \begin{tabular}{c|cc|cc}
+        \toprule
+        {\textbf{Patient ID}} & \multicolumn{2}{c|}{\textbf{amazon-chronos-t5-base}} & \multicolumn{2}{c}{\textbf{amazon-chronos-t5-tiny}} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
+         & MAE & RMSE & MAE & RMSE \\
+         \midrule
+         540 & 19.36 $\pm$ 0.22 & 29.56 $\pm$ 0.39 & 21.96 $\pm$ 0.15 & 33.00 $\pm$ 0.32 \\
+         544 & 15.21 $\pm$ 0.17 & 23.02 $\pm$ 0.27 & 15.51 $\pm$ 0.21 & 23.71 $\pm$ 0.43 \\
+         552 & 13.77 $\pm$ 0.17 & 22.44 $\pm$ 3.42 & 14.63 $\pm$ 0.18 & 22.15 $\pm$ 0.25 \\
+         559 & 17.21 $\pm$ 0.18 & 28.17 $\pm$ 0.40 & 17.18 $\pm$ 0.29 & 27.17 $\pm$ 0.59 \\
+         563 & 15.93 $\pm$ 0.13 & 23.72 $\pm$ 0.12 & 16.77 $\pm$ 0.24 & 24.47 $\pm$ 0.44 \\
+         567 & 23.39 $\pm$ 0.24 & 38.82 $\pm$ 0.48 & 29.08 $\pm$ 0.30 & 46.42 $\pm$ 0.62 \\
+         570 & 15.33 $\pm$ 0.19 & 23.23 $\pm$ 0.48 & 15.64 $\pm$ 0.20 & 23.49 $\pm$ 0.37 \\
+         575 & 18.41 $\pm$ 0.24 & 29.64 $\pm$ 0.43 & 18.70 $\pm$ 0.17 & 29.80 $\pm$ 0.30 \\
+         584 & 18.70 $\pm$ 0.44 & 31.69 $\pm$ 3.26 & 19.78 $\pm$ 0.21 & 31.57 $\pm$ 0.13 \\
+         588 & 16.93 $\pm$ 0.26 & 26.16 $\pm$ 0.87 & 22.12 $\pm$ 0.29 & 31.68 $\pm$ 0.38 \\
+         591 & 18.45 $\pm$ 0.21 & 27.66 $\pm$ 0.48 & 17.98 $\pm$ 0.17 & 26.98 $\pm$ 0.26 \\
+         596 & 14.38 $\pm$ 0.21 & 22.53 $\pm$ 0.55 & 19.27 $\pm$ 0.30 & 29.19 $\pm$ 0.61 \\
+         \midrule
+         \textbf{Avg} & \textbf{17.26} & \textbf{27.22} & \textbf{19.05} & \textbf{29.14} \\
+         \bottomrule
+    \end{tabular}%
+    }
+    \label{tab:chronos_fine_tunned_45min}
+\end{table}

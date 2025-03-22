@@ -1,5 +1,3 @@
-
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +7,7 @@ import os
 import seaborn as sns
 from matplotlib import rcParams
 from scipy.stats import sem
+
 
 def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
     """
@@ -33,11 +32,21 @@ def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
 
     # Iterate through rows and extract true and all pred values for each row
     for _, row in data.iterrows():
-        true_values = [row[col] for col in data.columns if col.endswith("_true") and not pd.isna(row[col])]
-        pred_values = [row[col] for col in data.columns if col.endswith("_pred") and not pd.isna(row[col])]
+        true_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_true") and not pd.isna(row[col])
+        ]
+        pred_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_pred") and not pd.isna(row[col])
+        ]
 
         if true_values:
-            ground_truth.append(true_values[0])  # Take the first available ground truth value
+            ground_truth.append(
+                true_values[0]
+            )  # Take the first available ground truth value
 
         for i, pred in enumerate(pred_values):
             if len(all_predictions) <= i:
@@ -46,7 +55,9 @@ def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
 
     # Filter predictions based on the steps parameter
     if steps is not None:
-        selected_steps = [i - 1 for i in steps if 1 <= i <= len(all_predictions)]  # Convert to 0-based indices
+        selected_steps = [
+            i - 1 for i in steps if 1 <= i <= len(all_predictions)
+        ]  # Convert to 0-based indices
     else:
         selected_steps = range(len(all_predictions))
 
@@ -57,25 +68,29 @@ def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
     fig = go.Figure()
 
     # Add ground truth trace
-    fig.add_trace(go.Scatter(
-        x=x_values,
-        y=ground_truth,
-        mode='lines+markers',
-        name='Ground Truth',
-        line=dict(dash='dash', color='green'),
-        marker=dict(symbol='triangle-up', size=8, color='green')
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=ground_truth,
+            mode="lines+markers",
+            name="Ground Truth",
+            line=dict(dash="dash", color="green"),
+            marker=dict(symbol="triangle-up", size=8, color="green"),
+        )
+    )
 
     # Add prediction traces for each selected step
     for i in selected_steps:
         predictions = all_predictions[i]
-        fig.add_trace(go.Scatter(
-            x=x_values,
-            y=predictions,
-            mode='lines+markers',
-            name=f'Predictions (Step {i+1})',
-            line=dict(shape='linear')
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=x_values,
+                y=predictions,
+                mode="lines+markers",
+                name=f"Predictions (Step {i+1})",
+                line=dict(shape="linear"),
+            )
+        )
 
     # Update layout with a title
     plot_title = name if name else "Ground Truth vs Predictions (Selected Steps)"
@@ -85,7 +100,7 @@ def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
         yaxis_title="Values",
         legend_title="Legend",
         template="plotly_white",
-        height=600
+        height=600,
     )
 
     # Save the plot if save_path is provided
@@ -102,9 +117,11 @@ def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
         # Show the plot
         fig.show()
 
+
 import os
 import plotly.graph_objects as go
 import pandas as pd
+
 
 def plot_avg_predictions_plotly(data, save_path=None, name=None):
     """
@@ -128,14 +145,26 @@ def plot_avg_predictions_plotly(data, save_path=None, name=None):
 
     # Iterate through rows and extract true and pred values
     for _, row in data.iterrows():
-        true_values = [row[col] for col in data.columns if col.endswith("_true") and not pd.isna(row[col])]
-        pred_values = [row[col] for col in data.columns if col.endswith("_pred") and not pd.isna(row[col])]
+        true_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_true") and not pd.isna(row[col])
+        ]
+        pred_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_pred") and not pd.isna(row[col])
+        ]
 
         if true_values:
-            ground_truth.append(true_values[0])  # Take the first available ground truth value
+            ground_truth.append(
+                true_values[0]
+            )  # Take the first available ground truth value
 
         if pred_values:
-            avg_predictions.append(sum(pred_values) / len(pred_values))  # Average predictions
+            avg_predictions.append(
+                sum(pred_values) / len(pred_values)
+            )  # Average predictions
 
     # Create a range for the x-axis
     x_values = list(range(len(ground_truth)))
@@ -144,23 +173,27 @@ def plot_avg_predictions_plotly(data, save_path=None, name=None):
     fig = go.Figure()
 
     # Add ground truth trace
-    fig.add_trace(go.Scatter(
-        x=x_values,
-        y=ground_truth,
-        mode='lines+markers',
-        name='Ground Truth',
-        line=dict(dash='dash', color='green'),
-        marker=dict(symbol='triangle-up', size=8, color='green')
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=ground_truth,
+            mode="lines+markers",
+            name="Ground Truth",
+            line=dict(dash="dash", color="green"),
+            marker=dict(symbol="triangle-up", size=8, color="green"),
+        )
+    )
 
     # Add averaged prediction trace
-    fig.add_trace(go.Scatter(
-        x=x_values,
-        y=avg_predictions,
-        mode='lines+markers',
-        name='Averaged Predictions',
-        line=dict(shape='linear', color='blue')
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=avg_predictions,
+            mode="lines+markers",
+            name="Averaged Predictions",
+            line=dict(shape="linear", color="blue"),
+        )
+    )
 
     # Update layout with a title
     plot_title = name if name else "Ground Truth vs Averaged Predictions"
@@ -170,7 +203,7 @@ def plot_avg_predictions_plotly(data, save_path=None, name=None):
         yaxis_title="Values",
         legend_title="Legend",
         template="plotly_white",
-        height=600
+        height=600,
     )
 
     # Save the plot if save_path is provided
@@ -207,11 +240,21 @@ def plot_predictions_matplotlib(data):
 
     # Iterate through rows and extract true and all pred values for each row
     for _, row in data.iterrows():
-        true_values = [row[col] for col in data.columns if col.endswith("_true") and not pd.isna(row[col])]
-        pred_values = [row[col] for col in data.columns if col.endswith("_pred") and not pd.isna(row[col])]
+        true_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_true") and not pd.isna(row[col])
+        ]
+        pred_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_pred") and not pd.isna(row[col])
+        ]
 
         if true_values:
-            ground_truth.append(true_values[0])  # Take the first available ground truth value
+            ground_truth.append(
+                true_values[0]
+            )  # Take the first available ground truth value
 
         for i, pred in enumerate(pred_values):
             if len(all_predictions) <= i:
@@ -223,11 +266,24 @@ def plot_predictions_matplotlib(data):
 
     # Plot
     plt.figure(figsize=(12, 6))
-    plt.plot(x_values, ground_truth, label="Ground Truth", linestyle="--", marker="o", color="green")
+    plt.plot(
+        x_values,
+        ground_truth,
+        label="Ground Truth",
+        linestyle="--",
+        marker="o",
+        color="green",
+    )
 
     # Plot each prediction step
     for i, predictions in enumerate(all_predictions):
-        plt.plot(x_values, predictions, label=f"Predictions (Step {i+1})", linestyle="-", marker="x")
+        plt.plot(
+            x_values,
+            predictions,
+            label=f"Predictions (Step {i+1})",
+            linestyle="-",
+            marker="x",
+        )
 
     # Formatting
     plt.xlabel("Index")
@@ -260,11 +316,21 @@ def plot_clarke_error_grid_plotly(data, steps=None, save_path=None):
     all_predictions = []  # List of lists to store predictions for each step
 
     for _, row in data.iterrows():
-        true_values = [row[col] for col in data.columns if col.endswith("_true") and not pd.isna(row[col])]
-        pred_values = [row[col] for col in data.columns if col.endswith("_pred") and not pd.isna(row[col])]
+        true_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_true") and not pd.isna(row[col])
+        ]
+        pred_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_pred") and not pd.isna(row[col])
+        ]
 
         if true_values:
-            ground_truth.append(true_values[0])  # Take the first available ground truth value
+            ground_truth.append(
+                true_values[0]
+            )  # Take the first available ground truth value
 
         for i, pred in enumerate(pred_values):
             if len(all_predictions) <= i:
@@ -285,45 +351,87 @@ def plot_clarke_error_grid_plotly(data, steps=None, save_path=None):
     x = np.linspace(0, max_val, 100)
 
     # Add region A (within 20% of true values)
-    fig.add_trace(go.Scatter(
-        x=x, y=1.2 * x, mode="lines", fill="tonexty", line=dict(color="green", dash="dash"),
-        name="Region A Upper (20%)", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.8 * x, mode="lines", fill="none", line=dict(color="green", dash="dash"),
-        name="Region A Lower (20%)"
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=1.2 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="green", dash="dash"),
+            name="Region A Upper (20%)",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.8 * x,
+            mode="lines",
+            fill="none",
+            line=dict(color="green", dash="dash"),
+            name="Region A Lower (20%)",
+        )
+    )
 
     # Add region B (clinically acceptable outside region A)
-    fig.add_trace(go.Scatter(
-        x=x, y=1.3 * x, mode="lines", fill="tonexty", line=dict(color="yellow", dash="dash"),
-        name="Region B Upper", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.7 * x, mode="lines", fill="none", line=dict(color="yellow", dash="dash"),
-        name="Region B Lower"
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=1.3 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="yellow", dash="dash"),
+            name="Region B Upper",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.7 * x,
+            mode="lines",
+            fill="none",
+            line=dict(color="yellow", dash="dash"),
+            name="Region B Lower",
+        )
+    )
 
     # Add region C/D (over-treatment and under-treatment)
-    fig.add_trace(go.Scatter(
-        x=x, y=max_val * np.ones_like(x), mode="lines", fill="tonexty", line=dict(color="red", dash="dash"),
-        name="Region C", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.7 * x, mode="lines", fill="tonexty", line=dict(color="red", dash="dash"),
-        name="Region D", showlegend=False
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=max_val * np.ones_like(x),
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="red", dash="dash"),
+            name="Region C",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.7 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="red", dash="dash"),
+            name="Region D",
+            showlegend=False,
+        )
+    )
 
     # Add prediction traces for each selected step
     for i in selected_steps:
         predictions = all_predictions[i]
-        fig.add_trace(go.Scatter(
-            x=ground_truth,
-            y=predictions,
-            mode='markers',
-            name=f'Predictions (Step {i+1})',
-            marker=dict(size=8, symbol='circle')
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=ground_truth,
+                y=predictions,
+                mode="markers",
+                name=f"Predictions (Step {i+1})",
+                marker=dict(size=8, symbol="circle"),
+            )
+        )
 
     # Update layout
     fig.update_layout(
@@ -332,7 +440,7 @@ def plot_clarke_error_grid_plotly(data, steps=None, save_path=None):
         yaxis_title="Predicted Values",
         template="plotly_white",
         height=800,
-        width=800
+        width=800,
     )
 
     # Save the plot if save_path is provided
@@ -348,6 +456,7 @@ def plot_clarke_error_grid_plotly(data, steps=None, save_path=None):
     else:
         # Show the plot
         fig.show()
+
 
 def plot_surveillance_error_grid(data, steps=None, save_path=None):
     """
@@ -368,11 +477,21 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
     all_predictions = []  # List of lists to store predictions for each step
 
     for _, row in data.iterrows():
-        true_values = [row[col] for col in data.columns if col.endswith("_true") and not pd.isna(row[col])]
-        pred_values = [row[col] for col in data.columns if col.endswith("_pred") and not pd.isna(row[col])]
+        true_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_true") and not pd.isna(row[col])
+        ]
+        pred_values = [
+            row[col]
+            for col in data.columns
+            if col.endswith("_pred") and not pd.isna(row[col])
+        ]
 
         if true_values:
-            ground_truth.append(true_values[0])  # Take the first available ground truth value
+            ground_truth.append(
+                true_values[0]
+            )  # Take the first available ground truth value
 
         for i, pred in enumerate(pred_values):
             if len(all_predictions) <= i:
@@ -393,55 +512,110 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
     x = np.linspace(0, max_val, 100)
 
     # Region A: Clinically insignificant
-    fig.add_trace(go.Scatter(
-        x=x, y=1.2 * x, mode="lines", fill="tonexty", line=dict(color="green", dash="dash"),
-        name="Region A Upper", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.8 * x, mode="lines", fill="none", line=dict(color="green", dash="dash"),
-        name="Region A Lower"
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=1.2 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="green", dash="dash"),
+            name="Region A Upper",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.8 * x,
+            mode="lines",
+            fill="none",
+            line=dict(color="green", dash="dash"),
+            name="Region A Lower",
+        )
+    )
 
     # Region B: Minimal risk
-    fig.add_trace(go.Scatter(
-        x=x, y=1.5 * x, mode="lines", fill="tonexty", line=dict(color="yellow", dash="dash"),
-        name="Region B Upper", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.6 * x, mode="lines", fill="none", line=dict(color="yellow", dash="dash"),
-        name="Region B Lower"
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=1.5 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="yellow", dash="dash"),
+            name="Region B Upper",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.6 * x,
+            mode="lines",
+            fill="none",
+            line=dict(color="yellow", dash="dash"),
+            name="Region B Lower",
+        )
+    )
 
     # Region C: Moderate risk
-    fig.add_trace(go.Scatter(
-        x=x, y=2 * x, mode="lines", fill="tonexty", line=dict(color="orange", dash="dash"),
-        name="Region C Upper", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.5 * x, mode="lines", fill="none", line=dict(color="orange", dash="dash"),
-        name="Region C Lower"
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=2 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="orange", dash="dash"),
+            name="Region C Upper",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.5 * x,
+            mode="lines",
+            fill="none",
+            line=dict(color="orange", dash="dash"),
+            name="Region C Lower",
+        )
+    )
 
     # Region D: High risk
-    fig.add_trace(go.Scatter(
-        x=x, y=max_val * np.ones_like(x), mode="lines", fill="tonexty", line=dict(color="red", dash="dash"),
-        name="Region D Upper", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=0.4 * x, mode="lines", fill="tonexty", line=dict(color="red", dash="dash"),
-        name="Region D Lower", showlegend=False
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=max_val * np.ones_like(x),
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="red", dash="dash"),
+            name="Region D Upper",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=0.4 * x,
+            mode="lines",
+            fill="tonexty",
+            line=dict(color="red", dash="dash"),
+            name="Region D Lower",
+            showlegend=False,
+        )
+    )
 
     # Add prediction traces for each selected step
     for i in selected_steps:
         predictions = all_predictions[i]
-        fig.add_trace(go.Scatter(
-            x=ground_truth,
-            y=predictions,
-            mode='markers',
-            name=f'Predictions (Step {i+1})',
-            marker=dict(size=8, symbol='circle')
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=ground_truth,
+                y=predictions,
+                mode="markers",
+                name=f"Predictions (Step {i+1})",
+                marker=dict(size=8, symbol="circle"),
+            )
+        )
 
     # Update layout
     fig.update_layout(
@@ -450,7 +624,7 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
         yaxis_title="Predicted Glucose Values (mg/dL)",
         template="plotly_white",
         height=800,
-        width=800
+        width=800,
     )
 
     # Save the plot if save_path is provided
@@ -467,18 +641,13 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
         # Show the plot
         fig.show()
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
 
 def plot_mae_steps(df: pd.DataFrame, title: str, file_path: str):
     """
     Plots the Mean Absolute Error (MAE) for each future timestep and saves the plot.
 
-    This function calculates the absolute errors between true and predicted values 
-    for multiple timesteps, then visualizes the mean MAE with a shaded ±1 standard deviation 
+    This function calculates the absolute errors between true and predicted values
+    for multiple timesteps, then visualizes the mean MAE with a shaded ±1 standard deviation
     (SD) range.
 
     The plot is saved as both `.svg` and `.png` files in the current directory.
@@ -495,7 +664,7 @@ def plot_mae_steps(df: pd.DataFrame, title: str, file_path: str):
     Example:
         >>> plot_mae_steps(df, "MAE Across Future Timesteps", "results/data.csv")
     """
-    
+
     # Identify the true and predicted columns
     true_cols = [col for col in df.columns if "true" in col]
     pred_cols = [col for col in df.columns if "pred" in col]
@@ -555,16 +724,17 @@ def plot_mae_steps(df: pd.DataFrame, title: str, file_path: str):
     svg_filename = f"{base_filename}_{safe_title}.svg"
     png_filename = f"{base_filename}_{safe_title}.png"
 
-    plt.savefig(svg_filename, format='svg')
-    plt.savefig(png_filename, format='png')
+    plt.savefig(svg_filename, format="svg")
+    plt.savefig(png_filename, format="png")
 
     plt.show()
+
 
 def plot_mae_steps_box_plot(df: pd.DataFrame, file_path: str):
     """
     Generates a boxplot showing the distribution of absolute errors for each prediction order.
 
-    This function calculates the absolute errors between true and predicted values 
+    This function calculates the absolute errors between true and predicted values
     and visualizes them as a boxplot, helping to understand error distribution at different
     prediction orders.
 
@@ -581,7 +751,7 @@ def plot_mae_steps_box_plot(df: pd.DataFrame, file_path: str):
     Example:
         >>> plot_mae_steps_box_plot(df, "results/data.csv")
     """
-    
+
     # Identify the true and predicted columns
     true_cols = [col for col in df.columns if "true" in col]
     pred_cols = [col for col in df.columns if "pred" in col]
@@ -595,8 +765,10 @@ def plot_mae_steps_box_plot(df: pd.DataFrame, file_path: str):
         error_data[f"Prediction_Order_{i+1}"] = abs_error
 
     # Prepare data for visualization
-    error_melted = pd.DataFrame(error_data).melt(var_name="Prediction_Order", value_name="Absolute_Error")
-    
+    error_melted = pd.DataFrame(error_data).melt(
+        var_name="Prediction_Order", value_name="Absolute_Error"
+    )
+
     # --- Boxplot: Distribution of Absolute Errors (MAE) by Prediction Order ---
     plt.figure(figsize=(10, 6))
     sns.boxplot(x="Prediction_Order", y="Absolute_Error", data=error_melted)
@@ -610,7 +782,7 @@ def plot_mae_steps_box_plot(df: pd.DataFrame, file_path: str):
     svg_filename = f"{base_filename}_mae_boxplot.svg"
     png_filename = f"{base_filename}_mae_boxplot.png"
 
-    plt.savefig(svg_filename, format='svg')
-    plt.savefig(png_filename, format='png')
+    plt.savefig(svg_filename, format="svg")
+    plt.savefig(png_filename, format="png")
 
     plt.show()

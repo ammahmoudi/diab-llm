@@ -1,0 +1,20 @@
+
+\begin{table}[h]
+    \centering
+    \caption{Cross-Patient Model Performance}
+    \begin{tabular}{lcc|cc}
+        \toprule
+        \textbf{Model} & \textbf{Train ID} & \textbf{Test ID} & \textbf{RMSE} & \textbf{MAE} \\
+        \midrule
+        GPT2 & 570 & 570 & 16.81 & 11.01 \\
+         & 570 & 584 & 26.63 & 15.40 \\
+         & 584 & 570 & 17.63 & 11.76 \\
+         & 584 & 584 & 27.23 & 16.06 \\
+        amazon-chronos-t5-base & 570 & 570 & 23.69 & 15.48 \\
+         & 570 & 584 & 31.68 & 19.59 \\
+         & 584 & 570 & 22.09 & 14.26 \\
+         & 584 & 584 & 30.76 & 18.70 \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:cross_patient_performance}
+\end{table}

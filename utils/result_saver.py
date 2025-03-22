@@ -215,6 +215,7 @@ def summarize_by_column(df: pd.DataFrame, columns: list[str], filter_seq_pred: b
 
     # Rename columns for clarity
     summary_df.columns = ['_'.join(col).rstrip('_') for col in summary_df.columns]
+    if 'context' in summary_df.columns:summary_df['seq']=summary_df['context']
 
     # Convert 'seq' and 'pred' to integers if they exist in the DataFrame
     if 'seq' in summary_df.columns and 'pred' in summary_df.columns:
@@ -235,7 +236,6 @@ def summarize_by_column(df: pd.DataFrame, columns: list[str], filter_seq_pred: b
     return summary_df  # Return a single DataFrame if no filtering is applied
 
 
-import pandas as pd
 
 def generate_latex_tables(
     df: pd.DataFrame,
@@ -285,6 +285,7 @@ def generate_latex_tables(
 
     # Step 2: Generate LaTeX Tables for Each (`seq`, `pred`) Pair
     latex_tables = {}
+    print(summarized_dfs.keys)
     for seq_pred, summarized_df in summarized_dfs.items():
         seq, pred = map(int, seq_pred.split("_"))  # Extract sequence and prediction values
 
@@ -307,3 +308,111 @@ def generate_latex_tables(
                 f.write(latex_table)
 
     return latex_tables
+
+import pandas as pd
+
+def generate_model_comparison_from_dict(
+    model_dfs: dict[str, pd.DataFrame],
+    seq: int,
+    pred: int,
+    columns: list[str] = ['log_datetime', 'seed'],
+    label: str = "tab:models_performance_comparison",
+    title: str = "Model Performance Comparison",
+    save: bool = False
+) -> tuple[pd.DataFrame, str]:
+    """
+    Summarizes multiple DataFrames from a dictionary, extracts model performance for a specific (seq, pred) pair, 
+    and generates a LaTeX table.
+
+    This function:
+    1. Summarizes each input DataFrame using `summarize_by_column()`.
+    2. Extracts RMSE & MAE values for the given `(seq, pred, model)` combination.
+    3. Computes the model-wise averages.
+    4. Creates a performance comparison table (both DataFrame & LaTeX).
+
+    Args:
+        model_dfs (dict[str, pd.DataFrame]): Dictionary where keys are model categories (e.g., "TimeLLM") 
+                                             and values are DataFrames containing results for sub-models.
+        seq (int): Sequence length for which performance is extracted.
+        pred (int): Prediction length for which performance is extracted.
+        columns (list[str]): Columns to exclude when summarizing.
+        label (str): LaTeX label for the table.
+        title (str): Title of the LaTeX table.
+        save (bool): If True, saves the LaTeX table to a `.tex` file.
+
+    Returns:
+        tuple[pd.DataFrame, str]: 
+            - The model comparison DataFrame (with RMSE and MAE).
+            - The LaTeX formatted table as a string.
+
+    Example:
+        >>> model_dfs = {
+                "TimeLLM": df1,  # Contains bert, gpt2, etc.
+                "Chronos": df2   # Contains transformer, lstm, etc.
+            }
+        >>> comparison_df, latex_code = generate_model_comparison_from_dict(model_dfs, seq=6, pred=9, save=True)
+        >>> print(comparison_df)
+        >>> print(latex_code)
+    """
+
+    model_performance = []
+
+    # Step 1: Process each DataFrame and extract RMSE & MAE for (seq, pred)
+    for model_category, df in model_dfs.items():
+        summarized_dfs = summarize_by_column(df, columns, filter_seq_pred=True)
+
+        # Ensure (seq, pred) exists in the summarized results
+        key = f"{seq}_{pred}"
+        if key not in summarized_dfs:
+            print(f"Warning: (seq={seq}, pred={pred}) not found for {model_category}. Skipping...")
+            continue
+
+        summary_df = summarized_dfs[key]
+
+        if summary_df.empty:
+            print(f"Warning: No data found for {model_category} (seq={seq}, pred={pred}). Skipping...")
+            continue
+
+        # Step 2: Extract RMSE & MAE for each sub-model in the category
+        for sub_model in summary_df["model"].unique():
+            sub_model_df = summary_df[summary_df["model"] == sub_model]
+
+            # Compute mean RMSE & MAE for the sub-model
+            mae_avg = sub_model_df['mae_mean'].mean()
+            rmse_avg = sub_model_df['rmse_mean'].mean()
+
+            # Store results with full model name
+            full_model_name = f"{model_category} ({sub_model})"
+            model_performance.append([full_model_name, rmse_avg, mae_avg])
+    # **Sort the DataFrame by MAE in ascending order**
+    # Step 3: Convert results to DataFrame
+    comparison_df = pd.DataFrame(model_performance, columns=["Model", "RMSE", "MAE"])
+    comparison_df = comparison_df.sort_values(by="MAE", ascending=True)
+
+    # Step 4: Generate LaTeX Table Code
+    latex_code = f"""
+\\begin{{table}}[h]
+    \\centering
+    \\caption{{{title} (Seq {seq}, Pred {pred})}}
+    \\begin{{tabular}}{{lcc}}
+        \\toprule
+        \\textbf{{Model}} & \\textbf{{RMSE}} & \\textbf{{MAE}} \\\\
+        \\midrule
+"""
+
+    for _, row in comparison_df.iterrows():
+        latex_code += f"        {row['Model']} & {row['RMSE']:.2f} & {row['MAE']:.2f} \\\\\n"
+
+    latex_code += """        \\bottomrule
+    \\end{tabular}
+    \\label{""" + label + """}
+\\end{table}
+"""
+
+    # Step 5: Save LaTeX Table (if required)
+    if save:
+        filename = f"{label.replace(':', '_')}_seq{seq}_pred{pred}.tex"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(latex_code)
+
+    return comparison_df, latex_code

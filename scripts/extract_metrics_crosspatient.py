@@ -71,15 +71,28 @@ def extract_corrected_metrics_to_csv(base_dir, output_csv):
 
                     # Extract the basic experiment parameters from folder structure
                     experiment_params = {}
-                    for i in range(0, len(experiment_details), 2):
-                        if i + 1 < len(experiment_details):
-                            key = experiment_details[i]
-                            value = experiment_details[i + 1]
-                            experiment_params[key] = value
+
+                    # Use regex to extract seed and model from folder name
+                    match = re.search(r"seed_(\d+)_model_([^_]+)", experiment_folder)
+                    if not match:
+                        raise ValueError(f"Could not parse seed/model from folder name: {experiment_folder}")
+
+                    experiment_params["seed"] = match.group(1)
+                    experiment_params["model"] = match.group(2)
 
                     # Add patient_id from the patient folder
-                    patient_id = patient_folder.split("_")[1]
-                    experiment_params["patient_id"] = patient_id
+                    # Extract train and test patient IDs from folder name like 'patient_570_train_570_test'
+                    # Extract train and test patient IDs from folder name like 'patient_584_train_584_test'
+                    match = re.search(r"(\d+)_train_(\d+)_test", patient_folder)
+                    if not match:
+                        raise ValueError(f"Could not parse train/test IDs from folder name: {patient_folder}")
+                    train_patient_id = match.group(1)
+                    test_patient_id = match.group(2)
+
+                    experiment_params["train_patient_id"] = train_patient_id
+                    experiment_params["test_patient_id"] = test_patient_id
+
+
                     experiment_params["log_datetime"] = (
                         log_datetime  # Add the extracted timestamp
                     )
