@@ -41,8 +41,8 @@ def process_files(input_folder, output_folder, input_window_size, prediction_win
 
 if __name__ == '__main__':
     # User-defined parameters
-    input_folder = '/home/amma/LLM-TIME/data/missing_values/'
-    output_folder = '/home/amma/LLM-TIME/data/missing_values_formatted/'
+    input_folder = '/home/amma/LLM-TIME/data/noisy/'
+    output_folder = '/home/amma/LLM-TIME/data/noisy_formated/'
     input_window_size = 6
     prediction_window_size = 9
     

@@ -711,9 +711,9 @@ def plot_mae_steps(df: pd.DataFrame, title: str, file_path: str):
     )
 
     # Additional plot settings
-    plt.title(title, fontsize=14)
-    plt.xlabel("Future Timestep $t_k$", fontsize=12)
-    plt.ylabel("Mean Absolute Error (mg/dL)", fontsize=12)
+    # plt.title(title, fontsize=14)
+    plt.xlabel("Future Timestep $t_k$", fontsize=14)
+    plt.ylabel("Mean Absolute Error (mg/dL)", fontsize=14)
     plt.xticks(ticks=future_timesteps)
     plt.legend()
     plt.grid(True, alpha=0.5)
@@ -728,6 +728,74 @@ def plot_mae_steps(df: pd.DataFrame, title: str, file_path: str):
     plt.savefig(png_filename, format="png")
 
     plt.show()
+def plot_mae_steps_dual(
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    label1: str,
+    label2: str,
+    title: str,
+    file_path: str
+):
+    """
+    Plots the MAE for each future timestep for two datasets and overlays them on the same plot.
+    Each dataset keeps its original time steps.
+    """
+    
+    def compute_mae_and_sd(df):
+        true_cols = [col for col in df.columns if "true" in col]
+        pred_cols = [col for col in df.columns if "pred" in col]
+
+        mean_errors = []
+        std_devs = []
+
+        for true_col, pred_col in zip(true_cols, pred_cols):
+            abs_error = np.abs(df[true_col] - df[pred_col])
+            mean_errors.append(abs_error.mean())
+            std_devs.append(abs_error.std())
+
+        return np.array(mean_errors), np.array(std_devs)
+
+    # Compute metrics for both DataFrames
+    mean1, std1 = compute_mae_and_sd(df1)
+    mean2, std2 = compute_mae_and_sd(df2)
+
+    # Define future timesteps based on the lengths of the respective sequences
+    future_timesteps_1 = np.arange(1, len(mean1) + 1)
+    future_timesteps_2 = np.arange(1, len(mean2) + 1)
+
+    # Create x-tick labels as t_1, t_2, ..., t_n
+    tick_labels_1 = [f"$t_{i}$" for i in future_timesteps_1]
+    tick_labels_2 = [f"$t_{i}$" for i in future_timesteps_2]
+
+    # Plotting
+    plt.figure(figsize=(10, 6))
+
+    # Dataset 1 (6 timesteps)
+    plt.plot(future_timesteps_1, mean1, marker="o", label=f"{label1} MAE", color="blue")
+    plt.fill_between(future_timesteps_1, mean1 - std1, mean1 + std1, color="blue", alpha=0.2, label=f"{label1} ±1 SD")
+
+    # Dataset 2 (9 timesteps)
+    plt.plot(future_timesteps_2, mean2, marker="o", label=f"{label2} MAE", color="green")
+    plt.fill_between(future_timesteps_2, mean2 - std2, mean2 + std2, color="green", alpha=0.2, label=f"{label2} ±1 SD")
+
+    # Set x-ticks with the generated labels
+    plt.xticks(future_timesteps_1, tick_labels_1, rotation=0,fontsize=14)
+    plt.xlabel("Future Timestep", fontsize=14)
+    plt.ylabel("Mean Absolute Error (mg/dL)", fontsize=14)
+    plt.title(title, fontsize=14)
+    plt.legend()
+    plt.grid(True, alpha=0.5)
+
+    # Save files
+    base_filename = os.path.splitext(os.path.basename(file_path))[0]
+    safe_title = title.lower().replace(" ", "_").replace("-", "_")
+    svg_filename = f"{base_filename}_{safe_title}.svg"
+    png_filename = f"{base_filename}_{safe_title}.png"
+
+    plt.savefig(svg_filename, format="svg")
+    plt.savefig(png_filename, format="png")
+    plt.show()
+
 
 
 def plot_mae_steps_box_plot(df: pd.DataFrame, file_path: str):

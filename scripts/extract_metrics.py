@@ -2,9 +2,20 @@ import os
 import re
 import csv
 import logging
+import ast
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import math
+
+def sanitize_metric(value):
+    try:
+        val = float(value)
+        if math.isinf(val) or math.isnan(val):
+            return "NaN"
+        return str(val)
+    except (ValueError, TypeError):
+        return "NaN"
 
 def extract_metrics_to_csv(base_dir, output_csv):
     logging.info("Starting metrics extraction.")
@@ -87,18 +98,28 @@ def extract_metrics_to_csv(base_dir, output_csv):
                     
                     if metrics_line:
                         # Convert the extracted string dictionary to a real dictionary
-                        metrics = eval(metrics_line)  # Safe since we control input
+                        import ast
+
+                        sanitized_str = (
+                            metrics_line.replace("inf", '"inf"')
+                                                .replace("-inf", '"-inf"')
+                                                .replace("nan", '"nan"')
+                        )
+                        try:
+                            metrics = ast.literal_eval(sanitized_str)
+                        except Exception as e:
+                            logging.error(f"Error parsing metrics in {log_path}: {e}")
+                            continue
                         
                         # Dynamically generate the header if the CSV is empty
                         if not csv_header:
                             csv_header = list(experiment_params.keys()) + ["rmse", "mae", "mape"]
                         
                         # Store the extracted values in the results list
-                        result_row = tuple(str(value) for value in list(experiment_params.values()) + [
-                            str(metrics.get("rmse")),
-                            str(metrics.get("mae")),
-                            str(metrics.get("mape")),
-                        ])
+                        result_row = tuple(str(value) for value in list(experiment_params.values())) + tuple(
+    sanitize_metric(metrics.get(k)) for k in ["rmse", "mae", "mape"]
+)
+
                         
                         if result_row not in existing_rows:  # Avoid duplicate rows
                             results.append(result_row)

@@ -271,7 +271,7 @@ class ChronosLLM(TimeSeriesLLM):
             "min_past": 64,
             "ntokens": 4096,
             "tokenizer_kwargs": "{'low_limit': 35,'high_limit': 500}",
-            "use_peft": True,  # New: Enable PEFT training
+            "use_peft": False,  # New: Enable PEFT training
             "lora_r": 16,
             "lora_alpha": 32,
             "lora_dropout": 0.05,
@@ -304,7 +304,7 @@ class ChronosLLM(TimeSeriesLLM):
 
         # Enable PEFT fine-tuning
         if settings["use_peft"]:
-            data_loaded["use_peft"] = True  # New setting for LoRA
+            data_loaded["use_peft"] = settings["use_peft"]  # New setting for LoRA
             data_loaded["lora_r"] = settings["lora_r"]
             data_loaded["lora_alpha"] = settings["lora_alpha"]
             data_loaded["lora_dropout"] = settings["lora_dropout"]
@@ -327,7 +327,7 @@ class ChronosLLM(TimeSeriesLLM):
 
         # Train the model
         os.system(
-            f"python {chronos_dir}/chronos/scripts/training/train_lora.py --config {custom_config_path}"
+            f"python {chronos_dir}/chronos/scripts/training/train.py --config {custom_config_path}"
         )
 
         # Load the trained model with LoRA

@@ -1,0 +1,37 @@
+run.log_dir = "./experiment_configs_chronos_training_missing_random/seed_831363_model_amazon_chronos-t5-base_dtype_float32_mode_training_context_512_pred_64/patient_570/logs"
+run.chronos_dir = "/home/amma/LLM-TIME/models/"
+
+run.data_settings = {
+    'path_to_train_data': '/home/amma/LLM-TIME/data/missing_data_random/570-ws-training.arrow',
+    'path_to_test_data': './data/missing_data_random/570-ws-testing.csv',
+    'input_features': ['target'],
+    'labels': ['target'],
+    'preprocessing_method': 'min_max',
+    'preprocess_input_features': False,
+    'preprocess_label': False,
+    'percent': 100
+}
+
+run.llm_settings = {
+    'mode': 'training',    
+    'method': 'chronos',    
+    'model': 'amazon/chronos-t5-base',  
+    'torch_dtype': 'float32',   
+    'ntokens': 4096,
+    'tokenizer_kwargs': "{'low_limit': -30,'high_limit': 30}",
+    'prediction_length': 64,    
+    'num_samples': 20,
+    'context_length': 512,
+    'min_past': 60,
+    'learning_rate': 0.001,
+    'max_train_steps': 2000,
+    'save_steps': 1000,
+    'log_steps': 200,
+    'train_batch_size': 8,
+    'random_init': False,
+    'seed': 831363,
+    'use_peft': False,
+    'lora_r': 16,
+    'lora_alpha': 32,
+    'lora_dropout': 0.05
+}

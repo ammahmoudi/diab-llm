@@ -61,7 +61,7 @@ max_train_steps_mapping = {
 }
 
 # Base output directory
-base_output_dir = "./experiment_configs_chronos_training_lora/"
+base_output_dir = "./experiment_configs_chronos_training/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files for all combinations of seeds, models, torch_dtypes, and modes
@@ -133,7 +133,7 @@ run.llm_settings = {{
     'train_batch_size': 8,
     'random_init': False,
     'seed': {seed},
-    'use_peft': True,
+    'use_peft': False,
     'lora_r': 16,
     'lora_alpha': 32,
     'lora_dropout': 0.05

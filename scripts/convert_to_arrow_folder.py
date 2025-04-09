@@ -85,10 +85,10 @@ def convert_all_csv_in_directory(csv_directory: str, output_directory: str):
 
 if __name__ == "__main__":
     # Specify the directory where the CSV files are located
-    csv_directory = "./data/missing_values"
+    csv_directory = "./data/missing_data_random"
 
     # Specify the directory where the Arrow files should be saved
-    output_directory = "./data/missing_values"
+    output_directory = "./data/missing_data_random"
 
     # Convert all CSV files in the folder to Arrow format
     convert_all_csv_in_directory(csv_directory, output_directory)

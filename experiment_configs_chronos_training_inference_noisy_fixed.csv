@@ -1,0 +1,11 @@
+seed,model,dtype,mode,context,pred,patient_id,log_datetime,rmse,mae,mape
+247659,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-43-00,32.08878,20.59359,13.28478
+247659,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-43-12,24.40571,16.62566,8.38154
+427368,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-43-24,31.75027,20.37161,13.10896
+427368,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-43-55,24.00757,16.47846,8.35438
+238822,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-44-14,42.92142,20.78468,13.54744
+238822,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-44-28,24.83049,16.8996,8.57155
+809906,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-44-47,31.44897,20.17649,13.02821
+809906,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-44-59,24.23807,16.71869,8.4621
+831363,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-45-15,32.22077,20.52707,13.22007
+831363,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-45-28,24.51881,16.82915,8.52037

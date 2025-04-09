@@ -7,6 +7,18 @@ import logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+import math
+import ast
+
+
+def sanitize_metric(value):
+    try:
+        val = float(value)
+        if math.isinf(val) or math.isnan(val):
+            return "NaN"
+        return str(val)
+    except (ValueError, TypeError):
+        return "NaN"
 
 
 def extract_corrected_metrics_to_csv(base_dir, output_csv):
@@ -105,12 +117,18 @@ def extract_corrected_metrics_to_csv(base_dir, output_csv):
                         continue  # Skip this file if no metrics were found
 
                     # Convert extracted corrected metrics to a dictionary
-                    try:
-                        corrected_metrics_str=corrected_metrics_str.replace('inf','0')
+                   
+                        # corrected_metrics_str=corrected_metrics_str.replace('inf','0')
                         # corrected_metrics_str.replace('inf','0')
-                        corrected_metrics = eval(
-                            corrected_metrics_str
-                        )  # Convert safely
+                    import ast
+
+                    sanitized_str = (
+                        corrected_metrics_str.replace("inf", '"inf"')
+                                            .replace("-inf", '"-inf"')
+                                            .replace("nan", '"nan"')
+                    )
+                    try:
+                        corrected_metrics = ast.literal_eval(sanitized_str)
                     except Exception as e:
                         logging.error(f"Error parsing metrics in {log_path}: {e}")
                         continue
@@ -125,13 +143,10 @@ def extract_corrected_metrics_to_csv(base_dir, output_csv):
 
                     # Store the extracted values in the results list
                     result_row = tuple(
-                        str(value)
-                        for value in list(experiment_params.values())
-                        + [
-                            str(corrected_metrics.get("rmse")),
-                            str(corrected_metrics.get("mae")),
-                            str(corrected_metrics.get("mape")),
-                        ]
+                        str(value) for value in list(experiment_params.values())
+                    ) + tuple(
+                        sanitize_metric(corrected_metrics.get(k))
+                        for k in ["rmse", "mae", "mape"]
                     )
 
                     if result_row not in existing_rows:  # Avoid duplicate rows

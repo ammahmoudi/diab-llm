@@ -1,0 +1,11 @@
+seed,model,dtype,mode,context,pred,patient_id,log_datetime,rmse,mae,mape
+247659,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-37-02,62.78357,30.9861,NaN
+247659,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-37-24,65.50622,30.23751,NaN
+427368,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-37-39,58.33832,30.25554,NaN
+427368,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-37-57,64.94815,29.67913,NaN
+238822,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-38-17,58.45507,30.04753,NaN
+238822,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-38-31,64.55347,29.53724,NaN
+809906,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-38-46,56.77188,29.07691,NaN
+809906,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-39-08,64.12164,29.58401,NaN
+831363,amazon-chronos-t5-base,float32,inference,6,9,584,2025-04-09_10-39-23,58.50788,30.14823,NaN
+831363,amazon-chronos-t5-base,float32,inference,6,9,570,2025-04-09_10-39-35,64.27092,29.52913,NaN
