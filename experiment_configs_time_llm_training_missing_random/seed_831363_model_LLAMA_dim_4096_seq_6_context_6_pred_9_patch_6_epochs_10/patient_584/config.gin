@@ -1,10 +1,10 @@
 run.log_dir = "./experiment_configs_time_llm_training_missing_random/seed_831363_model_LLAMA_dim_4096_seq_6_context_6_pred_9_patch_6_epochs_10/patient_584/logs"
 run.data_settings = {
     'path_to_train_data': './data/standardized/584-ws-training.csv',
-    'path_to_test_data': './data/missing_random/584-ws-testing.csv',
+    'path_to_test_data': './data/missing_data_random/584-ws-testing.csv',
     'input_features': ['target'],
     'labels': ['target'],
-    'prompt_path': './data/missing_random/t1dm_prompt.txt',
+    'prompt_path': './data/missing_data_random/t1dm_prompt.txt',
     'preprocessing_method': 'min_max',
     'preprocess_input_features': False,
     'preprocess_label': False,

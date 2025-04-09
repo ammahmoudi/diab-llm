@@ -85,7 +85,7 @@ for (
         log_folder = os.path.join(patient_folder, "logs")
         os.makedirs(log_folder, exist_ok=True)
 
-        data_folder = "./data/missing_random"
+        data_folder = "./data/missing_data_random"
         train_folder="./data/standardized"
 
         config_content = f"""
