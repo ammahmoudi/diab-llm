@@ -416,3 +416,108 @@ def generate_model_comparison_from_dict(
             f.write(latex_code)
 
     return comparison_df, latex_code
+
+
+
+def prepare_chronos_robustness_table(df: pd.DataFrame, model_filter=None):
+    import pandas as pd
+    from pandas.api.types import CategoricalDtype
+
+    if model_filter:
+        df = df[df["model"] == model_filter]
+
+    if "mape" in df.columns and df["mape"].isna().all():
+        df = df.drop(columns=["mape"])
+    df = df.rename(columns={"context": "seq"})
+
+    grouped = df.groupby(["scenario", "corruption_type", "patient_id"])[["mae", "rmse"]].agg(["mean", "std"]).reset_index()
+    grouped.columns = ["scenario", "corruption_type", "patient_id", "mae_mean", "mae_std", "rmse_mean", "rmse_std"]
+
+    grouped["mae_fmt"] = grouped.apply(lambda row: f"{row['mae_mean']:.2f} ± {row['mae_std']:.2f}", axis=1)
+    grouped["rmse_fmt"] = grouped.apply(lambda row: f"{row['rmse_mean']:.2f} ± {row['rmse_std']:.2f}", axis=1)
+
+    # Map training/eval config and corruption type
+    scenario_map = {
+        "fine-tuned": "Noise-aware evaluation",
+        "zero-shot": "Test-time missingness"
+    }
+    corruption_map = {
+        "missing_periodic": "Periodic missing",
+        "missing_random": "Random missing",
+        "noisy": "Noisy"
+    }
+
+    grouped["scenario_label"] = grouped["scenario"].map(scenario_map)
+    grouped["corruption_label"] = grouped["corruption_type"].map(corruption_map)
+    grouped["row_label"] = grouped["corruption_label"] + " — " + grouped["scenario_label"]
+
+    # Sort by corruption and scenario order
+    corruption_order = ["Noisy", "Periodic missing", "Random missing"]
+    scenario_order = ["Noise-aware evaluation", "Test-time missingness"]
+
+    grouped["corruption_label"] = grouped["corruption_label"].astype(CategoricalDtype(corruption_order, ordered=True))
+    grouped["scenario_label"] = grouped["scenario_label"].astype(CategoricalDtype(scenario_order, ordered=True))
+
+    grouped = grouped.sort_values(["corruption_label", "scenario_label"])
+
+    # Create pivoted DataFrame
+    mae_pivot = grouped.pivot(index="row_label", columns="patient_id", values="mae_fmt")
+    rmse_pivot = grouped.pivot(index="row_label", columns="patient_id", values="rmse_fmt")
+
+    columns = []
+    for col in mae_pivot.columns:
+        columns.append((col, "MAE"))
+        columns.append((col, "RMSE"))
+
+    result = pd.DataFrame(index=mae_pivot.index, columns=pd.MultiIndex.from_tuples(columns))
+    for col in mae_pivot.columns:
+        result[(col, "MAE")] = mae_pivot[col]
+        result[(col, "RMSE")] = rmse_pivot[col]
+
+    return result.sort_index(axis=1, level=0)
+
+def generate_latex_chronos_robustness_table(df: pd.DataFrame, caption: str, label: str):
+    import re
+
+    patients = sorted(set(idx for idx, _ in df.columns))
+    col_format = "l" + "|".join(["cc" for _ in patients])
+
+    latex = [
+        "\\begin{table*}[htbp]",
+        "\\centering",
+        f"\\caption{{{caption}}}",
+        f"\\label{{{label}}}",
+        "\\resizebox{\\textwidth}{!}{%",
+        f"\\begin{{tabular}}{{{col_format}}}",
+        "\\toprule"
+    ]
+
+    header1 = ["\\textbf{Scenario}"]
+    for patient in patients:
+        header1.append(f"\\multicolumn{{2}}{{c}}{{\\textbf{{Patient {patient}}}}}")
+    latex.append(" & ".join(header1) + " \\\\")
+
+    header2 = [""]
+    for _ in patients:
+        header2.extend(["MAE", "RMSE"])
+    latex.append(" & ".join(header2) + " \\\\")
+    latex.append("\\cmidrule(lr){2-" + f"{2 * len(patients) + 1}" + "}")
+
+    last_corruption = None
+    for row_label, row in df.iterrows():
+        corruption = row_label.split(" — ")[0]
+        if last_corruption is not None and corruption != last_corruption:
+            latex.append("\\midrule")
+        last_corruption = corruption
+
+        values = [str(v) if pd.notna(v) else "--" for v in row]
+        latex.append(f"{row_label} & " + " & ".join(values) + " \\\\")
+
+    latex += [
+        "\\bottomrule",
+        "\\end{tabular}",
+        "}",
+        "\\end{table*}"
+    ]
+
+    return "\n".join(latex)

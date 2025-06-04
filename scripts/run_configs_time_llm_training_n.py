@@ -4,12 +4,12 @@ from extract_metrics import extract_metrics_to_csv
 
 # Base directory where config files are stored
 names = [
-    "experiment_configs_time_llm_training_missing_periodic",
-    "experiment_configs_time_llm_training_missing_periodic_train",
-    "experiment_configs_time_llm_training_missing_random",
-    "experiment_configs_time_Ilm_training_missing_random_train",
-    "experiment_configs_time_Ilm_training_noisy",
-    "experiment_configs_time_llm_training_noisy_train",
+    # "experiment_configs_time_llm_training_missing_periodic",
+    # "experiment_configs_time_llm_training_missing_periodic_train",
+    # "experiment_configs_time_llm_training_missing_random",
+    "experiment_configs_time_llm_training_missing_random_train",
+    "experiment_configs_time_llm_training_noisy",
+    # "experiment_configs_time_llm_training_noisy_train",
 ]
 for name in names:
     base_output_dir = f"./{name}/"
