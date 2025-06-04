@@ -1,3 +1,5 @@
+
+
 import logging
 from math import sqrt
 import torch
@@ -189,6 +191,8 @@ class Model(nn.Module):
 
         for param in self.llm_model.parameters():
             param.requires_grad = False
+            
+        
 
         if configs["prompt_domain"]:
             self.description = configs["content"]
@@ -206,6 +210,12 @@ class Model(nn.Module):
         self.reprogramming_layer = ReprogrammingLayer(
             configs["d_model"], configs["n_heads"], self.d_ff, self.d_llm
         )
+        # Freeze all layers except normalization
+        # self.reprogramming_layer.freeze_except_normalization()
+        
+        for name, param in self.reprogramming_layer.named_parameters():
+            print(f"{name}: requires_grad = {param.requires_grad}")
+        
         self.patch_nums = int(
             (configs["sequence_length"] - self.patch_len) / self.stride + 2
         )
@@ -282,7 +292,7 @@ class Model(nn.Module):
         llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1)
         llm_output = self.llm_model(inputs_embeds=llama_enc_out, output_attentions=True)
         dec_out = llm_output.last_hidden_state
-        attn_weights = llm_output.attentions  # Extract attention maps
+        # attn_weights = llm_output.attentions  # Extract attention maps
 
         dec_out = dec_out[:, :, : self.d_ff]
 
@@ -323,6 +333,7 @@ class ReprogrammingLayer(nn.Module):
         self.out_projection = nn.Linear(d_keys * n_heads, d_llm)
         self.n_heads = n_heads
         self.dropout = nn.Dropout(attention_dropout)
+        self.head_norm = nn.LayerNorm(d_keys)
 
     def forward(self, target_embedding, source_embedding, value_embedding):
         logging.debug("ReprogrammingLayer forward pass")
@@ -344,5 +355,15 @@ class ReprogrammingLayer(nn.Module):
         scores = torch.einsum("blhe,she->bhls", target_embedding, source_embedding)
         A = self.dropout(torch.softmax(scale * scores, dim=-1))
         reprogramming_embedding = torch.einsum("bhls,she->blhe", A, value_embedding)
+        reprogramming_embedding = self.head_norm(reprogramming_embedding)
         logging.debug("Reprogramming complete")
         return reprogramming_embedding
+
+    def freeze_except_normalization(self):
+        """Freeze all parameters except those in normalization layers."""
+        for name, param in self.named_parameters():
+            # Check if the parameter belongs to the normalization layer
+            if 'head_norm' in name:
+                param.requires_grad = True  # Keep normalization trainable
+            else:
+                param.requires_grad = False  # Freeze everything else

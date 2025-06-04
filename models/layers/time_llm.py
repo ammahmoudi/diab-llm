@@ -12,6 +12,9 @@ from transformers import (
     BertConfig,
     BertModel,
     BertTokenizer,
+    DistilBertConfig,        # Added for DistilBERT
+    DistilBertModel,       # Added for DistilBERT
+    DistilBertTokenizer,   # Added for DistilBERT
 )
 
 import transformers
@@ -60,18 +63,12 @@ class Model(nn.Module):
         logging.debug("Initializing LLM based on config")
         if configs["llm_model"] == "LLAMA":
             logging.debug("LLM model is LLAMA")
-            # self.llama_config = LlamaConfig.from_pretrained("huggyllama/llama-7b")
             self.llama_config = LlamaConfig.from_pretrained("huggyllama/llama-7b")
             self.llama_config.num_hidden_layers = configs["llm_layers"]
             self.llama_config.output_attentions = True
             self.llama_config.output_hidden_states = True
             try:
-                # self.llm_model = LlamaModel.from_pretrained(
-                #     "huggyllama/llama-7b",
-                #     trust_remote_code=True,
-                #     local_files_only=False,
-                #     config=self.llama_config,
-                # )
+  
                 self.llm_model = LlamaModel.from_pretrained(
                     "huggyllama/llama-7b",
                     trust_remote_code=True,
@@ -173,6 +170,46 @@ class Model(nn.Module):
                 )
                 self.tokenizer = BertTokenizer.from_pretrained(
                     "google-bert/bert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                )
+        elif configs["llm_model"] == "DistilBERT":
+            logging.debug("LLM model is DistilBERT")
+            self.distilbert_config = DistilBertConfig.from_pretrained(
+                "distilbert/distilbert-base-uncased"
+            )
+            # DistilBERT uses n_layers instead of num_hidden_layers
+            self.distilbert_config.n_layers = configs["llm_layers"]
+            self.distilbert_config.output_attentions = True
+            self.distilbert_config.output_hidden_states = True
+            try:
+                self.llm_model = DistilBertModel.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                    config=self.distilbert_config,
+                )
+            except EnvironmentError:
+                logging.info("Local model files not found. Attempting to download...")
+                self.llm_model = DistilBertModel.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                    config=self.distilbert_config,
+                )
+
+            try:
+                self.tokenizer = DistilBertTokenizer.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                )
+            except EnvironmentError:
+                logging.info(
+                    "Local tokenizer files not found. Attempting to download them..."
+                )
+                self.tokenizer = DistilBertTokenizer.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
                     trust_remote_code=True,
                     local_files_only=False,
                 )
@@ -282,7 +319,6 @@ class Model(nn.Module):
         llama_enc_out = torch.cat([prompt_embeddings, enc_out], dim=1)
         llm_output = self.llm_model(inputs_embeds=llama_enc_out, output_attentions=True)
         dec_out = llm_output.last_hidden_state
-        attn_weights = llm_output.attentions  # Extract attention maps
 
         dec_out = dec_out[:, :, : self.d_ff]
 
