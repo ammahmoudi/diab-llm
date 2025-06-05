@@ -1,3 +1,4 @@
+import logging
 import os
 import gin
 import torch
@@ -6,6 +7,8 @@ import numpy as np
 import random
 from tqdm import tqdm
 from absl import app, flags
+from accelerate import Accelerator, DeepSpeedPlugin, DistributedDataParallelKwargs
+from utils.time_llm_utils import EarlyStopping, adjust_learning_rate
 
 from distill_trainer import DistillationTrainer
 from models.time_llm import Model as TeacherModel
@@ -90,29 +93,51 @@ def run(log_dir="./logs", llm_settings=None, data_settings=None):
     student_cfg["d_ff"] = 32
     # student = StudentModel(student_cfg)
     student  = TeacherModel(student_cfg)
-    for param in student.llm_model.parameters():
-            param.requires_grad = True
+    # for param in student.llm_model.parameters():
+    #         param.requires_grad = True
 
 
+    # Accelerator setup
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    deepspeed_plugin = DeepSpeedPlugin(hf_ds_config="./configs/ds_config_zero2.json")
+    accelerator = Accelerator(kwargs_handlers=[ddp_kwargs], deepspeed_plugin=deepspeed_plugin)
+    teacher.to(accelerator.device)  # <-- Add this line
+
+    # Prepare optimizer, scheduler, early stopping
     optimizer = optim.Adam(student.parameters(), lr=llm_settings["learning_rate"])
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer=optimizer,
+        steps_per_epoch=len(train_loader),
+        pct_start=0.3,
+        epochs=llm_settings["train_epochs"],
+        max_lr=llm_settings["learning_rate"],
+    )
+    early_stopping = EarlyStopping(accelerator=accelerator, patience=llm_settings["patience"], verbose=True, save_mode=False)
+
+    # Prepare with accelerator
+    train_loader, student, optimizer, scheduler = accelerator.prepare(
+        train_loader, student, optimizer, scheduler
+    )
 
     trainer = DistillationTrainer(
         teacher=teacher,
         student=student,
         dataloader=train_loader,
         optimizer=optimizer,
-        device=device,
+        device=accelerator.device,
+        accelerator=accelerator,
+        scheduler=scheduler,
+        early_stopping=early_stopping,
         alpha=0.5,
-        beta=0.5
+        beta=0.5,
+        train_epochs=llm_settings["train_epochs"],
+        logger=logging.getLogger(__name__),
     )
 
-    for epoch in range(llm_settings["train_epochs"]):
-        loss = trainer.train_epoch()
-        print(f"[Epoch {epoch+1}] Distillation Loss: {loss:.4f}")
+    train_loss_l = trainer.train()
 
     # Save model
-    student_path = os.path.join(log_dir, "student_distilled_2.pth")
+    student_path = os.path.join(log_dir, "student_distilled_3.pth")
     torch.save(student.state_dict(), student_path)
     print(f"✅ Saved distilled model to: {student_path}")
 

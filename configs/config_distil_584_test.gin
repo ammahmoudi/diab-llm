@@ -18,7 +18,7 @@ run.llm_settings = {
     'mode': 'inference',
     'method': 'student_llm',
   'restore_from_checkpoint': True,
-  'restore_checkpoint_path': './experiment_configs_distil/seed_238822_model_stu_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs/student_distilled_2.pth',
+  'restore_checkpoint_path': './experiment_configs_distil/seed_238822_model_stu_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs/student_distilled_3.pth',
     'llm_model': 'distilbert',
     'llm_layers': 32,
     'llm_dim': 768,
