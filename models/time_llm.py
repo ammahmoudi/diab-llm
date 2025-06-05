@@ -15,8 +15,8 @@ from transformers import (
     DistilBertConfig,
     DistilBertModel,
     DistilBertTokenizer,
+    AutoModel, AutoTokenizer
 )
-
 import transformers
 from models.layers.StandardNorm import Normalize
 from models.layers.Embed import PatchEmbedding
@@ -52,6 +52,7 @@ class Model(nn.Module):
     def __init__(self, configs, patch_len=16, stride=8):
         super(Model, self).__init__()
         logging.debug("Initializing Model with configs: %s", configs)
+
         self.task_name = configs["task_name"]
         self.prediction_length = configs["prediction_length"]
         self.sequence_length = configs["sequence_length"]
@@ -62,171 +63,217 @@ class Model(nn.Module):
         self.stride = configs["stride"]
 
         logging.debug("Initializing LLM based on config")
+
+        # -----------------------
+        # Large Model: LLaMA 7B
+        # ~6.7B parameters
+        # Decoder-only transformer; powerful but not edge-friendly
+        # https://huggingface.co/huggyllama/llama-7b
+        # -----------------------
         if configs["llm_model"] == "LLAMA":
             logging.debug("LLM model is LLAMA")
-            # self.llama_config = LlamaConfig.from_pretrained("huggyllama/llama-7b")
             self.llama_config = LlamaConfig.from_pretrained("huggyllama/llama-7b")
             self.llama_config.num_hidden_layers = configs["llm_layers"]
             self.llama_config.output_attentions = True
             self.llama_config.output_hidden_states = True
-            try:
-                # self.llm_model = LlamaModel.from_pretrained(
-                #     "huggyllama/llama-7b",
-                #     trust_remote_code=True,
-                #     local_files_only=False,
-                #     config=self.llama_config,
-                # )
-                self.llm_model = LlamaModel.from_pretrained(
-                    "huggyllama/llama-7b",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.llama_config,
-                )
-            except EnvironmentError:
-                logging.info("Local model files not found. Attempting to download...")
-                self.llm_model = LlamaModel.from_pretrained(
-                    "huggyllama/llama-7b",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.llama_config,
-                )
+            self.llm_model = LlamaModel.from_pretrained(
+                "huggyllama/llama-7b",
+                trust_remote_code=True,
+                local_files_only=False,
+                config=self.llama_config,
+            )
+            self.tokenizer = LlamaTokenizer.from_pretrained(
+                "huggyllama/llama-7b", trust_remote_code=True, local_files_only=False
+            )
 
-            try:
-                self.tokenizer = LlamaTokenizer.from_pretrained(
-                    "huggyllama/llama-7b", trust_remote_code=True, local_files_only=True
-                )
-            except EnvironmentError:
-                logging.info(
-                    "Local tokenizer files not found. Attempting to download them..."
-                )
-                self.tokenizer = LlamaTokenizer.from_pretrained(
-                    "huggyllama/llama-7b",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
+        # -----------------------
+        # Medium Model: GPT2
+        # ~117M parameters
+        # Decoder-only, fast and simple
+        # https://huggingface.co/openai-community/gpt2
+        # -----------------------
         elif configs["llm_model"] == "GPT2":
             logging.debug("LLM model is GPT2")
             self.gpt2_config = GPT2Config.from_pretrained("openai-community/gpt2")
             self.gpt2_config.num_hidden_layers = configs["llm_layers"]
             self.gpt2_config.output_attentions = True
             self.gpt2_config.output_hidden_states = True
-            try:
-                self.llm_model = GPT2Model.from_pretrained(
-                    "openai-community/gpt2",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.gpt2_config,
-                )
-            except EnvironmentError:
-                logging.info("Local model files not found. Attempting to download...")
-                self.llm_model = GPT2Model.from_pretrained(
-                    "openai-community/gpt2",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.gpt2_config,
-                )
+            self.llm_model = GPT2Model.from_pretrained(
+                "openai-community/gpt2",
+                trust_remote_code=True,
+                local_files_only=False,
+                config=self.gpt2_config,
+            )
+            self.tokenizer = GPT2Tokenizer.from_pretrained(
+                "openai-community/gpt2",
+                trust_remote_code=True,
+                local_files_only=False,
+            )
 
-            try:
-                self.tokenizer = GPT2Tokenizer.from_pretrained(
-                    "openai-community/gpt2",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
-            except EnvironmentError:
-                logging.info(
-                    "Local tokenizer files not found. Attempting to download them..."
-                )
-                self.tokenizer = GPT2Tokenizer.from_pretrained(
-                    "openai-community/gpt2",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
+        # -----------------------
+        # Medium Model: BERT
+        # ~110M parameters
+        # Bidirectional encoder, well-known NLP baseline
+        # https://huggingface.co/google-bert/bert-base-uncased
+        # -----------------------
         elif configs["llm_model"] == "BERT":
             logging.debug("LLM model is BERT")
-            self.bert_config = BertConfig.from_pretrained(
-                "google-bert/bert-base-uncased"
-            )
+            self.bert_config = BertConfig.from_pretrained("google-bert/bert-base-uncased")
             self.bert_config.num_hidden_layers = configs["llm_layers"]
             self.bert_config.output_attentions = True
             self.bert_config.output_hidden_states = True
-            try:
-                self.llm_model = BertModel.from_pretrained(
-                    "google-bert/bert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.bert_config,
-                )
-            except EnvironmentError:
-                logging.info("Local model files not found. Attempting to download...")
-                self.llm_model = BertModel.from_pretrained(
-                    "google-bert/bert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.bert_config,
-                )
+            self.llm_model = BertModel.from_pretrained(
+                "google-bert/bert-base-uncased",
+                trust_remote_code=True,
+                local_files_only=False,
+                config=self.bert_config,
+            )
+            self.tokenizer = BertTokenizer.from_pretrained(
+                "google-bert/bert-base-uncased",
+                trust_remote_code=True,
+                local_files_only=False,
+            )
 
-            try:
-                self.tokenizer = BertTokenizer.from_pretrained(
-                    "google-bert/bert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
-            except EnvironmentError:
-                logging.info(
-                    "Local tokenizer files not found. Attempting to download them..."
-                )
-                self.tokenizer = BertTokenizer.from_pretrained(
-                    "google-bert/bert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
+        # -----------------------
+        # Small Model: DistilBERT
+        # ~66M parameters
+        # Light distilled BERT encoder, good for speed
+        # https://huggingface.co/distilbert/distilbert-base-uncased
+        # -----------------------
         elif configs["llm_model"] == "DistilBERT":
             logging.debug("LLM model is DistilBERT")
             self.distilbert_config = DistilBertConfig.from_pretrained(
                 "distilbert/distilbert-base-uncased"
             )
-            # DistilBERT uses n_layers instead of num_hidden_layers
             self.distilbert_config.n_layers = configs["llm_layers"]
             self.distilbert_config.output_attentions = True
             self.distilbert_config.output_hidden_states = True
-            try:
-                self.llm_model = DistilBertModel.from_pretrained(
-                    "distilbert/distilbert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.distilbert_config,
-                )
-            except EnvironmentError:
-                logging.info("Local model files not found. Attempting to download...")
-                self.llm_model = DistilBertModel.from_pretrained(
-                    "distilbert/distilbert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                    config=self.distilbert_config,
-                )
+            self.llm_model = DistilBertModel.from_pretrained(
+                "distilbert/distilbert-base-uncased",
+                trust_remote_code=True,
+                local_files_only=False,
+                config=self.distilbert_config,
+            )
+            self.tokenizer = DistilBertTokenizer.from_pretrained(
+                "distilbert/distilbert-base-uncased",
+                trust_remote_code=True,
+                local_files_only=False,
+            )
 
-            try:
-                self.tokenizer = DistilBertTokenizer.from_pretrained(
-                    "distilbert/distilbert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
-            except EnvironmentError:
-                logging.info(
-                    "Local tokenizer files not found. Attempting to download them..."
-                )
-                self.tokenizer = DistilBertTokenizer.from_pretrained(
-                    "distilbert/distilbert-base-uncased",
-                    trust_remote_code=True,
-                    local_files_only=False,
-                )
+        # -----------------------
+        # NEW: MiniLM
+        # ~33M parameters
+        # Distilled and very fast; high efficiency
+        # https://huggingface.co/nreimers/MiniLMv2-L6-H384-distilled-from-BERT
+        # -----------------------
+        elif configs["llm_model"] == "MiniLM":
+            self.llm_model = AutoModel.from_pretrained(
+                "nreimers/MiniLMv2-L6-H384-distilled-from-BERT",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "nreimers/MiniLMv2-L6-H384-distilled-from-BERT",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+
+        # -----------------------
+        # NEW: TinyBERT
+        # ~14M parameters
+        # Super compact, distilled from BERT
+        # https://huggingface.co/huawei-noah/TinyBERT_General_4L_312D
+        # -----------------------
+        elif configs["llm_model"] == "TinyBERT":
+            self.llm_model = AutoModel.from_pretrained(
+                "huawei-noah/TinyBERT_General_4L_312D",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "huawei-noah/TinyBERT_General_4L_312D",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+
+        # -----------------------
+        # NEW: MobileBERT
+        # ~25M parameters
+        # Optimized for mobile inference
+        # https://huggingface.co/google/mobilebert-uncased
+        # -----------------------
+        elif configs["llm_model"] == "MobileBERT":
+            self.llm_model = AutoModel.from_pretrained(
+                "google/mobilebert-uncased",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "google/mobilebert-uncased",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+
+        # -----------------------
+        # NEW: ALBERT
+        # ~12M–18M parameters
+        # Compact BERT-like model with shared layers
+        # https://huggingface.co/albert-base-v2 or albert-tiny
+        # -----------------------
+        elif configs["llm_model"] == "ALBERT":
+            self.llm_model = AutoModel.from_pretrained(
+                "albert-base-v2",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "albert-base-v2",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+
+        # -----------------------
+        # NEW: BERT-tiny
+        # ~4.4M parameters
+        # Extremely small, fastest BERT variant
+        # https://huggingface.co/prajjwal1/bert-tiny
+        # -----------------------
+        elif configs["llm_model"] == "BERT-tiny":
+            self.llm_model = AutoModel.from_pretrained(
+                "prajjwal1/bert-tiny",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "prajjwal1/bert-tiny",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+
+        # -----------------------
+        # NEW: OPT-125M
+        # ~125M parameters
+        # Lightweight GPT-style decoder from Meta
+        # https://huggingface.co/facebook/opt-125m
+        # -----------------------
+        elif configs["llm_model"] == "OPT-125M":
+            self.llm_model = AutoModel.from_pretrained(
+                "facebook/opt-125m",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                "facebook/opt-125m",
+                trust_remote_code=True,
+                local_files_only=False
+            )
+
         else:
             raise Exception("LLM model is not defined")
 
         if self.tokenizer.eos_token:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         else:
-            logging.debug("Adding pad token to tokenizer")
             pad_token = "[PAD]"
             self.tokenizer.add_special_tokens({"pad_token": pad_token})
             self.tokenizer.pad_token = pad_token
@@ -250,9 +297,7 @@ class Model(nn.Module):
         self.reprogramming_layer = ReprogrammingLayer(
             configs["d_model"], configs["n_heads"], self.d_ff, self.d_llm
         )
-        self.patch_nums = int(
-            (configs["sequence_length"] - self.patch_len) / self.stride + 2
-        )
+        self.patch_nums = int((configs["sequence_length"] - self.patch_len) / self.stride + 2)
         self.head_nf = self.d_ff * self.patch_nums
 
         if self.task_name in ["long_term_forecast", "short_term_forecast"]:
