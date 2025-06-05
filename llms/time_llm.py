@@ -337,11 +337,6 @@ class TimeLLM(TimeSeriesLLM):
                 input_timestamps.append(batch_x_mark.cpu().numpy())
                 output_timestamps.append(batch_y_mark.cpu().numpy())
 
-                # attention_maps.append(attn_weights[-1].to(torch.float32).cpu().numpy())
-                # print("=====================", (attn_weights[-1].to(torch.float32).cpu().numpy()).shape, len(attention_maps))
-                # attn_array = attn_weights[-1].to(torch.float32).cpu().numpy()
-                # print("Attention shape:", attn_array.shape)
-
         if not predictions:
             logging.error(
                 "No predictions were made. Ensure the test loader contains data."
@@ -420,9 +415,6 @@ class TimeLLM(TimeSeriesLLM):
             grouped_x_timestamps,
             grouped_y_timestamps,
         )
-
-        # np.save(os.path.join(output_dir, "attention_maps.npy"), np.concatenate(attention_maps, axis=0))
-        # print("attentions saved.")
 
         return predictions, targets
 

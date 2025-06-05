@@ -7,6 +7,7 @@ import datetime
 from data_processing.data_loader import ChronosDataHandler, TimeLLMDataHandler
 from absl import app, flags
 from llms.chronos import ChronosLLM
+from llms.student_llm import StudentLLM
 from llms.time_llm import TimeLLM
 from utils.logger import setup_logging
 import logging
@@ -301,7 +302,7 @@ def run(
                 )
                 logging.info(f"Metric results: {metric_results}")
             # Check if we need to remove checkpoints
-            if FLAGS.remove_checkpoints:
+            if FLAGS.remove_checkpoints=="True":
                 if os.path.exists(llm_ckpt_path):
                     if os.path.isdir(llm_ckpt_path):
                         shutil.rmtree(llm_ckpt_path)  # Delete the entire folder
@@ -422,7 +423,7 @@ def run(
                     logging.info(f"Metric results: {metric_results}")
 
             # Check if we need to remove checkpoints
-            if FLAGS.remove_checkpoints:
+            if FLAGS.remove_checkpoints=="True":
                 if os.path.exists(final_checkpoint_path):
                     if os.path.isdir(final_checkpoint_path):
                         shutil.rmtree(final_checkpoint_path)  # Delete the entire folder
@@ -442,6 +443,61 @@ def run(
         else:
             logging.error(f"Unsupported mode: {llm_settings['mode']}")
             raise NotImplementedError
+    elif llm_settings["method"] == "student_llm":
+        # Initialize TimeLLM-compatible data loader
+        data_loader = TimeLLMDataHandler(
+            settings={
+                "input_features": data_settings["input_features"],
+                "labels": data_settings["labels"],
+                "preprocessing_method": data_settings["preprocessing_method"],
+                "preprocess_input_features": data_settings["preprocess_input_features"],
+                "preprocess_label": data_settings["preprocess_label"],
+                "frequency": data_settings["frequency"],
+                "num_workers": llm_settings["num_workers"],
+                "sequence_length": llm_settings["sequence_length"],
+                "context_length": llm_settings["context_length"],
+                "prediction_length": llm_settings["prediction_length"],
+                "percent": data_settings["percent"],
+                "val_split": data_settings["val_split"],
+            }
+        )
+
+                # Load datasets
+        train_data, train_loader = data_loader.load_from_csv(
+            data_settings["path_to_train_data"],
+            batch_size=llm_settings["train_batch_size"],
+            split="train",
+        )
+        val_data, val_loader = data_loader.load_from_csv(
+            data_settings["path_to_train_data"],
+            batch_size=llm_settings["train_batch_size"],
+            split="val",
+        )
+        test_data, test_loader = data_loader.load_from_csv(
+            data_settings["path_to_test_data"],
+            batch_size=llm_settings["prediction_batch_size"],
+            split="test",
+        )
+
+        # Initialize student model wrapper
+        llm = StudentLLM(
+            name=llm_settings["model_comment"],
+            settings=llm_settings,
+            data_settings=data_settings,
+            log_dir=log_dir,
+        )
+
+        if llm_settings["restore_from_checkpoint"]:
+            llm.load_model(llm_settings["restore_checkpoint_path"], is_inference=True)
+
+        if len(test_loader) == 0:
+            logging.warning("Test loader is empty. No predictions will be made.")
+        else:
+            predictions, targets = llm.predict(test_loader, output_dir=log_dir)
+            if predictions is not None:
+                metric_results = llm.evaluate(predictions, targets, llm_settings["eval_metrics"])
+                logging.info(f"Student Model Evaluation Metrics: {metric_results}")
+
     else:
         logging.error("Method {} not supported.".format(llm_settings["method"]))
         raise NotImplementedError

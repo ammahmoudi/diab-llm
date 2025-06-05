@@ -58,9 +58,9 @@ def process_all_files_in_folder(input_folder, output_folder, miss_rate=0.1, miss
             print(f"Processed and saved: {filename}")
 
 # Example usage
-input_folder = "./data/standardized"  # Folder containing the CSV files
-output_folder = "./data/missing_data_periodic"    # Folder to save the processed files
+input_folder = "./data/d1namo_standardized"  # Folder containing the CSV files
+output_folder = "./data/d1namo_missing_data_random"    # Folder to save the processed files
 miss_rate = 0.05  # Missingness rate
-missing_type = 'periodic'  # Type of missingness ('random' or 'periodic')
+missing_type = 'random'  # Type of missingness ('random' or 'periodic')
 
 process_all_files_in_folder(input_folder, output_folder, miss_rate, missing_type)

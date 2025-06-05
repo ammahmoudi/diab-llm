@@ -12,6 +12,9 @@ from transformers import (
     BertConfig,
     BertModel,
     BertTokenizer,
+    DistilBertConfig,
+    DistilBertModel,
+    DistilBertTokenizer,
 )
 
 import transformers
@@ -19,6 +22,7 @@ from models.layers.StandardNorm import Normalize
 from models.layers.Embed import PatchEmbedding
 
 transformers.logging.set_verbosity_error()
+
 
 class FlattenHead(nn.Module):
     def __init__(self, n_vars, nf, target_window, head_dropout=0):
@@ -176,6 +180,46 @@ class Model(nn.Module):
                     trust_remote_code=True,
                     local_files_only=False,
                 )
+        elif configs["llm_model"] == "DistilBERT":
+            logging.debug("LLM model is DistilBERT")
+            self.distilbert_config = DistilBertConfig.from_pretrained(
+                "distilbert/distilbert-base-uncased"
+            )
+            # DistilBERT uses n_layers instead of num_hidden_layers
+            self.distilbert_config.n_layers = configs["llm_layers"]
+            self.distilbert_config.output_attentions = True
+            self.distilbert_config.output_hidden_states = True
+            try:
+                self.llm_model = DistilBertModel.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                    config=self.distilbert_config,
+                )
+            except EnvironmentError:
+                logging.info("Local model files not found. Attempting to download...")
+                self.llm_model = DistilBertModel.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                    config=self.distilbert_config,
+                )
+
+            try:
+                self.tokenizer = DistilBertTokenizer.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                )
+            except EnvironmentError:
+                logging.info(
+                    "Local tokenizer files not found. Attempting to download them..."
+                )
+                self.tokenizer = DistilBertTokenizer.from_pretrained(
+                    "distilbert/distilbert-base-uncased",
+                    trust_remote_code=True,
+                    local_files_only=False,
+                )
         else:
             raise Exception("LLM model is not defined")
 
@@ -229,7 +273,6 @@ class Model(nn.Module):
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.prediction_length :, :]
         return None, None
-
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         logging.debug("Starting forecast function")

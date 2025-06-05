@@ -1,4 +1,4 @@
-run.log_dir = "./experiment_configs_distil/seed_238822_model_BERT_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs"
+run.log_dir = "./experiment_configs_time_llm_distil_bert/seed_238822_model_distil_bert_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs"
 run.data_settings = {
     'path_to_train_data': './data/standardized/584-ws-training.csv',
     'path_to_test_data': './data/standardized/584-ws-testing.csv',
@@ -17,7 +17,7 @@ run.llm_settings = {
     'task_name': 'long_term_forecast',
     'mode': 'training+inference',
     'method': 'time_llm',
-    'llm_model': 'BERT',
+    'llm_model': 'DistilBERT',
     'llm_layers': 32,
     'llm_dim': 768,
     'num_workers': 1,
@@ -49,7 +49,7 @@ run.llm_settings = {
     'patience': 10,
     'lradj': 'COS',
     'des': 'test',
-    'model_comment': 'time_llm_BERT_768_6_6_9_6',
+    'model_comment': 'time_llm_distilBERT_768_6_6_9_6',
     'prompt_domain': 0,
     'timeenc': 0,
     'eval_metrics': ['rmse', 'mae', 'mape'],

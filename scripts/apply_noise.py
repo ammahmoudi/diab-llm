@@ -49,8 +49,8 @@ def process_all_files_in_folder(input_folder, output_folder, noise_std=0.1):
             print(f"Processed and saved: {filename}")
 
 # Example usage
-input_folder = "./data/standardized"  # Folder containing the CSV files
-output_folder = "./data/noisy"    # Folder to save the processed files
+input_folder = "./data/d1namo_standardized"  # Folder containing the CSV files
+output_folder = "./data/d1namo_noisy"    # Folder to save the processed files
 noise_std = 3  # Standard deviation of the Gaussian noise
 
 process_all_files_in_folder(input_folder, output_folder, noise_std)

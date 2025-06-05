@@ -1,4 +1,4 @@
-run.log_dir = "./experiment_configs_distil/seed_238822_model_BERT_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs"
+run.log_dir = "./experiment_configs_distil/seed_238822_model_stu_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs"
 run.data_settings = {
     'path_to_train_data': './data/standardized/584-ws-training.csv',
     'path_to_test_data': './data/standardized/584-ws-testing.csv',
@@ -15,8 +15,11 @@ run.data_settings = {
 
 run.llm_settings = {
     'task_name': 'long_term_forecast',
-    'mode': 'training+inference',
-    'method': 'time_llm',
+    'mode': 'training',
+    'method': 'student_llm',
+      'teacher_checkpoint_path': './experiment_configs_distil/seed_238822_model_BERT_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs/logs_2025-06-04_14-12-14/checkpoints/checkpoint.pth',  # path to your trained teacher
+  'restore_from_checkpoint': False,
+  'restore_checkpoint_path': './experiment_configs_distil/seed_238822_model_BERT_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs/student_distilled.pth',
     'llm_model': 'BERT',
     'llm_layers': 32,
     'llm_dim': 768,
@@ -30,7 +33,7 @@ run.llm_settings = {
     'stride': 8,
     'prediction_batch_size': 64,
     'train_batch_size': 32,
-    'learning_rate': 0.001,
+    'learning_rate': 0.0005,
     'train_epochs': 10,
     'features': 'S',
     'd_model': 32,
