@@ -12,3 +12,5 @@ experiment_configs_old
 AutogluonModels
 results
 experiment_configs_distil
+d1namo_experiment_configs_time_llm_inference
+d1namo_experiment_configs_time_llm_training

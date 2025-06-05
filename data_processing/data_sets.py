@@ -198,6 +198,26 @@ class Dataset_T1DM(Dataset):
         
         self.data_x = data
         self.data_y = data
+        # Calculate number of valid sliding windows
+        min_required = self.sequence_length + self.prediction_length
+        self.fallback_mode = False  # Add a flag for fallback mode
+
+        if len(data) < min_required:
+            if self.flag == "test":
+                logging.warning(
+                    f"Not enough data for sliding windows. "
+                    f"Required: {min_required}, Available: {len(data)}. Using fallback mode for test."
+                )
+                self.fallback_mode = True
+                self.tot_len = 1  # Only one sample: the entire available sequence
+            else:
+                raise ValueError(
+                    f"Not enough data for training/validation. "
+                    f"Need at least {min_required}, got {len(data)} rows."
+                )
+        else:
+            self.tot_len = len(data) - self.sequence_length - self.prediction_length + 1
+
     
     def apply_missingness(self, data : np.ndarray, miss_rate=0.1, missing_type='periodic'):
         if missing_type == 'random':
@@ -224,24 +244,32 @@ class Dataset_T1DM(Dataset):
         return data
 
     def __getitem__(self, index):
+        if self.fallback_mode:
+            # Use the entire available data as one sequence
+            full_seq_x = self.data_x[: -self.prediction_length]
+            full_seq_y = self.data_y[-(self.context_length + self.prediction_length):]
+            full_seq_x_mark = self.data_stamp[: -self.prediction_length]
+            full_seq_y_mark = self.data_stamp[-(self.context_length + self.prediction_length):]
+            return full_seq_x, full_seq_y, full_seq_x_mark, full_seq_y_mark
+
+        # Standard mode with sliding windows
         feat_id = index // self.tot_len
         s_begin = index % self.tot_len
-
         s_end = s_begin + self.sequence_length
         r_begin = s_end - self.context_length
         r_end = r_begin + self.context_length + self.prediction_length
-        seq_x = self.data_x[s_begin:s_end, feat_id : feat_id + 1]
-        seq_y = self.data_y[r_begin:r_end, feat_id : feat_id + 1]
+
+        seq_x = self.data_x[s_begin:s_end, feat_id:feat_id + 1]
+        seq_y = self.data_y[r_begin:r_end, feat_id:feat_id + 1]
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
+
     def __len__(self):
-        """
-        Returns the number of available samples in the dataset.
-        """
-        return self.tot_len
+        return self.tot_len if not self.fallback_mode else 1
+
 
     def inverse_transform(self, data):
         """
