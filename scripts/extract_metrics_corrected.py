@@ -13,6 +13,13 @@ import ast
 
 def sanitize_metric(value):
     try:
+        # Handle string representations of numpy values like np.float32(13.443349)
+        if isinstance(value, str) and "np.float" in value:
+            # Extract the numeric value from inside parentheses
+            match = re.search(r"\((.*?)\)", value)
+            if match:
+                value = match.group(1)
+
         val = float(value)
         if math.isinf(val) or math.isnan(val):
             return "NaN"
@@ -127,6 +134,9 @@ def extract_corrected_metrics_to_csv(base_dir, output_csv):
                                             .replace("-inf", '"-inf"')
                                             .replace("nan", '"nan"')
                     )
+                    sanitized_str = re.sub(
+                            r"np\.float\d*\(([\d\.]+)\)", r'"\1"', sanitized_str
+                        )
                     try:
                         corrected_metrics = ast.literal_eval(sanitized_str)
                     except Exception as e:
