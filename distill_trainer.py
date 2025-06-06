@@ -61,12 +61,17 @@ class DistillationTrainer:
                 y_student = self.student(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 y_true = batch_y[:, -self.pred_len :, :]
 
+                # 1. Ground-truth loss
                 loss_gt = mse_loss_fn(y_student, y_true)
+                # 2. Distillation loss (match teacher output)
                 loss_teacher = mse_loss_fn(y_student, y_teacher)
+                # 3. KL divergence (soft targets)
+                temperature = 3.0
                 student_log_probs = nn.functional.log_softmax(y_student / temperature, dim=-1)
                 teacher_probs = nn.functional.softmax(y_teacher / temperature, dim=-1)
                 loss_kl = kl_loss_fn(student_log_probs, teacher_probs)
 
+                # Combine losses
                 loss = (
                     self.alpha * loss_gt +
                     self.beta * loss_teacher +
