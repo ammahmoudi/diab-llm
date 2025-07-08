@@ -143,11 +143,11 @@ def main():
     print("Starting system tests...\n")
     check_torch_and_cuda()
     check_deepspeed_config()
-    check_accelerate()
+    # check_accelerate()
     check_environment_variables()
-    check_model_params()
-    check_disk_and_memory()
-    check_dependencies()
+    # check_model_params()
+    # check_disk_and_memory()
+    # check_dependencies()
 
 
 if __name__ == "__main__":

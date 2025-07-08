@@ -168,12 +168,12 @@ class Model(nn.Module):
         # -----------------------
         elif configs["llm_model"] == "MiniLM":
             self.llm_model = AutoModel.from_pretrained(
-                "nreimers/MiniLMv2-L6-H384-distilled-from-BERT",
+                "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large",
                 trust_remote_code=True,
                 local_files_only=False
             )
             self.tokenizer = AutoTokenizer.from_pretrained(
-                "nreimers/MiniLMv2-L6-H384-distilled-from-BERT",
+                "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large",
                 trust_remote_code=True,
                 local_files_only=False
             )
@@ -222,12 +222,12 @@ class Model(nn.Module):
         # -----------------------
         elif configs["llm_model"] == "ALBERT":
             self.llm_model = AutoModel.from_pretrained(
-                "albert-base-v2",
+                "albert/albert-base-v2",
                 trust_remote_code=True,
                 local_files_only=False
             )
             self.tokenizer = AutoTokenizer.from_pretrained(
-                "albert-base-v2",
+                "albert/albert-base-v2",
                 trust_remote_code=True,
                 local_files_only=False
             )
@@ -267,6 +267,7 @@ class Model(nn.Module):
                 trust_remote_code=True,
                 local_files_only=False
             )
+        
 
         else:
             raise Exception("LLM model is not defined")

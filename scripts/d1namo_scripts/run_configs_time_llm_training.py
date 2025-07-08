@@ -7,7 +7,7 @@ base_output_dir = "./d1namo_experiment_configs_time_llm_training/"
 log_level = "INFO"
 
 # Model priority order
-model_order = ["BERT"]
+model_order = ["BERT",'GPT2']
 
 # Recursively find all `config.gin` files and categorize by model type
 config_files_by_model = {"GPT2": [], "BERT": [], "LLAMA": []}

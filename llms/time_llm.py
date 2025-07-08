@@ -24,6 +24,7 @@ class TimeLLM(TimeSeriesLLM):
     def __init__(self, settings, data_settings, log_dir="./logs", name="time_llm"):
         os.environ["CURL_CA_BUNDLE"] = ""
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
+        # os.environ["PYTORCH_CUDA_ALLOC_CONF"]= "expandable_segments:True"
 
         # Set up the logger using the root logger
         self.logger = logging.getLogger(__name__)  # Use the module logger

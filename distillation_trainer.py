@@ -17,6 +17,8 @@ class DistillationTrainer:
         early_stopping=None,
         alpha=0.5,
         beta=0.5,
+        kl_weight=0.1,
+        temperature=3.0,
         train_epochs=10,
         logger=None,
     ):
@@ -30,6 +32,8 @@ class DistillationTrainer:
         self.early_stopping = early_stopping
         self.alpha = alpha
         self.beta = beta
+        self.kl_weight = kl_weight
+        self.temperature = temperature
         self.loss_fn = nn.MSELoss()
         self.train_epochs = train_epochs
         self.logger = logger or logging.getLogger(__name__)
@@ -45,7 +49,10 @@ class DistillationTrainer:
         for epoch in range(self.train_epochs):
             self.student.train()
             total_loss = 0.0
-            temperature = 3.0
+            total_loss_gt = 0.0
+            total_loss_teacher = 0.0
+            total_loss_kl = 0.0
+
             mse_loss_fn = nn.MSELoss()
             kl_loss_fn = nn.KLDivLoss(reduction="batchmean")
 
@@ -58,6 +65,7 @@ class DistillationTrainer:
 
                 with torch.no_grad():
                     y_teacher = self.teacher(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+
                 y_student = self.student(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 y_true = batch_y[:, -self.pred_len :, :]
 
@@ -66,16 +74,15 @@ class DistillationTrainer:
                 # 2. Distillation loss (match teacher output)
                 loss_teacher = mse_loss_fn(y_student, y_teacher)
                 # 3. KL divergence (soft targets)
-                temperature = 3.0
-                student_log_probs = nn.functional.log_softmax(y_student / temperature, dim=-1)
-                teacher_probs = nn.functional.softmax(y_teacher / temperature, dim=-1)
+                student_log_probs = nn.functional.log_softmax(y_student / self.temperature, dim=-1)
+                teacher_probs = nn.functional.softmax(y_teacher / self.temperature, dim=-1)
                 loss_kl = kl_loss_fn(student_log_probs, teacher_probs)
 
                 # Combine losses
                 loss = (
                     self.alpha * loss_gt +
                     self.beta * loss_teacher +
-                    0.1 * loss_kl
+                    self.kl_weight * loss_kl
                 )
 
                 self.optimizer.zero_grad()
@@ -86,16 +93,25 @@ class DistillationTrainer:
                 self.optimizer.step()
                 if self.scheduler:
                     self.scheduler.step()
+
                 total_loss += loss.item()
+                total_loss_gt += loss_gt.item()
+                total_loss_teacher += loss_teacher.item()
+                total_loss_kl += loss_kl.item()
 
             avg_loss = total_loss / len(self.dataloader)
+            avg_loss_gt = total_loss_gt / len(self.dataloader)
+            avg_loss_teacher = total_loss_teacher / len(self.dataloader)
+            avg_loss_kl = total_loss_kl / len(self.dataloader)
+
             train_loss_l.append(avg_loss)
+
             if self.logger:
-                self.logger.info(f"Epoch {epoch+1} | Train Loss: {avg_loss:.7f}")
+                self.logger.info(f"Epoch {epoch+1} | Total Loss: {avg_loss:.7f} | GT Loss: {avg_loss_gt:.7f} | Teacher Loss: {avg_loss_teacher:.7f} | KL Loss: {avg_loss_kl:.7f}")
 
             if self.early_stopping:
                 # Provide a path to save the best model
-                save_path = os.path.join("logs", "best_student.pth")  # or your preferred path
+                save_path = os.path.join("logs", "best_student.pth")
                 self.early_stopping(avg_loss, self.student, save_path)
                 if self.early_stopping.early_stop:
                     if self.logger:
@@ -103,4 +119,3 @@ class DistillationTrainer:
                     break
 
         return train_loss_l
-

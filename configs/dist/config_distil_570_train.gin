@@ -1,7 +1,7 @@
-run.log_dir = "./experiment_configs_distil/seed_238822_model_BERT_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_584_train_584_test/logs"
+run.log_dir = "./grid_logs"
 run.data_settings = {
-    'path_to_train_data': './data/standardized/584-ws-training.csv',
-    'path_to_test_data': './data/standardized/584-ws-testing.csv',
+    'path_to_train_data': './data/standardized/570-ws-training.csv',
+    'path_to_test_data': './data/standardized/570-ws-testing.csv',
     'input_features': ['target'],
     'labels': ['target'],
     'prompt_path': './data/standardized/t1dm_prompt.txt',
@@ -16,7 +16,9 @@ run.data_settings = {
 run.llm_settings = {
     'task_name': 'long_term_forecast',
     'mode': 'training+inference',
-    'method': 'time_llm',
+    'method': 'tine_llm',
+    'teacher_checkpoint_path': './experiment_configs_time_llm_training/seed_238822_model_BERT_dim_768_seq_6_context_6_pred_9_patch_6_epochs_20/patient_570/logs/logs_2025-06-09_23-41-54/checkpoints/checkpoint.pth',  # path to your trained teacher
+    'restore_from_checkpoint': False,
     'llm_model': 'BERT',
     'llm_layers': 12,
     'llm_dim': 768,
@@ -30,8 +32,8 @@ run.llm_settings = {
     'stride': 8,
     'prediction_batch_size': 64,
     'train_batch_size': 32,
-    'learning_rate': 0.001,
-    'train_epochs': 20,
+    'learning_rate': 0.0005,
+    'train_epochs': 40,
     'features': 'S',
     'd_model': 32,
     'd_ff': 32,
@@ -53,5 +55,9 @@ run.llm_settings = {
     'prompt_domain': 0,
     'timeenc': 0,
     'eval_metrics': ['rmse', 'mae', 'mape'],
-    'seed': 238822
+    'seed': 238822,
+    'student_model': 'TinyBERT',
+    'student_layers': 4,
+    'student_dim': 312,
+    'student_d_ff': 32,
 }
