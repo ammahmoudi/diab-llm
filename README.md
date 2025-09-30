@@ -65,6 +65,44 @@ If you wish to create your own custom configuration combinations, you can use th
 
 ---
 
+## Efficiency Benchmarking (For Reviewers)
+
+### Quick Efficiency Report Generation
+
+To generate comprehensive efficiency metrics that address reviewer requirements:
+
+```bash
+# Generate comprehensive efficiency report (RECOMMENDED)
+python comprehensive_efficiency_report.py \
+    --config experiment_configs_time_llm_inference/seed_809906_model_GPT2_dim_768_seq_6_context_6_pred_6_patch_6_epochs_0/patient_540/config.gin \
+    --output-dir ./reviewer_results
+```
+
+This generates:
+- **JSON report** with all metrics
+- **LaTeX tables** ready for publication
+- **Reviewer summary** addressing specific concerns
+
+### Alternative Benchmarking Methods
+
+```bash
+# Simple benchmark (if model loading issues)
+python simple_benchmark.py --model time_llm --config <config_path> --output-dir ./results
+
+# Wrapper benchmark (uses existing main.py)
+python wrapper_benchmark.py --config <config_path> --output-dir ./results --runs 3
+```
+
+### Install Efficiency Dependencies
+
+```bash
+pip install -r requirements_efficiency.txt
+```
+
+See `EFFICIENCY_BENCHMARKING_GUIDE.md` for detailed instructions.
+
+---
+
 ## Data Preprocessing
 
 ### 1. Standardize Raw Data Folder

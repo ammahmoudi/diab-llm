@@ -117,6 +117,7 @@ class ChronosLLM(TimeSeriesLLM):
             "batch_size": None,
             "auto_split": False,
         },
+        benchmark_efficiency=True,
     ):
         """
         Predict method to generate predictions and save inputs, targets, and predictions.
@@ -125,9 +126,11 @@ class ChronosLLM(TimeSeriesLLM):
             test_data: DataFrame containing both input features and targets.
             data_loader: Data loader of test data
             settings: Dictionary of settings for prediction.
+            benchmark_efficiency: Whether to run efficiency benchmarking during prediction.
 
         Returns:
             llm_prediction: Numpy array of model predictions.
+            efficiency_metrics: EfficiencyMetrics object if benchmarking is enabled.
         """
 
         logging.info("Starting prediction process...")
@@ -159,6 +162,15 @@ class ChronosLLM(TimeSeriesLLM):
         prediction_results = []
         input_results = []
         target_results = []
+
+        # Initialize efficiency benchmarking if requested
+        if benchmark_efficiency and len(test_input_batches) > 0:
+            # Create sample input for benchmarking
+            sample_batch = test_input_batches[0].values[:1]  # Single sample
+            sample_input = torch.tensor(sample_batch)
+            
+            # Efficiency metrics are now calculated automatically in main.py
+            logging.info("Efficiency metrics will be calculated automatically")
 
         for batch_idx, (input_batch, target_batch) in enumerate(
             zip(test_input_batches, test_label_batches)
@@ -255,7 +267,10 @@ class ChronosLLM(TimeSeriesLLM):
 
         logging.info("Results saved successfully.")
 
-        return llm_prediction, targets
+        if benchmark_efficiency:
+            return llm_prediction, targets, self.efficiency_metrics
+        else:
+            return llm_prediction, targets
 
     def train(
         self,
