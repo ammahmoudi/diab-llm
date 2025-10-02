@@ -43,7 +43,11 @@ def standardize_files(folder_path, save_path):
                 print(f"Error processing {filename}: {e}")
 
 
-# Example usage:
-folder_path = "./data/raw"
-save_path = "./data/standardized"
+# # Example usage:
+# folder_path = "./data/denoised"
+# save_path = "./data/denoised_standarized"
+# standardize_files(folder_path, save_path)
+
+folder_path = "./data/noised"
+save_path = "./data/noised_standarized"
 standardize_files(folder_path, save_path)

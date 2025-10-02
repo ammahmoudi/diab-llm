@@ -1,0 +1,3 @@
+# python distillation_driver.py --teacher_config configs/dist/config_distil_584_train.gin --test_config_template configs/dist/config_distil_584_test.gin --student_model DistilBERT --student_layers 6 --student_dim 768 --student_d_ff 32
+python distillation_driver.py --teacher_config configs/dist/config_distil_584_train.gin --test_config_template configs/dist/config_distil_584_test.gin --student_model TinyBERT --student_layers 4 --student_dim 312 --student_d_ff 32
+python distillation_driver.py --teacher_config configs/dist/config_distil_570_train.gin --test_config_template configs/dist/config_distil_570_test.gin --student_model TinyBERT --student_layers 4 --student_dim 312 --student_d_ff 32

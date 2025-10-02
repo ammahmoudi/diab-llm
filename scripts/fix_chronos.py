@@ -106,7 +106,7 @@ def process_csv_files(base_dir):
                 }
 
                 # Correct bad predictions
-                df_corrected = replace_bad_predictions(df.copy(), pred_columns, file)
+                df_corrected = replace_bad_predictions(df.copy(), pred_columns, file,threshold_factor=3)
 
                 # Compute corrected metrics
                 corrected_rmse = calculate_rmse(df_corrected[pred_columns].values, df_corrected[true_columns].values)
@@ -129,4 +129,6 @@ def process_csv_files(base_dir):
     logging.info("CSV processing completed.")
 
 # Example usage:
-process_csv_files("./experiment_d1namo_configs_chronos_inference/")
+process_csv_files("./experiment_configs_chronos_training_noised/")
+# process_csv_files("./experiment_d1namo_configs_chronos_inference/")
+

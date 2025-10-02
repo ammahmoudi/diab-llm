@@ -15,18 +15,18 @@ feature_label_sets = [
 
 # Define the patients (you can adjust this list as needed)
 patients = [
-    "540",
-    "544",
-    "552",
-    "559",
-    "563",
-    "567",
+    # "540",
+    # "544",
+    # "552",
+    # "559",
+    # "563",
+    # "567",
     "570",
-    "575",
+    # "575",
     "584",
-    "588",
-    "591",
-    "596",
+    # "588",
+    # "591",
+    # "596",
 ]
 
 # Generate 10 random seeds between 0 and 999999 (or any range you like)
@@ -35,7 +35,7 @@ seeds=fixed_seeds[:1]
 
 # Available models
 models = [
-    "amazon/chronos-t5-tiny",
+    # "amazon/chronos-t5-tiny",
     # "amazon/chronos-t5-mini",
     # "amazon/chronos-t5-small",
     "amazon/chronos-t5-base",
@@ -53,7 +53,7 @@ modes = ["training"]
 
 # Max train steps for each model
 max_train_steps_mapping = {
-    "amazon/chronos-t5-tiny": 2000,
+    # "amazon/chronos-t5-tiny": 2000,
     # "amazon/chronos-t5-mini": 10000,
     # "amazon/chronos-t5-small": 10000,
     "amazon/chronos-t5-base": 2000,
@@ -96,7 +96,7 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
         os.makedirs(log_folder, exist_ok=True)
 
         # Define the dynamic data path using patient-specific path
-        data_folder = f"/home/amma/LLM-TIME/data/standardized_arrow/{patient_id}-ws-training.arrow"
+        data_folder = f"/home/amma/LLM-TIME/data/standardized/{patient_id}-ws-training.arrow"
         test_data_folder = f"./data/standardized/{patient_id}-ws-testing.csv"
 
         # Prepare .gin configuration content

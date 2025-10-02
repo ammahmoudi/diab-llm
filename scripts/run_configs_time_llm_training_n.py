@@ -7,16 +7,22 @@ names = [
     # "experiment_configs_time_llm_training_missing_periodic",
     # "experiment_configs_time_llm_training_missing_periodic_train",
     # "experiment_configs_time_llm_training_missing_random",
-    "experiment_configs_time_llm_training_missing_random_train",
-    "experiment_configs_time_llm_training_noisy",
+    # "experiment_configs_time_llm_training_missing_random_train",
+    # "experiment_configs_time_llm_training_noisy",
+
     # "experiment_configs_time_llm_training_noisy_train",
+        # "experiment_configs_time_llm_training_denoised",
+                "experiment_configs_time_llm_training_noised",
+
+
+
 ]
 for name in names:
     base_output_dir = f"./{name}/"
     log_level = "INFO"
 
     # Model priority order
-    model_order = ["LLAMA"]
+    model_order = ["LLAMA","BERT"]
 
     # Recursively find all `config.gin` files and categorize by model type
     config_files_by_model = {"GPT2": [], "BERT": [], "LLAMA": []}

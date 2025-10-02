@@ -33,7 +33,7 @@ run.llm_settings = {
     'prediction_batch_size': 64,
     'train_batch_size': 32,
     'learning_rate': 0.001,
-    'train_epochs': 10,
+    'train_epochs': 20,
     'features': 'S',
     'd_model': 32,
     'd_ff': 32,

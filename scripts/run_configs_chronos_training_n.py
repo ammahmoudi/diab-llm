@@ -4,7 +4,7 @@ import subprocess
 from extract_metrics import extract_metrics_to_csv
 
 # Base directory where config files are stored
-base_output_dir = "./experiment_configs_chronos_training_noisy/"
+base_output_dir = "./experiment_configs_chronos_training_noised/"
 log_level = "DEBUG"
 
 # Recursively find all `config.gin` files
@@ -20,46 +20,46 @@ for config_path in config_files:
 
     print(f"Running: {command}")
     subprocess.run(command, shell=True)
-    # extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')
+    extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference_noised.csv')
 
 
 
-# Base directory where config files are stored
-base_output_dir = "./experiment_configs_chronos_training_missing_periodic/"
-log_level = "DEBUG"
+# # Base directory where config files are stored
+# base_output_dir = "./experiment_configs_chronos_training_missing_periodic/"
+# log_level = "DEBUG"
 
-# Recursively find all `config.gin` files
-config_files = []
-for root, _, files in os.walk(base_output_dir):
-    for file in files:
-        if file == "config.gin":
-            config_files.append(os.path.join(root, file))
+# # Recursively find all `config.gin` files
+# config_files = []
+# for root, _, files in os.walk(base_output_dir):
+#     for file in files:
+#         if file == "config.gin":
+#             config_files.append(os.path.join(root, file))
 
-# Run `main.py` for each config
-for config_path in config_files:
-    command = f"python ./main.py --config_path {config_path} --log_level {log_level} --remove_checkpoints=False"
+# # Run `main.py` for each config
+# for config_path in config_files:
+#     command = f"python ./main.py --config_path {config_path} --log_level {log_level} --remove_checkpoints=False"
 
-    print(f"Running: {command}")
-    subprocess.run(command, shell=True)
-    # extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')
+#     print(f"Running: {command}")
+#     subprocess.run(command, shell=True)
+#     # extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')
 
 
-# Base directory where config files are stored
-base_output_dir = "./experiment_configs_chronos_training_missing_random/"
-log_level = "DEBUG"
+# # Base directory where config files are stored
+# base_output_dir = "./experiment_configs_chronos_training_missing_random/"
+# log_level = "DEBUG"
 
-# Recursively find all `config.gin` files
-config_files = []
-for root, _, files in os.walk(base_output_dir):
-    for file in files:
-        if file == "config.gin":
-            config_files.append(os.path.join(root, file))
+# # Recursively find all `config.gin` files
+# config_files = []
+# for root, _, files in os.walk(base_output_dir):
+#     for file in files:
+#         if file == "config.gin":
+#             config_files.append(os.path.join(root, file))
 
-# Run `main.py` for each config
-for config_path in config_files:
-    command = f"python ./main.py --config_path {config_path} --log_level {log_level} --remove_checkpoints=False"
+# # Run `main.py` for each config
+# for config_path in config_files:
+#     command = f"python ./main.py --config_path {config_path} --log_level {log_level} --remove_checkpoints=False"
 
-    print(f"Running: {command}")
-    subprocess.run(command, shell=True)
-    # extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')
+#     print(f"Running: {command}")
+#     subprocess.run(command, shell=True)
+#     # extract_metrics_to_csv(base_dir=base_output_dir,output_csv='./expriment_results_chronos_inference.csv')
 

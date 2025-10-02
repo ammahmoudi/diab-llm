@@ -387,7 +387,7 @@ def generate_model_comparison_from_dict(
     # **Sort the DataFrame by MAE in ascending order**
     # Step 3: Convert results to DataFrame
     comparison_df = pd.DataFrame(model_performance, columns=["Model", "RMSE", "MAE"])
-    comparison_df = comparison_df.sort_values(by="MAE", ascending=True)
+    comparison_df = comparison_df.sort_values(by="RMSE", ascending=True)
 
     # Step 4: Generate LaTeX Table Code
     latex_code = f"""

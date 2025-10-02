@@ -76,6 +76,9 @@ class DistillationTrainer:
                 # 3. KL divergence (soft targets)
                 student_log_probs = nn.functional.log_softmax(y_student / self.temperature, dim=-1)
                 teacher_probs = nn.functional.softmax(y_teacher / self.temperature, dim=-1)
+                # Ensure they are probability distributions
+                assert torch.all(teacher_probs >= 0) and torch.all(student_log_probs >= 0), "Probabilities must be non-negative."
+                assert torch.allclose(teacher_probs.sum(dim=-1), torch.ones_like(teacher_probs.sum(dim=-1))), "Teacher probs must sum to 1."
                 loss_kl = kl_loss_fn(student_log_probs, teacher_probs)
 
                 # Combine losses

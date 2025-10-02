@@ -193,6 +193,10 @@ def extract_corrected_metrics_to_csv(base_dir, output_csv):
 
 # Example usage:
 extract_corrected_metrics_to_csv(
-    "./experiment_d1namo_configs_chronos_inference/",
-    "experiment_d1namo_results_inference_fixed.csv",
+    "./experiment_configs_chronos_training_noised/",
+    "experiment_configs_chronos_training_noised_fixed.csv",
 )
+# extract_corrected_metrics_to_csv(
+#     "./experiment_d1namo_configs_chronos_inference/",
+#     "experiment_d1namo_results_chronos_inference_fixed.csv",
+# )
