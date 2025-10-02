@@ -282,14 +282,15 @@ class TimeLLM(TimeSeriesLLM):
 
         return final_checkpoint_path, train_loss_l, val_loss_l
 
-    def predict(self, test_loader, output_dir):
+    def predict(self, test_loader, output_dir, benchmark_efficiency=True):
         """
         Predict the output for the test data, save predictions to files,
         and generate plots for analysis.
 
         :param test_loader: DataLoader for test data.
         :param output_dir: Directory to save the predictions, formatted results, and plots.
-        :return: Tuple of (predictions, targets) as numpy arrays for evaluation.
+        :param benchmark_efficiency: Whether to run efficiency benchmarking during prediction.
+        :return: Tuple of (predictions, targets, efficiency_metrics) as numpy arrays for evaluation.
         """
         self.llm_model.eval()
         (
@@ -303,7 +304,29 @@ class TimeLLM(TimeSeriesLLM):
 
         if len(test_loader) == 0:
             self.logger.info("Warning: The test loader is empty. No data to predict.")
-            return None, None
+            return None, None, None if benchmark_efficiency else None, None
+
+        # Initialize efficiency benchmarking if requested
+        if benchmark_efficiency:
+            try:
+                # Get a sample batch for benchmarking
+                sample_batch = next(iter(test_loader))
+                batch_x, batch_y, batch_x_mark, batch_y_mark = sample_batch
+                
+                # Create sample input (single item)
+                sample_input = (
+                    batch_x[:1].float().to(self.accelerator.device),
+                    batch_x_mark[:1].float().to(self.accelerator.device),
+                    torch.zeros_like(batch_y[:1, -self._llm_settings["prediction_length"]:, :])
+                    .float().to(self.accelerator.device),
+                    batch_y_mark[:1].float().to(self.accelerator.device)
+                )
+                
+                # Efficiency metrics are now calculated automatically in main.py
+                self.logger.info("Efficiency metrics will be calculated automatically")
+                
+            except Exception as e:
+                self.logger.warning(f"Sample data creation failed: {e}")
 
         with torch.no_grad():
             for batch_x, batch_y, batch_x_mark, batch_y_mark in test_loader:
@@ -342,7 +365,7 @@ class TimeLLM(TimeSeriesLLM):
             logging.error(
                 "No predictions were made. Ensure the test loader contains data."
             )
-            return None, None
+            return None, None, None if benchmark_efficiency else None, None
 
         predictions = np.concatenate(predictions, axis=0)
         targets = np.concatenate(targets, axis=0)
@@ -417,7 +440,11 @@ class TimeLLM(TimeSeriesLLM):
             grouped_y_timestamps,
         )
 
-        return predictions, targets
+        if benchmark_efficiency:
+            # Efficiency metrics are calculated automatically in main.py now
+            return predictions, targets, None
+        else:
+            return predictions, targets
 
     def evaluate(
         self, llm_prediction, ground_truth_data, metrics=["rmse", "mae", "mape"]

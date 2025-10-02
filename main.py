@@ -13,6 +13,9 @@ from utils.logger import setup_logging
 import logging
 import pickle
 import shutil
+from efficiency.efficiency_calculator import auto_calculate_efficiency
+from efficiency.real_time_profiler import RealTimeProfiler
+from efficiency.combine_reports import combine_performance_reports
 
 
 FLAGS = flags.FLAGS
@@ -138,6 +141,20 @@ def run(
             data_settings=data_loader._settings,
             log_dir=log_dir,
         )
+        
+        # 🚀 AUTOMATIC EFFICIENCY CALCULATION
+        logging.info("🔍 Calculating efficiency metrics for Chronos...")
+        try:
+            efficiency_results = auto_calculate_efficiency(
+                model=llm,
+                model_name="chronos",
+                config={"llm_settings": llm_settings, "data_settings": data_settings},
+                log_dir=log_dir
+            )
+            logging.info("✅ Efficiency metrics calculated and saved successfully!")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not calculate efficiency metrics: {e}")
+        
         if 'use_peft' not in llm_settings: llm_settings['use_peft']=False
         if 'restore_from_checkpoint' not in llm_settings: llm_settings['restore_from_checkpoint']=False
 
@@ -176,8 +193,15 @@ def run(
                     data_settings["path_to_test_data"], split="test"
                 )
 
-            # prediction
-            llm_prediction, targets = llm.predict(
+            # Create real-time profiler for capturing actual inference metrics
+            profiler = RealTimeProfiler(log_dir)
+            profiler.start_monitoring()
+            
+            logging.info("📊 Starting real inference performance measurement...")
+            
+            # prediction with real-time performance monitoring
+            llm_prediction, targets = profiler.measure_inference_call(
+                llm.predict,
                 test_data=test_data,
                 data_loader=data_loader,
                 settings={
@@ -187,6 +211,22 @@ def run(
                     "auto_split": llm_settings["prediction_use_auto_split"],
                 },
             )
+            
+            profiler.stop_monitoring()
+            
+            # Generate and save real performance report
+            model_size_mb = sum(p.numel() * p.element_size() for p in llm.model.parameters()) / (1024**2)
+            model_params = sum(p.numel() for p in llm.model.parameters())
+            
+            real_report = profiler.get_comprehensive_report(
+                model_name=llm_settings["method"],
+                model_size_mb=model_size_mb,
+                model_params=model_params
+            )
+            
+            real_report_path = profiler.save_report(real_report)
+            logging.info(f"📈 Real performance report saved to: {real_report_path}")
+            logging.info(f"✅ Captured {len(profiler.inference_times)} real inference measurements")
 
             if llm_prediction is not None:
                 # Evaluate metrics
@@ -217,7 +257,14 @@ def run(
                 logging.info("Data format not supported.")
                 raise NotImplementedError
 
-            llm.train(
+            # Create real-time profiler for Chronos training
+            chronos_training_profiler = RealTimeProfiler(log_dir)
+            chronos_training_profiler.start_monitoring()
+            
+            logging.info("📊 Starting real Chronos training performance measurement...")
+
+            chronos_training_profiler.measure_inference_call(
+                llm.train,
                 data_settings["path_to_train_data"],
                 chronos_dir,
                 settings={
@@ -238,6 +285,19 @@ def run(
                     "lora_dropout": llm_settings["lora_dropout"],
                 },
             )
+            
+            chronos_training_profiler.stop_monitoring()
+            
+            # Generate Chronos training performance report
+            chronos_training_report = chronos_training_profiler.get_comprehensive_report(
+                model_name="chronos_training",
+                model_size_mb=0,  # Chronos model size estimation
+                model_params=0
+            )
+            
+            chronos_training_report_path = chronos_training_profiler.save_report(chronos_training_report)
+            logging.info(f"📈 Chronos training performance report saved to: {chronos_training_report_path}")
+            logging.info(f"✅ Captured Chronos training performance with {len(chronos_training_profiler.inference_times)} measurements")
 
         elif llm_settings["mode"] == "training+inference":
             # check if chronos-forecasting repo is already cloned
@@ -261,8 +321,15 @@ def run(
                 logging.info("Data format not supported.")
                 raise NotImplementedError
 
-            # training
-            llm_ckpt_path = llm.train(
+            # Create real-time profiler for Chronos training+inference mode
+            chronos_train_inf_profiler = RealTimeProfiler(log_dir)
+            chronos_train_inf_profiler.start_monitoring()
+            
+            logging.info("📊 Starting real Chronos training performance measurement (training+inference mode)...")
+
+            # training with performance monitoring
+            llm_ckpt_path = chronos_train_inf_profiler.measure_inference_call(
+                llm.train,
                 data_settings["path_to_train_data"],
                 chronos_dir,
                 settings={
@@ -277,6 +344,19 @@ def run(
                     "tokenizer_kwargs": llm_settings["tokenizer_kwargs"],
                 },
             )
+            
+            chronos_train_inf_profiler.stop_monitoring()
+            
+            # Generate Chronos training+inference performance report
+            chronos_train_inf_report = chronos_train_inf_profiler.get_comprehensive_report(
+                model_name="chronos_training_inference",
+                model_size_mb=0,  # Chronos model size estimation
+                model_params=0
+            )
+            
+            chronos_train_inf_report_path = chronos_train_inf_profiler.save_report(chronos_train_inf_report)
+            logging.info(f"📈 Chronos training+inference performance report saved to: {chronos_train_inf_report_path}")
+            logging.info(f"✅ Captured Chronos training performance with {len(chronos_train_inf_profiler.inference_times)} measurements")
             # load checkpoint
             llm.load_model(llm_ckpt_path)
             # inference and evaluation
@@ -285,7 +365,14 @@ def run(
                     data_settings["path_to_test_data"], split="test"
                 )
 
-            llm_prediction, targets = llm.predict(
+            # Create real-time profiler for Chronos inference
+            profiler_chronos = RealTimeProfiler(log_dir)
+            profiler_chronos.start_monitoring()
+            
+            logging.info("📊 Starting Chronos real inference performance measurement...")
+
+            llm_prediction, targets = profiler_chronos.measure_inference_call(
+                llm.predict,
                 test_data=test_data,
                 data_loader=data_loader,
                 settings={
@@ -295,6 +382,29 @@ def run(
                     "auto_split": llm_settings["prediction_use_auto_split"],
                 },
             )
+            
+            profiler_chronos.stop_monitoring()
+            
+            # Generate Chronos real performance report
+            model_size_mb = 0  # Chronos model size will be calculated differently
+            model_params = 0   # Will be updated if accessible
+            
+            try:
+                if hasattr(llm, 'model') and hasattr(llm.model, 'parameters'):
+                    model_size_mb = sum(p.numel() * p.element_size() for p in llm.model.parameters()) / (1024**2)
+                    model_params = sum(p.numel() for p in llm.model.parameters())
+            except:
+                pass  # Use defaults if model parameters not accessible
+            
+            chronos_real_report = profiler_chronos.get_comprehensive_report(
+                model_name="chronos",
+                model_size_mb=model_size_mb,
+                model_params=model_params
+            )
+            
+            chronos_report_path = profiler_chronos.save_report(chronos_real_report)
+            logging.info(f"📈 Chronos real performance report saved to: {chronos_report_path}")
+            logging.info(f"✅ Captured {len(profiler_chronos.inference_times)} real Chronos inference measurements")
             if llm_prediction is not None:
                 # Evaluate metrics
                 metric_results = llm.evaluate(
@@ -363,6 +473,20 @@ def run(
             data_settings=data_settings,
             log_dir=log_dir,
         )
+        
+        # 🚀 AUTOMATIC EFFICIENCY CALCULATION
+        logging.info("🔍 Calculating efficiency metrics for TimeLLM...")
+        try:
+            efficiency_results = auto_calculate_efficiency(
+                model=llm,
+                model_name="time_llm",
+                config={"llm_settings": llm_settings, "data_settings": data_settings},
+                log_dir=log_dir
+            )
+            logging.info("✅ Efficiency metrics calculated and saved successfully!")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not calculate efficiency metrics: {e}")
+        
         # Handle modes
         if llm_settings["mode"] == "inference":
             if llm_settings["restore_from_checkpoint"]:
@@ -373,9 +497,38 @@ def run(
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
             else:
-                # Save prediction results
-
-                llm_prediction, targets = llm.predict(test_loader, output_dir=log_dir)
+                # Create real-time profiler for capturing actual inference metrics
+                profiler = RealTimeProfiler(log_dir)
+                profiler.start_monitoring()
+                
+                logging.info("📊 Starting real inference performance measurement...")
+                
+                # Save prediction results with real-time monitoring
+                llm_prediction, targets, _ = profiler.measure_inference_call(
+                    llm.predict,
+                    test_loader, 
+                    output_dir=log_dir
+                )
+                
+                profiler.stop_monitoring()
+                
+                # Generate and save real performance report
+                try:
+                    model_size_mb = sum(p.numel() * p.element_size() for p in llm.llm_model.parameters()) / (1024**2)
+                    model_params = sum(p.numel() for p in llm.llm_model.parameters())
+                except:
+                    model_size_mb = 0
+                    model_params = 0
+                
+                real_report = profiler.get_comprehensive_report(
+                    model_name=llm_settings["method"],
+                    model_size_mb=model_size_mb,
+                    model_params=model_params
+                )
+                
+                real_report_path = profiler.save_report(real_report)
+                logging.info(f"📈 Real performance report saved to: {real_report_path}")
+                logging.info(f"✅ Captured {len(profiler.inference_times)} real inference measurements")
 
                 if llm_prediction is not None:
                     # Evaluate metrics
@@ -385,25 +538,80 @@ def run(
                     logging.info(f"Metric results: {metric_results}")
 
         elif llm_settings["mode"] == "training":
-            final_checkpoint_path, train_loss, val_loss = llm.train(
+            # Create real-time profiler for training performance monitoring
+            training_profiler = RealTimeProfiler(log_dir)
+            training_profiler.start_monitoring()
+            
+            logging.info("📊 Starting real training performance measurement...")
+            
+            final_checkpoint_path, train_loss, val_loss = training_profiler.measure_inference_call(
+                llm.train,
                 train_data=train_data,
                 train_loader=train_loader,
                 val_loader=(
                     val_loader if len(val_loader) > 0 else None
                 ),  # Pass None if val_loader is empty
             )
+            
+            training_profiler.stop_monitoring()
+            
+            # Generate training performance report
+            try:
+                model_size_mb = sum(p.numel() * p.element_size() for p in llm.llm_model.parameters()) / (1024**2)
+                model_params = sum(p.numel() for p in llm.llm_model.parameters())
+            except:
+                model_size_mb = 0
+                model_params = 0
+            
+            training_report = training_profiler.get_comprehensive_report(
+                model_name=f"{llm_settings['method']}_training",
+                model_size_mb=model_size_mb,
+                model_params=model_params
+            )
+            
+            training_report_path = training_profiler.save_report(training_report)
+            logging.info(f"📈 Training performance report saved to: {training_report_path}")
+            logging.info(f"✅ Captured training performance with {len(training_profiler.inference_times)} measurements")
             with open(log_dir + "/loss.pkl", "wb") as f:
                 pickle.dump((train_loss, val_loss), f)
 
         elif llm_settings["mode"] == "training+inference":
-            # Train the model and retrieve checkpoint path
-            final_checkpoint_path, train_loss, val_loss = llm.train(
+            # Create real-time profiler for training+inference mode
+            training_inference_profiler = RealTimeProfiler(log_dir)
+            training_inference_profiler.start_monitoring()
+            
+            logging.info("📊 Starting real training performance measurement (training+inference mode)...")
+            
+            # Train the model and retrieve checkpoint path with performance monitoring
+            final_checkpoint_path, train_loss, val_loss = training_inference_profiler.measure_inference_call(
+                llm.train,
                 train_data=train_data,
                 train_loader=train_loader,
                 val_loader=(
                     val_loader if len(val_loader) > 0 else None
                 ),  # Pass None if val_loader is empty
             )
+            
+            training_inference_profiler.stop_monitoring()
+            
+            # Generate training performance report for training+inference mode
+            try:
+                model_size_mb = sum(p.numel() * p.element_size() for p in llm.llm_model.parameters()) / (1024**2)
+                model_params = sum(p.numel() for p in llm.llm_model.parameters())
+            except:
+                model_size_mb = 0
+                model_params = 0
+            
+            training_inference_report = training_inference_profiler.get_comprehensive_report(
+                model_name=f"{llm_settings['method']}_training_inference",
+                model_size_mb=model_size_mb,
+                model_params=model_params
+            )
+            
+            training_inference_report_path = training_inference_profiler.save_report(training_inference_report)
+            logging.info(f"📈 Training+Inference performance report saved to: {training_inference_report_path}")
+            logging.info(f"✅ Captured training performance with {len(training_inference_profiler.inference_times)} measurements")
+            
             print(final_checkpoint_path)
             with open(log_dir + "/loss.pkl", "wb") as f:
                 pickle.dump((train_loss, val_loss), f)
@@ -414,7 +622,38 @@ def run(
             if len(test_loader) == 0:
                 logging.warning("Test loader is empty. No predictions will be made.")
             else:
-                llm_prediction, targets = llm.predict(test_loader, output_dir=log_dir)
+                # Create real-time profiler for training mode inference
+                profiler_training = RealTimeProfiler(log_dir)
+                profiler_training.start_monitoring()
+                
+                logging.info("📊 Starting real inference performance measurement (training mode)...")
+                
+                # Handle efficiency metrics return value (now calculated in main.py)
+                llm_prediction, targets, _ = profiler_training.measure_inference_call(
+                    llm.predict,
+                    test_loader, 
+                    output_dir=log_dir
+                )
+                
+                profiler_training.stop_monitoring()
+                
+                # Generate real performance report for training mode
+                try:
+                    model_size_mb = sum(p.numel() * p.element_size() for p in llm.llm_model.parameters()) / (1024**2)
+                    model_params = sum(p.numel() for p in llm.llm_model.parameters())
+                except:
+                    model_size_mb = 0
+                    model_params = 0
+                
+                training_real_report = profiler_training.get_comprehensive_report(
+                    model_name=f"{llm_settings['method']}_training_mode",
+                    model_size_mb=model_size_mb,
+                    model_params=model_params
+                )
+                
+                training_report_path = profiler_training.save_report(training_real_report)
+                logging.info(f"📈 Training mode real performance report saved to: {training_report_path}")
+                logging.info(f"✅ Captured {len(profiler_training.inference_times)} real inference measurements")
                 if llm_prediction is not None:
                     # Evaluate metrics
                     metric_results = llm.evaluate(
@@ -493,7 +732,7 @@ def run(
         if len(test_loader) == 0:
             logging.warning("Test loader is empty. No predictions will be made.")
         else:
-            predictions, targets = llm.predict(test_loader, output_dir=log_dir)
+            predictions, targets, _ = llm.predict(test_loader, output_dir=log_dir)
             if predictions is not None:
                 metric_results = llm.evaluate(predictions, targets, llm_settings["eval_metrics"])
                 logging.info(f"Student Model Evaluation Metrics: {metric_results}")
@@ -501,6 +740,17 @@ def run(
     else:
         logging.error("Method {} not supported.".format(llm_settings["method"]))
         raise NotImplementedError
+
+    # Generate comprehensive performance report combining all measurements
+    try:
+        model_name = llm_settings.get("method", "unknown_model")
+        comprehensive_report_path = combine_performance_reports(log_dir, model_name)
+        if comprehensive_report_path:
+            logging.info(f"✅ Comprehensive performance report saved: {comprehensive_report_path}")
+        else:
+            logging.info("ℹ️ No performance reports found to combine")
+    except Exception as e:
+        logging.warning(f"Could not generate comprehensive performance report: {e}")
 
     # Save Gin's operative config to a file
     txt_file = open(log_dir + "/gin_config.txt", "w+")
