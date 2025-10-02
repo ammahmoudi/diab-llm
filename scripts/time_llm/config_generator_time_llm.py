@@ -13,15 +13,11 @@ import os
 llm_model_sets = [
     {"llm_model": "GPT2", "llm_dim": 768},
     # {"llm_model": "LLAMA", "llm_dim": 4096},
-    {"llm_model": "BERT", "llm_dim": 768},
+    # {"llm_model": "BERT", "llm_dim": 768},
 ]
 
-
-patients = [
-    # "001",
-    #         "002",
-              "003",
-            #   "004","005", "006", "007"
+patients = ["540",
+            "544", "552", "559", "563", "567", "570", "575", "584", "588", "591", "596"
             ]
 
 length_sets = [
@@ -29,17 +25,17 @@ length_sets = [
     {"sequence_length": 6, "context_length": 6, "prediction_length": 9, "patch_len": 6},
 ]
 
-train_epochs_set = [0,20]
+train_epochs_set = [0]
 
-seeds = fixed_seeds[:]
+seeds = fixed_seeds[:2]
 
 
 modes = ["training+inference"]
 torch_dtypes = ["bfloat16"]
 model_ids = ["test"]
 
-base_output_dir_inference = "./d1namo_experiment_configs_time_llm_inference"
-base_output_dir_training = "./d1namo_experiment_configs_time_llm_training"
+base_output_dir_inference = "./experiment_configs_time_llm_inference"
+base_output_dir_training = "./experiment_configs_time_llm_training"
 
 os.makedirs(base_output_dir_inference, exist_ok=True)
 os.makedirs(base_output_dir_training, exist_ok=True)
@@ -55,7 +51,7 @@ for seed, llm_model_set, length_set, torch_dtype, mode, model_id, train_epochs i
     pred_len = length_set["prediction_length"]
     patch_len = length_set["patch_len"]
 
-    model_comment = f"d1namo_time_llm_{llm_model}_{llm_dim}_{sequence_len}_{context_len}_{pred_len}_{patch_len}"
+    model_comment = f"time_llm_{llm_model}_{llm_dim}_{sequence_len}_{context_len}_{pred_len}_{patch_len}"
     
     # Select appropriate base directory based on epochs
     base_output_dir = base_output_dir_inference if train_epochs == 0 else base_output_dir_training
@@ -73,7 +69,7 @@ for seed, llm_model_set, length_set, torch_dtype, mode, model_id, train_epochs i
         log_folder = os.path.join(patient_folder, "logs")
         os.makedirs(log_folder, exist_ok=True)
         
-        data_folder = "./data/d1namo_standardized"
+        data_folder = "./data/standardized"
 
         config_content = f"""
 run.log_dir = "{log_folder}"
@@ -106,7 +102,7 @@ run.llm_settings = {{
     'prediction_length': {pred_len},
     'patch_len': {patch_len},
     'stride': 8,
-    'prediction_batch_size': 32,
+    'prediction_batch_size': 64,
     'train_batch_size': 32,
     'learning_rate': 0.001,
     'train_epochs': {train_epochs},

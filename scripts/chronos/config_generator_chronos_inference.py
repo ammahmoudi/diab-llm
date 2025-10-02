@@ -3,11 +3,9 @@ import os
 import json
 from itertools import product
 import random
-from utilities.seeds import fixed_seeds
-
 import sys
 import os
-
+from utilities.seeds import fixed_seeds
 
 # Define parameter sets that must be consistent
 feature_label_sets = [
@@ -57,9 +55,20 @@ feature_label_sets = [
 ]
 
 # Define the parameters to iterate over
-patients = ["001",
-            "002", "003","004","005", "006", "007"
-            ] # List of patient IDs
+patients = [
+    "540",
+    "544",
+    "552",
+    "559",
+    "563",
+    "567",
+    "570",
+    "575",
+    "584",
+    "588",
+    "591",
+    "596",
+]  # List of patient IDs
 # seeds = [2021, 2022]  # List of seeds
 
 
@@ -85,7 +94,7 @@ modes = ["inference"]  # Different modes
 
 
 # Base directory for configurations and logs
-base_output_dir = "./experiment_d1namo_configs_chronos_inference/"
+base_output_dir = "./experiment_configs_chronos_inference/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files for all combinations
@@ -115,7 +124,7 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
         os.makedirs(log_folder, exist_ok=True)
 
         # Define the dynamic data path using context and prediction lengths
-        data_folder = f"./data/d1namo_formatted/{context_len}_{pred_len}"
+        data_folder = f"./data/formatted/{context_len}_{pred_len}"
 
         # Prepare .gin configuration content
         config_content = f"""

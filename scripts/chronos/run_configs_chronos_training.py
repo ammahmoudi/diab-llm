@@ -9,7 +9,7 @@ import os
 
 
 # Base directory where config files are stored
-base_output_dir = "./experiment_d1namo_configs_chronos_training/"
+base_output_dir = "./experiment_configs_chronos_training/"
 log_level = "DEBUG"
 
 # Recursively find all `config.gin` files
@@ -21,7 +21,7 @@ for root, _, files in os.walk(base_output_dir):
 
 # Run `main.py` for each config
 for config_path in config_files:
-    command = f"CUDA_VISIBLE_DEVICES=0 python ./main.py --config_path {config_path} --log_level {log_level} --remove_checkpoints=False"
+    command = f"python ./main.py --config_path {config_path} --log_level {log_level} --remove_checkpoints=False"
 
     print(f"Running: {command}")
     subprocess.run(command, shell=True)

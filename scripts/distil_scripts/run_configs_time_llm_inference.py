@@ -1,9 +1,9 @@
+import import_utils
 import os
 import sys
 import subprocess
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from extract_metrics import extract_metrics_to_csv
+from utilities.extract_metrics import extract_metrics_to_csv
 
 # Base directory where config files are stored
 base_output_dir = "./experiment_configs_time_llm_inference/"

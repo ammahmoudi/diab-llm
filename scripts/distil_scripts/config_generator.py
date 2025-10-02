@@ -1,7 +1,7 @@
+import import_utils
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from seeds import fixed_seeds
+from utilities.seeds import fixed_seeds
 import json
 from itertools import product
 import random

@@ -3,11 +3,8 @@ import os
 import glob
 import json
 from itertools import product
-from utilities.seeds import fixed_seeds
-
 import sys
-import os
-
+from utilities.seeds import fixed_seeds
 
 
 def find_latest_checkpoint(training_folder_pattern, patient_id):
@@ -64,26 +61,26 @@ def find_latest_checkpoint(training_folder_pattern, patient_id):
 
 # Define parameter sets
 feature_label_sets = [
-    {
-        "input_features": [
-            "BG_{t-5}",
-            "BG_{t-4}",
-            "BG_{t-3}",
-            "BG_{t-2}",
-            "BG_{t-1}",
-            "BG_{t}",
-        ],
-        "labels": [
-            "BG_{t+1}",
-            "BG_{t+2}",
-            "BG_{t+3}",
-            "BG_{t+4}",
-            "BG_{t+5}",
-            "BG_{t+6}",
-        ],
-        "prediction_length": 6,
-        "context_length": 6,
-    },
+    # {
+    #     "input_features": [
+    #         "BG_{t-5}",
+    #         "BG_{t-4}",
+    #         "BG_{t-3}",
+    #         "BG_{t-2}",
+    #         "BG_{t-1}",
+    #         "BG_{t}",
+    #     ],
+    #     "labels": [
+    #         "BG_{t+1}",
+    #         "BG_{t+2}",
+    #         "BG_{t+3}",
+    #         "BG_{t+4}",
+    #         "BG_{t+5}",
+    #         "BG_{t+6}",
+    #     ],
+    #     "prediction_length": 6,
+    #     "context_length": 6,
+    # },
     {
         "input_features": [
             "BG_{t-5}",
@@ -109,16 +106,30 @@ feature_label_sets = [
     },
 ]
 
-patients = ["001",
-            "002", "003","004","005", "006", "007"
-            ]
+# Define parameters to iterate over
+patients = [
+    # "540",
+    # "544",
+    # "552",
+    # "559",
+    # "563",
+    # "567",
+    "570",
+    # "575",
+    "584",
+    # "588",
+    # "591",
+    # "596",
+]
 seeds = fixed_seeds
-models = ["amazon/chronos-t5-base", "amazon/chronos-t5-tiny"]
+models = ["amazon/chronos-t5-base",
+        #   "amazon/chronos-t5-tiny"
+          ]
 torch_dtypes = ["float32"]
 modes = ["inference"]
 
 # Base directory for configurations
-base_output_dir = "./experiment_d1namo_configs_chronos_training_inference/"
+base_output_dir = "./experiment_configs_chronos_training_denoised/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files
@@ -138,9 +149,9 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
     for patient_id in patients:
         # Determine the correct model checkpoint path for this patient
         if "base" in model:
-            training_folder_pattern = "./experiment_d1namo_configs_chronos_training/seed_*_model_amazon_chronos-t5-base_dtype_*"
+            training_folder_pattern = "./experiment_configs_chronos_training/seed_*_model_amazon_chronos-t5-base_dtype_*"
         else:
-            training_folder_pattern = "./experiment_d1namo_configs_chronos_training/seed_*_model_amazon_chronos-t5-tiny_dtype_*"
+            training_folder_pattern = "./experiment_configs_chronos_training/seed_*_model_amazon_chronos-t5-tiny_dtype_*"
 
         checkpoint_path = find_latest_checkpoint(training_folder_pattern, patient_id)
 
@@ -149,7 +160,7 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
         log_folder = os.path.join(patient_folder, "logs")
         os.makedirs(log_folder, exist_ok=True)
 
-        data_folder = f"./data/d1namo_formatted/{context_len}_{pred_len}"
+        data_folder = f"./data/denoised_formatted/{context_len}_{pred_len}"
 
         config_content = f"""
 run.log_dir = "{log_folder}"

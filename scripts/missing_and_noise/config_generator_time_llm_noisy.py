@@ -3,63 +3,77 @@ import os
 import json
 from itertools import product
 import random
-from utilities.seeds import fixed_seeds
-
 import sys
-import os
-
+from utilities.seeds import fixed_seeds
 
 # Define parameter sets that must be consistent
 llm_model_sets = [
-    {"llm_model": "GPT2", "llm_dim": 768},
-    # {"llm_model": "LLAMA", "llm_dim": 4096},
-    {"llm_model": "BERT", "llm_dim": 768},
+    # {"llm_model": "GPT2", "llm_dim": 768},
+    {"llm_model": "LLAMA", "llm_dim": 4096},
+    # {"llm_model": "BERT", "llm_dim": 768},
 ]
 
-
 patients = [
-    # "001",
-    #         "002",
-              "003",
-            #   "004","005", "006", "007"
-            ]
+    # "540",
+    # "544",
+    # "552",
+    # "559",
+    # "563",
+    # "567",
+    "570",
+    # "575",
+    "584",
+    # "588",
+    # "591",
+    # "596",
+]
 
 length_sets = [
-    {"sequence_length": 6, "context_length": 6, "prediction_length": 6, "patch_len": 6},
+    # {"sequence_length": 6, "context_length": 6, "prediction_length": 6, "patch_len": 6},
     {"sequence_length": 6, "context_length": 6, "prediction_length": 9, "patch_len": 6},
 ]
 
-train_epochs_set = [0,20]
+train_epochs_set = [10]
 
-seeds = fixed_seeds[:]
+seeds = fixed_seeds[:2]
 
 
 modes = ["training+inference"]
 torch_dtypes = ["bfloat16"]
 model_ids = ["test"]
 
-base_output_dir_inference = "./d1namo_experiment_configs_time_llm_inference"
-base_output_dir_training = "./d1namo_experiment_configs_time_llm_training"
+base_output_dir_inference = "./experiment_configs_time_llm_inference_noisy"
+base_output_dir_training = "./experiment_configs_time_llm_training_noisy"
 
 os.makedirs(base_output_dir_inference, exist_ok=True)
 os.makedirs(base_output_dir_training, exist_ok=True)
 
-for seed, llm_model_set, length_set, torch_dtype, mode, model_id, train_epochs in product(
+for (
+    seed,
+    llm_model_set,
+    length_set,
+    torch_dtype,
+    mode,
+    model_id,
+    train_epochs,
+) in product(
     seeds, llm_model_sets, length_sets, torch_dtypes, modes, model_ids, train_epochs_set
 ):
     llm_model = llm_model_set["llm_model"]
     llm_dim = llm_model_set["llm_dim"]
-    
+
     sequence_len = length_set["sequence_length"]
     context_len = length_set["context_length"]
     pred_len = length_set["prediction_length"]
     patch_len = length_set["patch_len"]
 
-    model_comment = f"d1namo_time_llm_{llm_model}_{llm_dim}_{sequence_len}_{context_len}_{pred_len}_{patch_len}"
-    
+    model_comment = f"time_llm_{llm_model}_{llm_dim}_{sequence_len}_{context_len}_{pred_len}_{patch_len}"
+
     # Select appropriate base directory based on epochs
-    base_output_dir = base_output_dir_inference if train_epochs == 0 else base_output_dir_training
-    
+    base_output_dir = (
+        base_output_dir_inference if train_epochs == 0 else base_output_dir_training
+    )
+
     config_folder = os.path.join(
         base_output_dir,
         f"seed_{seed}_model_{llm_model}_dim_{llm_dim}_seq_{sequence_len}_context_{context_len}_pred_{pred_len}_patch_{patch_len}_epochs_{train_epochs}",
@@ -69,16 +83,17 @@ for seed, llm_model_set, length_set, torch_dtype, mode, model_id, train_epochs i
     for patient_id in patients:
         patient_folder = os.path.join(config_folder, f"patient_{patient_id}")
         os.makedirs(patient_folder, exist_ok=True)
-        
+
         log_folder = os.path.join(patient_folder, "logs")
         os.makedirs(log_folder, exist_ok=True)
-        
-        data_folder = "./data/d1namo_standardized"
+
+        data_folder = "./data/noisy"
+        train_folder="./data/standardized"
 
         config_content = f"""
 run.log_dir = "{log_folder}"
 run.data_settings = {{
-    'path_to_train_data': '{data_folder}/{patient_id}-ws-training.csv',
+    'path_to_train_data': '{train_folder}/{patient_id}-ws-training.csv',
     'path_to_test_data': '{data_folder}/{patient_id}-ws-testing.csv',
     'input_features': ['target'],
     'labels': ['target'],
@@ -106,7 +121,7 @@ run.llm_settings = {{
     'prediction_length': {pred_len},
     'patch_len': {patch_len},
     'stride': 8,
-    'prediction_batch_size': 32,
+    'prediction_batch_size': 64,
     'train_batch_size': 32,
     'learning_rate': 0.001,
     'train_epochs': {train_epochs},

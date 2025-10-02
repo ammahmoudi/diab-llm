@@ -1,6 +1,11 @@
+import import_utils
 import os
 import subprocess
-from extract_metrics import extract_metrics_to_csv
+from utilities.extract_metrics import extract_metrics_to_csv
+
+import sys
+import os
+
 
 # Base directory where config files are stored
 base_output_dir = "./d1namo_experiment_configs_time_llm_inference/"

@@ -19,17 +19,28 @@ feature_label_sets = [
 ]
 
 # Define the patients (you can adjust this list as needed)
-patients = ["001",
-            "002", "003","004","005", "006", "007"
-            ]
+patients = [
+    # "540",
+    # "544",
+    # "552",
+    # "559",
+    # "563",
+    # "567",
+    "570",
+    # "575",
+    "584",
+    # "588",
+    # "591",
+    # "596",
+]
 
 # Generate 10 random seeds between 0 and 999999 (or any range you like)
 # seeds = [random.randint(0, 999999) for _ in range(1)]
-seeds = fixed_seeds[:]
+seeds=fixed_seeds[:1]
 
 # Available models
 models = [
-    "amazon/chronos-t5-tiny",
+    # "amazon/chronos-t5-tiny",
     # "amazon/chronos-t5-mini",
     # "amazon/chronos-t5-small",
     "amazon/chronos-t5-base",
@@ -55,7 +66,7 @@ max_train_steps_mapping = {
 }
 
 # Base output directory
-base_output_dir = "./experiment_d1namo_configs_chronos_training/"
+base_output_dir = "./experiment_configs_chronos_training_noisy/"
 os.makedirs(base_output_dir, exist_ok=True)
 
 # Generate config files for all combinations of seeds, models, torch_dtypes, and modes
@@ -90,8 +101,8 @@ for seed, feature_label_set, model, torch_dtype, mode in product(
         os.makedirs(log_folder, exist_ok=True)
 
         # Define the dynamic data path using patient-specific path
-        data_folder = f"/home/amma/LLM-TIME/data/d1namo_standardized/{patient_id}-ws-training.arrow"
-        test_data_folder = f"./data/d1namo_standardized/{patient_id}-ws-testing.csv"
+        data_folder = f"/home/amma/LLM-TIME/data/noisy/{patient_id}-ws-training.arrow"
+        test_data_folder = f"./data/noisy/{patient_id}-ws-testing.csv"
 
         # Prepare .gin configuration content
         config_content = f"""
