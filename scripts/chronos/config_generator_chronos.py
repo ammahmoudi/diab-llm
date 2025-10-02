@@ -9,8 +9,9 @@ This script combines all chronos config generators into one unified tool with di
 - lora_inference: Generate inference configurations using trained LoRA checkpoints
 
 Supports multiple datasets:
-- ohiot1dm: OhioT1DM dataset (default)
+- standardized: Legacy format (default)
 - d1namo: D1NAMO dataset
+- ohiot1dm: OhioT1DM dataset
 
 Supports multiple data scenarios:
 - standardized: Clean/raw data (default)
@@ -25,20 +26,13 @@ Usage:
     python config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario noisy
     python config_generator_chronos.py --mode trained_inference --dataset d1namo --data_scenario missing_periodic
     
-    # Cross-scenario evaluation (train on clean, test on missing data):
-    python config_generator_chronos.py --mode trained_inference --data_scenario missing_periodic --train_data_scenario standardized
-    
-    # LoRA training (enables PEFT):
-    python config_generator_chronos.py --mode train --use_lora --dataset ohiot1dm
-    
 Options:
     --mode: Operation mode (train, inference, trained_inference, lora_inference)
-    --dataset: Dataset type (ohiot1dm, d1namo)
+    --dataset: Dataset type (standardized, d1namo, ohiot1dm)
     --data_scenario: Data type (standardized, noisy, denoised, missing_periodic, missing_random)
     --patients: Comma-separated list of patient IDs (default: 570,584)
     --models: Comma-separated list of models (default: amazon/chronos-t5-tiny,amazon/chronos-t5-base)
     --seeds: Comma-separated list of seeds (default: from utilities.seeds)
-    --use_lora: Enable LoRA (PEFT) for training mode
     --output_dir: Output directory (default: auto-generated based on mode, dataset, and data_scenario)
     --help: Show this help message
 """
@@ -151,29 +145,27 @@ def get_max_train_steps(model):
     return max_steps_map.get(model, 200000)
 
 
-def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="ohiot1dm"):
+def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="ohiot1dm", prediction_length=None, context_length=None):
     """Get appropriate data file path based on mode, data scenario, and dataset."""
     
-    # Map scenarios to subfolder names in datasets
-    scenario_map = {
-        "standardized": "raw_standardized",  
-        "noisy": "noisy",
-        "denoised": "denoised", 
-        "missing_periodic": "missing_periodic",
-        "missing_random": "missing_random"
-    }
-    
-    scenario_folder = scenario_map[data_scenario]
-    base_path = f"/home/amma/LLM-TIME/data/{dataset}/{scenario_folder}"
-    
     if mode == "train":
-        return f"{base_path}/{patient_id}-ws-training.arrow"
-    else:
-        # For inference, might need formatted data
-        if data_scenario != "standardized":
-            return f"./data/{dataset}/{scenario_folder}_formatted"
+        # For training: Use .arrow files from standardized folders
+        if data_scenario == "standardized":
+            # For backwards compatibility with archived generator
+            if dataset == "ohiot1dm":
+                return f"/home/amma/LLM-TIME/data/standardized/{patient_id}-ws-training.arrow"
+            else:
+                return f"/home/amma/LLM-TIME/data/{dataset}/raw_standardized/{patient_id}-ws-training.arrow"
         else:
-            return f"{base_path}/{patient_id}-ws-test.arrow"
+            # For other scenarios, use the scenario-specific folder
+            if dataset == "ohiot1dm":
+                return f"/home/amma/LLM-TIME/data/{data_scenario}/{patient_id}-ws-training.arrow"
+            else:
+                return f"/home/amma/LLM-TIME/data/{dataset}/{data_scenario}/{patient_id}-ws-training.arrow"
+    else:
+        # For inference: Use formatted data with specific files (matches archived generators)
+        # Format: ./data/formatted/{context_len}_{pred_len}
+        return f"./data/formatted/{context_length}_{prediction_length}"
 
 
 def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient_id, 
@@ -182,21 +174,25 @@ def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient
     
     pred_len = feature_set["prediction_length"]
     context_len = feature_set["context_length"] 
-    data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset)
+    data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset, pred_len, context_len)
     
-    # Get test data path - for training mode, we need both train and test paths
+    # Handle data paths based on mode (matches archived generators exactly)
     if mode == 'train':
-        test_data_folder = f"./data/standardized/{patient_id}-ws-testing.csv"
+        # Training mode: data_folder is the full .arrow file path
+        train_data_path = data_folder
+        test_data_path = f"./data/standardized/{patient_id}-ws-testing.csv"
     else:
-        test_data_folder = data_folder  # For inference, use same path
+        # Inference mode: data_folder is the base folder, append specific files
+        train_data_path = f"{data_folder}/{patient_id}-ws-training.csv"
+        test_data_path = f"{data_folder}/{patient_id}-ws-testing.csv"
     
     # Prepare .gin configuration content in the correct format
     config_content = f'''run.log_dir = "{log_folder}"
 run.chronos_dir = "/home/amma/LLM-TIME/models/"
 
 run.data_settings = {{
-    'path_to_train_data': '{data_folder}',
-    'path_to_test_data': '{test_data_folder}',
+    'path_to_train_data': '{train_data_path}',
+    'path_to_test_data': '{test_data_path}',
     'input_features': {feature_set["input_features"]},
     'labels': {feature_set["labels"]},
     'preprocessing_method': 'min_max',
@@ -211,7 +207,7 @@ run.llm_settings = {{
     'model': '{model}',  
     'torch_dtype': '{torch_dtype}',   
     'ntokens': 4096,
-    'tokenizer_kwargs': "{{'low_limit': -15,'high_limit': 15}}",
+    'tokenizer_kwargs': "{{'low_limit': -30,'high_limit': 30}}",
     'prediction_length': {pred_len},    
     'num_samples': 20,
     'context_length': {context_len},
@@ -245,9 +241,11 @@ run.llm_settings = {{
     'lora_dropout': 0.05'''
     
     config_content += '''
-}}'''
+}'''
     
     return config_content
+    
+    return "\n".join(gin_content)
 
 
 def main():
@@ -269,9 +267,6 @@ def main():
     parser.add_argument("--dataset", default="ohiot1dm",
                        choices=["ohiot1dm", "d1namo"],
                        help="Dataset type (default: ohiot1dm)")
-    parser.add_argument("--train_data_scenario", default=None,
-                       choices=["standardized", "noisy", "denoised", "missing_periodic", "missing_random"],
-                       help="Training data scenario (for trained_inference/lora_inference modes). If not specified, uses --data_scenario")
     parser.add_argument("--use_lora", action="store_true",
                        help="Enable LoRA (PEFT) for training mode")
     
@@ -286,27 +281,13 @@ def main():
     else:
         seeds = fixed_seeds
     
-    # Handle cross-scenario evaluation
-    train_scenario = args.train_data_scenario if args.train_data_scenario else args.data_scenario
-    inference_scenario = args.data_scenario
-    
     # Set output directory based on mode
     if args.output_dir:
         base_output_dir = args.output_dir
     else:
         # Include dataset and scenario in directory names
         dataset_suffix = "" if args.dataset == "ohiot1dm" else f"_{args.dataset}"
-        
-        if args.mode == "train":
-            # For training, only use the data scenario
-            scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
-        elif args.mode in ["trained_inference", "lora_inference"] and args.train_data_scenario:
-            # For cross-scenario inference, show both scenarios
-            scenario_suffix = f"_train_{train_scenario}_test_{inference_scenario}" if train_scenario != inference_scenario else f"_{inference_scenario}"
-        else:
-            # Default behavior
-            scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
-            
+        scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
         combined_suffix = f"{dataset_suffix}{scenario_suffix}"
         
         dir_map = {
@@ -323,13 +304,8 @@ def main():
     
     print(f"🚀 Starting {args.mode} config generation...")
     print(f"📁 Output directory: {base_output_dir}")
-    print(f"🗃️  Dataset: {args.dataset}")
-    if args.mode in ["trained_inference", "lora_inference"] and args.train_data_scenario:
-        print(f"🏋️  Training scenario: {train_scenario}")
-        print(f"📊 Inference scenario: {inference_scenario}")
-    else:
-        print(f"📊 Data scenario: {args.data_scenario}")
-    print(f"👥 Patients: {patients}")
+    print(f"� Data scenario: {args.data_scenario}")
+    print(f"�👥 Patients: {patients}")
     print(f"🤖 Models: {models}")
     print(f"🎲 Seeds: {seeds}")
     
@@ -355,23 +331,21 @@ def main():
             # Handle checkpoint finding for trained inference modes
             checkpoint_path = None
             if args.mode in ["trained_inference", "lora_inference"]:
-                # Use training scenario for finding checkpoints, not inference scenario
-                dataset_suffix = "" if args.dataset == "ohiot1dm" else f"_{args.dataset}"
-                train_scenario_suffix = "" if train_scenario == "standardized" else f"_{train_scenario}"
-                training_combined_suffix = f"{dataset_suffix}{train_scenario_suffix}"
-                training_pattern = f"./experiments/chronos_training{training_combined_suffix}/seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_training_*"
+                # Use same dataset and scenario suffix for finding training checkpoints
+                dataset_suffix = "" if args.dataset == "standardized" else f"_{args.dataset}"
+                scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
+                combined_suffix = f"{dataset_suffix}{scenario_suffix}"
+                training_pattern = f"./experiments/chronos_training{combined_suffix}/seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_training_*"
                 checkpoint_path = find_latest_checkpoint(training_pattern, patient_id)
                 if not checkpoint_path:
                     print(f"⚠️ Skipping {patient_id} - no checkpoint found")
                     continue
             
             # Generate config content
-            use_lora = (args.mode == "lora_inference") or (args.mode == "train" and args.use_lora)
-            # Use inference scenario for data path (what we're testing on)
-            data_scenario_for_inference = inference_scenario
+            use_lora = (args.mode == "lora_inference") or (args.mode == "train" and getattr(args, 'use_lora', False))
             config_content = generate_config_content(
                 args.mode, seed, model, torch_dtype, feature_set, patient_id,
-                checkpoint_path=checkpoint_path, use_lora=use_lora, data_scenario=data_scenario_for_inference, dataset=args.dataset, log_folder=log_folder
+                checkpoint_path=checkpoint_path, use_lora=use_lora, data_scenario=args.data_scenario, dataset=args.dataset, log_folder=log_folder
             )
             
             # Save config file

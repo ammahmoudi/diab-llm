@@ -1,9 +1,12 @@
-import import_utils
+# import import_utils  # Not used, commented out
 import os
 import random
 from itertools import product
 import sys
 import os
+
+# Add parent directory to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from utilities.seeds import fixed_seeds
 
 # Define parameter sets that must be consistent (only change for this new config is the patients' data path)
