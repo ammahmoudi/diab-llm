@@ -2,30 +2,29 @@
 
 # ==============================================================================
 # Chronos Unified Configuration Generator - Examples
-# ========================================================================    echo "🔄 Cross-Scenario Robustness Testing"
-    echo "📚 Train on Clean Data, Test on Missing Data"
-    echo "Command: $CONFIG_GEN --mode trained_inference --data_scenario missing_periodic --train_data_scenario standardized --patients 570"
-    $CONFIG_GEN --mode trained_inference --data_scenario missing_periodic --train_data_scenario standardized --patients "570" --models "amazon/chronos-t5-tiny"
-    echo
-    
-    echo "🔊 Train on Clean Data, Test on Noisy Data" 
-    echo "Command: $CONFIG_GEN --mode trained_inference --data_scenario noisy --train_data_scenario standardized --patients 570"
-    $CONFIG_GEN --mode trained_inference --data_scenario noisy --train_data_scenario standardized --patients "570" --models "amazon/chronos-t5-tiny"
-    echo
-    
-    echo "🧹 Train on Noisy Data, Test on Denoised Data"
-    echo "Command: $CONFIG_GEN --mode trained_inference --dataset ohiot1dm --data_scenario denoised --train_data_scenario noisy --patients 570"
-    $CONFIG_GEN --mode trained_inference --dataset ohiot1dm --data_scenario denoised --train_data_scenario noisy --patients "570" --models "amazon/chronos-t5-tiny"
-    print_success "Cross-scenario robustness configs generated!"
-    echo
-}=
-# This script demonstrates how to use the unified config_generator_        echo \"Available modes:\"
-        echo \"  train              - Generate training configuration examples\"
-        echo \"  inference          - Generate inference configuration examples\"
-        echo \"  trained_inference  - Generate trained inference configuration examples\"
-        echo \"  lora_inference     - Generate LoRA inference configuration examples\"
-        echo \"  data_scenarios     - Generate configs for different data types (noisy, missing, etc.)\"
-        echo \"  advanced           - Show advanced usage examples\"s.py
+# ==============================================================================
+# This script demonstrates how to use the unified config_generator_chronos.py
+# for different modes and scenarios.
+#
+# Usage: ./chronos_config_examples.sh [mode]
+# Modes: train, inference, trained_inference, lora_inference, all
+# ==============================================================================
+
+# Set script directory and config generator path
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_GEN="python3 ${SCRIPT_DIR}/config_generator_chronos.py"
+
+# Default parameters
+DEFAULT_PATIENTS="570,584"
+DEFAULT_MODELS="amazon/chronos-t5-tiny,amazon/chronos-t5-base"
+DEFAULT_SEEDS="831363,809906" # Using first 2 seeds from fixed_seeds
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 # for different modes and scenarios.
 #
 # Usage: ./chronos_config_examples.sh [mode]
@@ -87,6 +86,18 @@ run_training_examples() {
     echo "Command: $CONFIG_GEN --mode train --patients 540,544,552,570,584"
     $CONFIG_GEN --mode train --patients "540,544,552,570,584" --models "amazon/chronos-t5-tiny"
     print_success "Multi-patient training configs generated!"
+    echo
+    
+    echo "🏋️ LoRA Training (PEFT Enabled)"
+    echo "Command: $CONFIG_GEN --mode train --use_lora --patients 570 --models amazon/chronos-t5-tiny"
+    $CONFIG_GEN --mode train --use_lora --patients "570" --models "amazon/chronos-t5-tiny" --seeds "831363"
+    print_success "LoRA training configs generated!"
+    echo
+    
+    echo "🚀 LoRA Training with Noisy Data"
+    echo "Command: $CONFIG_GEN --mode train --use_lora --data_scenario noisy --patients 570"
+    $CONFIG_GEN --mode train --use_lora --data_scenario noisy --patients "570" --models "amazon/chronos-t5-tiny" --seeds "831363"
+    print_success "LoRA training configs with noisy data generated!"
     echo
 }
 

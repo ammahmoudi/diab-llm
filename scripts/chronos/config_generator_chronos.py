@@ -28,6 +28,9 @@ Usage:
     # Cross-scenario evaluation (train on clean, test on missing data):
     python config_generator_chronos.py --mode trained_inference --data_scenario missing_periodic --train_data_scenario standardized
     
+    # LoRA training (enables PEFT):
+    python config_generator_chronos.py --mode train --use_lora --dataset ohiot1dm
+    
 Options:
     --mode: Operation mode (train, inference, trained_inference, lora_inference)
     --dataset: Dataset type (ohiot1dm, d1namo)
@@ -35,6 +38,7 @@ Options:
     --patients: Comma-separated list of patient IDs (default: 570,584)
     --models: Comma-separated list of models (default: amazon/chronos-t5-tiny,amazon/chronos-t5-base)
     --seeds: Comma-separated list of seeds (default: from utilities.seeds)
+    --use_lora: Enable LoRA (PEFT) for training mode
     --output_dir: Output directory (default: auto-generated based on mode, dataset, and data_scenario)
     --help: Show this help message
 """
@@ -135,13 +139,14 @@ def get_feature_label_sets(mode):
 def get_max_train_steps(model):
     """Get max training steps based on model."""
     max_steps_map = {
-        "amazon/chronos-t5-tiny": 200000,
-        "amazon/chronos-t5-small": 200000, 
-        "amazon/chronos-t5-base": 200000,
-        "amazon/chronos-t5-large": 200000,
-        "google/t5-efficient-tiny": 200000,
-        "google/t5-efficient-small": 200000,
-        "google/t5-efficient-base": 200000,
+        "amazon/chronos-t5-tiny": 2000,
+        "amazon/chronos-t5-mini": 10000,
+        "amazon/chronos-t5-small": 10000, 
+        "amazon/chronos-t5-base": 2000,
+        "amazon/chronos-t5-large": 1000,
+        "google/t5-efficient-tiny": 2000,
+        "google/t5-efficient-small": 10000,
+        "google/t5-efficient-base": 2000,
     }
     return max_steps_map.get(model, 200000)
 
@@ -172,63 +177,77 @@ def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="
 
 
 def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient_id, 
-                          max_steps=None, checkpoint_path=None, use_lora=False, data_scenario="standardized", dataset="ohiot1dm"):
+                          max_steps=None, checkpoint_path=None, use_lora=False, data_scenario="standardized", dataset="ohiot1dm", log_folder="./logs/"):
     """Generate the configuration content based on parameters."""
     
     pred_len = feature_set["prediction_length"]
     context_len = feature_set["context_length"] 
     data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset)
     
-    # Base configuration
-    config = {
-        'mode': 'training' if mode == 'train' else 'inference',
-        'random_seed': seed,
-        'model_name': model,
-        'data_folder': data_folder,
-        'input_features': feature_set["input_features"],
-        'labels': feature_set["labels"],
-        'torch_dtype': torch_dtype,
-        'prediction_length': pred_len,
-        'context_length': context_len,
-        'restore_from_checkpoint': False,
-        'restore_checkpoint_path': '',
-    }
-    
-    # Mode-specific configurations
+    # Get test data path - for training mode, we need both train and test paths
     if mode == 'train':
-        config.update({
-            'max_steps': max_steps or get_max_train_steps(model),
-            'use_lora': True,
-            'lora_r': 16,
-            'lora_alpha': 32, 
-            'lora_dropout': 0.05
-        })
-    elif mode in ['trained_inference', 'lora_inference']:
-        if checkpoint_path:
-            config.update({
-                'restore_from_checkpoint': True,
-                'restore_checkpoint_path': checkpoint_path,
-            })
-            if use_lora:
-                config.update({
-                    'use_lora': True,
-                    'lora_r': 16,
-                    'lora_alpha': 32,
-                    'lora_dropout': 0.05
-                })
+        test_data_folder = f"./data/standardized/{patient_id}-ws-testing.csv"
+    else:
+        test_data_folder = data_folder  # For inference, use same path
     
-    # Convert to gin format
-    gin_content = []
-    for key, value in config.items():
-        if isinstance(value, str):
-            gin_content.append(f"{key} = '{value}'")
-        elif isinstance(value, list):
-            formatted_list = str(value).replace("'", '"')
-            gin_content.append(f"{key} = {formatted_list}")
-        else:
-            gin_content.append(f"{key} = {value}")
+    # Prepare .gin configuration content in the correct format
+    config_content = f'''run.log_dir = "{log_folder}"
+run.chronos_dir = "/home/amma/LLM-TIME/models/"
+
+run.data_settings = {{
+    'path_to_train_data': '{data_folder}',
+    'path_to_test_data': '{test_data_folder}',
+    'input_features': {feature_set["input_features"]},
+    'labels': {feature_set["labels"]},
+    'preprocessing_method': 'min_max',
+    'preprocess_input_features': False,
+    'preprocess_label': False,
+    'percent': 100
+}}
+
+run.llm_settings = {{
+    'mode': '{"training" if mode == "train" else "inference"}',    
+    'method': 'chronos',    
+    'model': '{model}',  
+    'torch_dtype': '{torch_dtype}',   
+    'ntokens': 4096,
+    'tokenizer_kwargs': "{{'low_limit': -15,'high_limit': 15}}",
+    'prediction_length': {pred_len},    
+    'num_samples': 20,
+    'context_length': {context_len},
+    'min_past': 60,
+    'learning_rate': 0.001,
+    'max_train_steps': {max_steps or get_max_train_steps(model)},
+    'save_steps': 1000,
+    'log_steps': 200,
+    'train_batch_size': 8,
+    'random_init': False,
+    'seed': {seed}'''
     
-    return "\\n".join(gin_content)
+    # Add checkpoint restoration settings if needed
+    if mode in ['trained_inference', 'lora_inference'] and checkpoint_path:
+        config_content += f''',
+    'restore_from_checkpoint': True,
+    'restore_checkpoint_path': '{checkpoint_path}' '''
+    
+    # Add LoRA settings
+    if use_lora:
+        config_content += f''',
+    'use_peft': True,
+    'lora_r': 16,
+    'lora_alpha': 32,
+    'lora_dropout': 0.05'''
+    else:
+        config_content += f''',
+    'use_peft': False,
+    'lora_r': 16,
+    'lora_alpha': 32,
+    'lora_dropout': 0.05'''
+    
+    config_content += '''
+}}'''
+    
+    return config_content
 
 
 def main():
@@ -253,6 +272,8 @@ def main():
     parser.add_argument("--train_data_scenario", default=None,
                        choices=["standardized", "noisy", "denoised", "missing_periodic", "missing_random"],
                        help="Training data scenario (for trained_inference/lora_inference modes). If not specified, uses --data_scenario")
+    parser.add_argument("--use_lora", action="store_true",
+                       help="Enable LoRA (PEFT) for training mode")
     
     args = parser.parse_args()
     
@@ -345,12 +366,12 @@ def main():
                     continue
             
             # Generate config content
-            use_lora = (args.mode in ["train", "lora_inference"])
+            use_lora = (args.mode == "lora_inference") or (args.mode == "train" and args.use_lora)
             # Use inference scenario for data path (what we're testing on)
             data_scenario_for_inference = inference_scenario
             config_content = generate_config_content(
                 args.mode, seed, model, torch_dtype, feature_set, patient_id,
-                checkpoint_path=checkpoint_path, use_lora=use_lora, data_scenario=data_scenario_for_inference, dataset=args.dataset
+                checkpoint_path=checkpoint_path, use_lora=use_lora, data_scenario=data_scenario_for_inference, dataset=args.dataset, log_folder=log_folder
             )
             
             # Save config file
