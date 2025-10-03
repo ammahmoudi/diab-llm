@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Ensure we're running from the LLM-TIME root directory
 script_dir = Path(__file__).parent.absolute()
-project_root = script_dir.parent.parent  # Go up from scripts/data_formatting to root
+project_root = script_dir.parent.parent  # Go up from scripts/time_llm to root
 
 # Change to project root
 os.chdir(project_root)

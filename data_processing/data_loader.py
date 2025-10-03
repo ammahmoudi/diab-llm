@@ -6,7 +6,7 @@ from data_processing.data_sets import Dataset_T1DM, TimeSeriesDataset
 from torch.utils.data import DataLoader
 from gluonts.dataset.arrow import ArrowWriter
 
-from scripts.convert_to_arrow import convert_to_arrow, load_csv_and_prepare_data
+from scripts.data_formatting.convert_to_arrow import convert_to_arrow, load_csv_and_prepare_data
 
 
 class ChronosDataHandler:

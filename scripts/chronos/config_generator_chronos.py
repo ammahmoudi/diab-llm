@@ -151,11 +151,8 @@ def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="
     if mode == "train":
         # For training: Use .arrow files from standardized folders
         if data_scenario == "standardized":
-            # For backwards compatibility with archived generator
-            if dataset == "ohiot1dm":
-                return f"/home/amma/LLM-TIME/data/standardized/{patient_id}-ws-training.arrow"
-            else:
-                return f"/home/amma/LLM-TIME/data/{dataset}/raw_standardized/{patient_id}-ws-training.arrow"
+            # Use dataset-specific raw_standardized folders
+            return f"/home/amma/LLM-TIME/data/{dataset}/raw_standardized/{patient_id}-ws-training.arrow"
         else:
             # For other scenarios, use the scenario-specific folder
             if dataset == "ohiot1dm":
@@ -180,7 +177,7 @@ def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient
     if mode == 'train':
         # Training mode: data_folder is the full .arrow file path
         train_data_path = data_folder
-        test_data_path = f"./data/standardized/{patient_id}-ws-testing.csv"
+        test_data_path = f"./data/{dataset}/raw_standardized/{patient_id}-ws-testing.csv"
     else:
         # Inference mode: data_folder is the base folder, append specific files
         train_data_path = f"{data_folder}/{patient_id}-ws-training.csv"
@@ -286,7 +283,7 @@ def main():
         base_output_dir = args.output_dir
     else:
         # Include dataset and scenario in directory names
-        dataset_suffix = "" if args.dataset == "ohiot1dm" else f"_{args.dataset}"
+        dataset_suffix = f"_{args.dataset}"
         scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
         combined_suffix = f"{dataset_suffix}{scenario_suffix}"
         

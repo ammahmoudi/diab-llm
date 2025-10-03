@@ -23,7 +23,7 @@ import subprocess
 from pathlib import Path
 
 # Add parent directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def run_config_generation(command_args, description):
     """Run a config generation command with error handling."""

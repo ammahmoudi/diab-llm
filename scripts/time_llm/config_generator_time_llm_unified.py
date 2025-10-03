@@ -216,7 +216,7 @@ def main():
         base_output_dir = args.output_dir
     else:
         # Include dataset and scenario in directory names
-        dataset_suffix = "" if args.dataset == "ohiot1dm" else f"_{args.dataset}"
+        dataset_suffix = f"_{args.dataset}"
         
         if args.mode == "train":
             # For training, only use the data scenario
