@@ -6,14 +6,16 @@
 CONFIG_PATH="./configs/config_time_llm.gin"
 LOG_LEVEL="INFO"
 REMOVE_CHECKPOINTS="False"  # Default value for the flag
-master_port=1234
+# Generate random port to avoid conflicts
+master_port=$((RANDOM % 10000 + 20000))
 num_process=1
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --config_path) CONFIG_PATH="$2"; shift ;;
         --log_level) LOG_LEVEL="$2"; shift ;;
-        --remove_checkpoints) REMOVE_CHECKPOINTS="$2"; shift ;;  # Added this line
+        --remove_checkpoints) REMOVE_CHECKPOINTS="$2"; shift ;;
+        --master_port) master_port="$2"; shift ;;  # Allow custom port
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift

@@ -109,58 +109,66 @@ def generate_config_content(mode, seed, llm_config, length_set, patient_id, trai
     
     log_folder_placeholder = "LOGS_PLACEHOLDER"  # Will be replaced with actual log folder
     
-    config_content = f'''run.log_dir = "{log_folder_placeholder}"
-run.data_settings = {{
-    'path_to_train_data': '{train_data_path}',
-    'path_to_test_data': '{test_data_path}',
-    'input_features': ['target'],
-    'labels': ['target'],
-    'prompt_path': '{prompt_path}',
-    'preprocessing_method': 'min_max',
-    'preprocess_input_features': False,
-    'preprocess_label': False,
-    'frequency': '5min',
-    'percent': 100,
-    'random_seed': {seed}
-}}
+    config_content = f'''# Parameters for run:
+# ==============================================================================
+run.chronos_dir = '.'
+run.data_settings = \\
+    {{'frequency': '5min',
+     'input_features': ['target'],
+     'labels': ['target'],
+     'path_to_test_data': '{test_data_path}',
+     'path_to_train_data': '{train_data_path}',
+     'percent': 100,
+     'preprocess_input_features': False,
+     'preprocess_label': False,
+     'preprocessing_method': 'min_max',
+     'prompt_path': '{prompt_path}',
+     'val_split': 0}}
 
-run.training_settings = {{
-    'random_seed': {seed},
-    'train_epochs': {train_epochs},
-    'batch_size': 24,
-    'learning_rate': 0.01,
-    'des': 'Experiment',
-    'itr': 1,
-    'patience': 10,
-    'lradj': 'type1',
-    'use_amp': False,
-    'comment': 'none',
-    'model_comment': 'time_llm_{llm_config["llm_model"]}_{llm_config["llm_dim"]}_{length_set["sequence_length"]}_{length_set["context_length"]}_{length_set["prediction_length"]}_{length_set["patch_len"]}',
-    'model_id': 'test',
-    'model': 'TimeLLM',
-    'seq_len': {length_set["sequence_length"]},
-    'label_len': 0,
-    'pred_len': {length_set["prediction_length"]},
-    'd_model': 32,
-    'd_ff': 128,
-    'patch_len': {length_set["patch_len"]},
-    'stride': {length_set["patch_len"]},
-    'enc_in': 1,
-    'dec_in': 1,
-    'c_out': 1,
-    'llm_model': '{llm_config["llm_model"]}',
-    'llm_dim': {llm_config["llm_dim"]},
-    'llm_layers': 6
-}}
-
-run.hardware_settings = {{
-    'use_gpu': True,
-    'gpu': 0,
-    'use_multi_gpu': False,
-    'devices': '0,1,2,3',
-    'p_hidden_dims': [128, 128],
-    'p_hidden_layers': 2
-}}'''
+run.llm_settings = \\
+    {{'activation': 'gelu',
+     'c_out': 1,
+     'context_length': {length_set["context_length"]},
+     'd_ff': 32,
+     'd_layers': 1,
+     'd_model': 32,
+     'dec_in': 1,
+     'des': 'test',
+     'dropout': 0.1,
+     'e_layers': 2,
+     'embed': 'timeF',
+     'enc_in': 1,
+     'eval_metrics': ['rmse', 'mae', 'mape'],
+     'factor': 1,
+     'features': 'S',
+     'learning_rate': 0.001,
+     'llm_dim': {llm_config["llm_dim"]},
+     'llm_layers': 32,
+     'llm_model': '{llm_config["llm_model"]}',
+     'lradj': 'COS',
+     'method': 'time_llm',
+     'mode': 'training+inference',
+     'model_comment': 'time_llm_{llm_config["llm_model"]}_{llm_config["llm_dim"]}_{length_set["sequence_length"]}_{length_set["context_length"]}_{length_set["prediction_length"]}_{length_set["patch_len"]}',
+     'model_id': 'test',
+     'moving_avg': 25,
+     'n_heads': 8,
+     'num_workers': 1,
+     'patch_len': {length_set["patch_len"]},
+     'patience': 10,
+     'prediction_batch_size': 64,
+     'prediction_length': {length_set["prediction_length"]},
+     'prompt_domain': 0,
+     'seed': {seed},
+     'sequence_length': {length_set["sequence_length"]},
+     'stride': 8,
+     'task_name': 'long_term_forecast',
+     'timeenc': 0,
+     'torch_dtype': 'bfloat16',
+     'train_batch_size': 32,
+     'train_epochs': {train_epochs}}}
+run.log_dir = \\
+    '{log_folder_placeholder}'
+'''
     
     return config_content
 

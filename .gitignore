@@ -25,3 +25,4 @@ experiment_d1namo_configs_chronos_training_inference
 grid_logs
 *.tex
 experiments
+data_old
