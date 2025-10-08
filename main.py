@@ -9,6 +9,7 @@ from absl import app, flags
 from llms.chronos import ChronosLLM
 from llms.student_llm import StudentLLM
 from llms.time_llm import TimeLLM
+from distillation.core.distillation_driver import DistillationDriver
 from utils.logger import setup_logging
 import logging
 import pickle
@@ -736,6 +737,83 @@ def run(
             if predictions is not None:
                 metric_results = llm.evaluate(predictions, targets, llm_settings["eval_metrics"])
                 logging.info(f"Student Model Evaluation Metrics: {metric_results}")
+
+    elif llm_settings["method"] == "distillation":
+        logging.info("Starting Knowledge Distillation...")
+        
+        # Initialize distillation driver
+        distillation_driver = DistillationDriver(
+            settings=llm_settings,
+            data_settings=data_settings,
+            log_dir=log_dir,
+            teacher_checkpoint_path=llm_settings["teacher_checkpoint_path"]
+        )
+        
+        # Initialize TimeLLM-compatible data loader
+        data_loader = TimeLLMDataHandler(
+            settings={
+                "input_features": data_settings["input_features"],
+                "labels": data_settings["labels"],
+                "preprocessing_method": data_settings["preprocessing_method"],
+                "preprocess_input_features": data_settings["preprocess_input_features"],
+                "preprocess_label": data_settings["preprocess_label"],
+                "frequency": data_settings["frequency"],
+                "num_workers": llm_settings["num_workers"],
+                "sequence_length": llm_settings["sequence_length"],
+                "context_length": llm_settings["context_length"],
+                "prediction_length": llm_settings["prediction_length"],
+                "percent": data_settings["percent"],
+                "val_split": data_settings["val_split"],
+            }
+        )
+
+        # Load datasets
+        train_data, train_loader = data_loader.load_from_csv(
+            data_settings["path_to_train_data"],
+            batch_size=llm_settings["train_batch_size"],
+            split="train",
+        )
+        val_data, val_loader = data_loader.load_from_csv(
+            data_settings["path_to_train_data"],
+            batch_size=llm_settings["train_batch_size"],
+            split="val",
+        )
+        test_data, test_loader = data_loader.load_from_csv(
+            data_settings["path_to_test_data"],
+            batch_size=llm_settings["prediction_batch_size"],
+            split="test",
+        )
+        
+        if llm_settings["mode"] == "training+inference":
+            # Perform distillation training
+            final_checkpoint_path, train_loss, val_loss = distillation_driver.distill_knowledge(
+                train_loader=train_loader,
+                val_loader=val_loader,
+                epochs=llm_settings["train_epochs"]
+            )
+            logging.info(f"✅ Knowledge distillation completed. Final checkpoint: {final_checkpoint_path}")
+            
+            # Run inference on test set
+            if len(test_loader) > 0:
+                predictions, targets, _ = distillation_driver.predict(test_loader, output_dir=log_dir)
+                if predictions is not None:
+                    metric_results = distillation_driver.evaluate(predictions, targets, llm_settings["eval_metrics"])
+                    logging.info(f"Distilled Model Evaluation Metrics: {metric_results}")
+            else:
+                logging.warning("Test loader is empty. No predictions will be made.")
+                
+        elif llm_settings["mode"] == "inference":
+            # Only run inference
+            if len(test_loader) > 0:
+                predictions, targets, _ = distillation_driver.predict(test_loader, output_dir=log_dir)
+                if predictions is not None:
+                    metric_results = distillation_driver.evaluate(predictions, targets, llm_settings["eval_metrics"])
+                    logging.info(f"Distilled Model Evaluation Metrics: {metric_results}")
+            else:
+                logging.warning("Test loader is empty. No predictions will be made.")
+        else:
+            logging.error(f"Unsupported mode for distillation: {llm_settings['mode']}")
+            raise NotImplementedError
 
     else:
         logging.error("Method {} not supported.".format(llm_settings["method"]))

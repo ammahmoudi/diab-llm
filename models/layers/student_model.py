@@ -128,7 +128,7 @@ class Model(nn.Module):
         ).permute(1, 0)
 
         x_enc = x_enc.permute(0, 2, 1).contiguous()
-        enc_out, n_vars = self.patch_embedding(x_enc.to(torch.bfloat16))
+        enc_out, n_vars = self.patch_embedding(x_enc)
         enc_out = self.reprogramming_layer(
             enc_out, source_embeddings, source_embeddings
         )

@@ -1,0 +1,163 @@
+{
+  "model_name": "time_llm",
+  "timestamp": "2025-10-08_17-29-22",
+  "system_info": {
+    "cpu": {
+      "brand": "AMD Ryzen 7 7435HS",
+      "cores_physical": 8,
+      "cores_logical": 16,
+      "frequency_ghz": 3.0941080000000003
+    },
+    "memory": {
+      "total_ram_gb": 15.531566619873047,
+      "available_ram_gb": 8.429977416992188
+    },
+    "gpu": {
+      "cuda_available": true,
+      "device_count": 1,
+      "devices": [
+        {
+          "id": 0,
+          "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+          "memory_gb": 7.99560546875,
+          "compute_capability": "8.9"
+        }
+      ]
+    },
+    "python_version": "3.12.8",
+    "torch_version": "2.4.1+cu121"
+  },
+  "model_characteristics": {
+    "total_parameters": 45123297,
+    "trainable_parameters": 30773049,
+    "model_size_mb": 172.13171768188477,
+    "model_dtype": "torch.float32",
+    "device_location": "cpu"
+  },
+  "theoretical_performance": {
+    "estimated_cpu_latency_ms": 36.46,
+    "estimated_gpu_latency_ms": 4.51,
+    "estimated_memory_usage_mb": 258.2,
+    "estimated_peak_memory_mb": 516.4,
+    "estimated_throughput_samples_per_sec": 27.43,
+    "model_size_on_disk_mb": 172.13
+  },
+  "real_performance_measurements": {
+    "measurement_status": "successful",
+    "memory_measurements": {
+      "current_ram_usage_mb": 924.09765625,
+      "current_vram_usage_mb": 37254.09765625,
+      "gpu_memory_allocated_mb": 0.0,
+      "gpu_memory_reserved_mb": 0.0,
+      "gpu_max_memory_allocated_mb": 0.0,
+      "model_parameters_memory_mb": 172.13171768188477
+    },
+    "timing_measurements": {
+      "inference_times_ms": [
+        201.32811599614797,
+        197.85069300269242,
+        194.88286600244464,
+        202.022372999636,
+        194.82610400154954
+      ],
+      "average_inference_time_ms": 198.1820304004941,
+      "min_inference_time_ms": 194.82610400154954,
+      "max_inference_time_ms": 202.022372999636,
+      "batch_size": 1,
+      "sequence_length": 6,
+      "measurement_runs": 5,
+      "model_dtype": "torch.float32",
+      "device": "cpu"
+    },
+    "model_loading_metrics": {
+      "note": "Model already loaded - timing captured during initialization",
+      "model_type": "TimeLLM",
+      "total_parameters": 45123297,
+      "estimated_loading_time_seconds": 4.5123297
+    },
+    "errors": []
+  },
+  "edge_deployment_analysis": {
+    "overall_feasibility": "feasible",
+    "feasible_edge_devices": [
+      "raspberry_pi_4",
+      "jetson_nano",
+      "jetson_xavier",
+      "intel_nuc"
+    ],
+    "recommendations": [],
+    "constraints": {
+      "model_size_mb": 172.13,
+      "memory_requirement_mb": 258.2
+    }
+  },
+  "configuration_used": {
+    "llm_settings": {
+      "task_name": "long_term_forecast",
+      "mode": "inference",
+      "method": "time_llm",
+      "restore_from_checkpoint": true,
+      "restore_checkpoint_path": "./distillation_experiments/distillation_runs/distill_2025-10-08_17-24-20/student_distilled.pth",
+      "llm_model": "TinyBERT",
+      "llm_layers": 4,
+      "llm_dim": 312,
+      "num_workers": 1,
+      "torch_dtype": "torch.float32",
+      "model_id": "test",
+      "sequence_length": 6,
+      "context_length": 6,
+      "prediction_length": 9,
+      "patch_len": 6,
+      "stride": 8,
+      "prediction_batch_size": 64,
+      "train_batch_size": 32,
+      "learning_rate": 0.001,
+      "train_epochs": 20,
+      "features": "S",
+      "d_model": 32,
+      "d_ff": 32,
+      "factor": 1,
+      "enc_in": 1,
+      "dec_in": 1,
+      "c_out": 1,
+      "e_layers": 2,
+      "d_layers": 1,
+      "n_heads": 8,
+      "dropout": 0.1,
+      "moving_avg": 25,
+      "activation": "gelu",
+      "embed": "timeF",
+      "patience": 10,
+      "lradj": "COS",
+      "des": "test",
+      "model_comment": "time_llm_BERT_768_6_6_9_6",
+      "prompt_domain": 0,
+      "timeenc": 0,
+      "eval_metrics": [
+        "rmse",
+        "mae",
+        "mape"
+      ],
+      "seed": 238822,
+      "content": "The T1DM dataset is a critical resource for analyzing and forecasting glucose levels in diabetes management. This dataset contains detailed glucose measurements collected at 5-minute intervals. Each data point consists of a timestamp (_ts) and a corresponding glucose level (_value).ensuring chronological order is preserved for robust evaluation."
+    },
+    "data_settings": {
+      "path_to_train_data": "./data/ohiot1dm/raw_standardized/570-ws-training.csv",
+      "path_to_test_data": "./data/ohiot1dm/raw_standardized/570-ws-testing.csv",
+      "input_features": [
+        "target"
+      ],
+      "labels": [
+        "target"
+      ],
+      "prompt_path": "./data/ohiot1dm/raw_standardized/t1dm_prompt.txt",
+      "preprocessing_method": "min_max",
+      "preprocess_input_features": false,
+      "preprocess_label": false,
+      "frequency": "5min",
+      "percent": 100,
+      "val_split": 0
+    }
+  },
+  "methodology": "Combined theoretical estimates and real performance measurements"
+}

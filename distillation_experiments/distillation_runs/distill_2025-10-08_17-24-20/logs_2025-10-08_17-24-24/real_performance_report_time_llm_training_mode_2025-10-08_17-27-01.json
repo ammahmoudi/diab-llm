@@ -1,0 +1,92 @@
+{
+  "model_name": "time_llm_training_mode",
+  "timestamp": "2025-10-08_17-27-01",
+  "system_info": {
+    "cpu": {
+      "brand": 3094.108,
+      "cores_physical": 8,
+      "cores_logical": 16,
+      "frequency_ghz": 3.0941080000000003
+    },
+    "memory": {
+      "total_ram_gb": 15.531566619873047,
+      "available_ram_gb": 8.281639099121094
+    },
+    "gpu": {
+      "cuda_available": true,
+      "device_count": 1,
+      "devices": [
+        {
+          "id": 0,
+          "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+          "memory_gb": 7.99560546875,
+          "compute_capability": "8.9"
+        }
+      ]
+    }
+  },
+  "model_characteristics": {
+    "total_parameters": 140605953,
+    "model_size_mb": 536.3691444396973
+  },
+  "real_performance_measurements": {
+    "inference_timing": {
+      "total_inferences_measured": 1,
+      "average_latency_ms": 24274.222296997323,
+      "median_latency_ms": 24274.222296997323,
+      "min_latency_ms": 24274.222296997323,
+      "max_latency_ms": 24274.222296997323,
+      "std_latency_ms": 0.0,
+      "p95_latency_ms": 24274.222296997323,
+      "p99_latency_ms": 24274.222296997323
+    },
+    "memory_usage": {
+      "system_peak_ram_mb": 7651.72265625,
+      "system_average_ram_mb": 7127.300150644619,
+      "system_min_ram_mb": 7015.0859375,
+      "process_peak_ram_mb": 1678.82421875,
+      "process_average_ram_mb": 1657.8327319226457,
+      "process_baseline_ram_mb": 1647.84765625,
+      "process_peak_delta_mb": 30.9765625,
+      "process_average_delta_mb": 9.98507567264574,
+      "ram_measurements_count": 223,
+      "note": "system_* includes all processes, process_* is ML model only"
+    },
+    "gpu_memory_usage": {
+      "peak_allocated_mb": 1946.318359375,
+      "average_allocated_mb": 929.8885054652467,
+      "peak_reserved_mb": 4830.0,
+      "average_reserved_mb": 4818.430493273542,
+      "gpu_measurements_count": 223
+    },
+    "detailed_measurements": {
+      "memory_efficiency": {
+        "avg_ram_delta_per_inference_mb": 633.234375,
+        "avg_gpu_delta_per_inference_mb": 0.0
+      },
+      "measurement_count": 1
+    },
+    "model_file_metrics": {
+      "model_size_on_disk_mb": 536.3691444396973,
+      "parameters_count": 140605953,
+      "mb_per_million_params": 3.814697265625
+    }
+  },
+  "edge_deployment_analysis": {
+    "feasibility_assessment": "challenging",
+    "constraints": {
+      "process_peak_memory_mb": 1678.82421875,
+      "system_peak_memory_mb": 7651.72265625,
+      "average_latency_ms": 24274.222296997323
+    },
+    "recommendations": [
+      "Consider model optimization for edge deployment"
+    ],
+    "feasible_edge_devices": [
+      "raspberry_pi_4",
+      "jetson_nano",
+      "jetson_xavier",
+      "intel_nuc"
+    ]
+  }
+}

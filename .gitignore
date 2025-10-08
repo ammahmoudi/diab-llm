@@ -26,3 +26,5 @@ grid_logs
 *.tex
 experiments
 data_old
+flexible
+distillation/configs/
