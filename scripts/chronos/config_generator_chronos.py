@@ -88,7 +88,7 @@ def find_latest_checkpoint(training_folder_pattern, patient_id):
         checkpoint_paths.sort(key=os.path.getmtime, reverse=True)
 
         latest_checkpoint = checkpoint_paths[0]  # Pick the most recent one
-        print(f"✅ Found latest checkpoint for patient {patient_id}: {latest_checkpoint}\\n")
+        print(f"✅ Found latest checkpoint for patient {patient_id}: {latest_checkpoint}")
 
         return latest_checkpoint
 
@@ -97,8 +97,8 @@ def find_latest_checkpoint(training_folder_pattern, patient_id):
         return ""
 
 
-def get_feature_label_sets(mode):
-    """Get appropriate feature/label sets based on mode."""
+def get_feature_label_sets(mode, window_config=None):
+    """Get appropriate feature/label sets based on mode and window configuration."""
     if mode == "train":
         return [{
             "input_features": ["target"],
@@ -107,7 +107,8 @@ def get_feature_label_sets(mode):
             "context_length": 512,
         }]
     else:  # inference modes
-        return [{
+        # Define both window configurations
+        window_6_6 = {
             "input_features": [
                 "BG_{t-5}", "BG_{t-4}", "BG_{t-3}",
                 "BG_{t-2}", "BG_{t-1}", "BG_{t}"
@@ -118,7 +119,9 @@ def get_feature_label_sets(mode):
             ],
             "prediction_length": 6,
             "context_length": 6,
-        }, {
+        }
+        
+        window_6_9 = {
             "input_features": [
                 "BG_{t-8}", "BG_{t-7}", "BG_{t-6}",
                 "BG_{t-5}", "BG_{t-4}", "BG_{t-3}",
@@ -131,7 +134,15 @@ def get_feature_label_sets(mode):
             ],
             "prediction_length": 9,
             "context_length": 9,
-        }]
+        }
+        
+        # Return based on window_config parameter
+        if window_config == "6_6":
+            return [window_6_6]
+        elif window_config == "6_9":
+            return [window_6_9]
+        else:  # "both" or None (default)
+            return [window_6_6, window_6_9]
 
 
 def get_max_train_steps(model):
@@ -156,9 +167,10 @@ def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="
         # For training: Use .arrow files from standardized folders
         return str(get_arrow_data_path(dataset, data_scenario, patient_id))
     else:
-        # For inference: Use formatted data with specific files (matches archived generators)
-        # Format: ./data/formatted/{context_len}_{pred_len}
-        return get_formatted_data_path(context_length, prediction_length)
+        # For inference: Use scenario-specific formatted data
+        # Format: ./data/{dataset}/{scenario}_formatted/{context_len}_{pred_len}
+        scenario_suffix = "raw" if data_scenario == "standardized" else data_scenario
+        return f"./data/{dataset}/{scenario_suffix}_formatted/{context_length}_{prediction_length}"
 
 
 def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient_id, 
@@ -169,7 +181,7 @@ def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient
     context_len = feature_set["context_length"] 
     data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset, pred_len, context_len)
     
-    # Handle data paths based on mode (matches archived generators exactly)
+    # Handle data paths based on mode
     if mode == 'train':
         # Training mode: data_folder is the full .arrow file path
         train_data_path = data_folder
@@ -202,9 +214,12 @@ run.llm_settings = {{
     'ntokens': 4096,
     'tokenizer_kwargs': "{{'low_limit': -30,'high_limit': 30}}",
     'prediction_length': {pred_len},    
-    'num_samples': 20,
+    'num_samples': {1 if mode != 'train' else 20},
     'context_length': {context_len},
-    'min_past': 60,
+    'min_past': {context_len if mode != 'train' else 60},
+    'prediction_batch_size': 64,
+    'prediction_use_auto_split': False,
+    'eval_metrics': ['rmse', 'mae', 'mape'],
     'learning_rate': 0.001,
     'max_train_steps': {max_steps or get_max_train_steps(model)},
     'save_steps': 1000,
@@ -262,6 +277,12 @@ def main():
                        help="Dataset type (default: ohiot1dm)")
     parser.add_argument("--use_lora", action="store_true",
                        help="Enable LoRA (PEFT) for training mode")
+    parser.add_argument("--train_scenario", default=None,
+                       choices=["standardized", "noisy", "denoised", "missing_periodic", "missing_random"],
+                       help="Training scenario for trained_inference mode (default: same as data_scenario)")
+    parser.add_argument("--window_config", default=None,
+                       choices=["6_6", "6_9", "both"],
+                       help="Window configuration: 6_6, 6_9, or both (default: both for inference, N/A for training)")
     
     args = parser.parse_args()
     
@@ -273,6 +294,9 @@ def main():
         seeds = [int(s.strip()) for s in args.seeds.split(",")]
     else:
         seeds = fixed_seeds
+    
+    # Set training scenario (for cross-scenario inference)
+    train_scenario = args.train_scenario if args.train_scenario else args.data_scenario
     
     # Set output directory based on mode
     if args.output_dir:
@@ -292,13 +316,17 @@ def main():
         base_output_dir = dir_map[args.mode]
     
     # Get feature sets and other parameters
-    feature_label_sets = get_feature_label_sets(args.mode)
+    feature_label_sets = get_feature_label_sets(args.mode, args.window_config)
     torch_dtypes = ["float32"]
     
     print(f"🚀 Starting {args.mode} config generation...")
     print(f"📁 Output directory: {base_output_dir}")
-    print(f"� Data scenario: {args.data_scenario}")
-    print(f"�👥 Patients: {patients}")
+    print(f"📊 Data scenario: {args.data_scenario}")
+    if args.mode in ["trained_inference", "lora_inference"] and args.train_scenario:
+        print(f"🏋️ Train scenario: {train_scenario}")
+    if args.window_config:
+        print(f"🪟 Window config: {args.window_config}")
+    print(f"👥 Patients: {patients}")
     print(f"🤖 Models: {models}")
     print(f"🎲 Seeds: {seeds}")
     
@@ -324,14 +352,14 @@ def main():
             # Handle checkpoint finding for trained inference modes
             checkpoint_path = None
             if args.mode in ["trained_inference", "lora_inference"]:
-                # Use same dataset and scenario suffix for finding training checkpoints
-                dataset_suffix = "" if args.dataset == "standardized" else f"_{args.dataset}"
-                scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
+                # Use train_scenario for finding training checkpoints (supports cross-scenario inference)
+                dataset_suffix = f"_{args.dataset}"
+                scenario_suffix = "" if train_scenario == "standardized" else f"_{train_scenario}"
                 combined_suffix = f"{dataset_suffix}{scenario_suffix}"
-                training_pattern = f"./experiments/chronos_training{combined_suffix}/seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_training_*"
+                training_pattern = f"./experiments/chronos_training{combined_suffix}/seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_train_*"
                 checkpoint_path = find_latest_checkpoint(training_pattern, patient_id)
                 if not checkpoint_path:
-                    print(f"⚠️ Skipping {patient_id} - no checkpoint found")
+                    print(f"⚠️ Skipping {patient_id} - no checkpoint found for train_scenario: {train_scenario}")
                     continue
             
             # Generate config content

@@ -52,7 +52,14 @@ def reformat_t1dm_bg_data(data_path, save_path, input_window_size=6, prediction_
         raise KeyError(f"'target' column not found in {data_path}. Available columns: {list(data.columns)}")
 
     # Generate column names based on window sizes
-    input_features = [f"BG_{{t-{5-i}}}" for i in range(input_window_size)]
+    input_features = []
+    for i in range(input_window_size):
+        offset = input_window_size - 1 - i
+        if offset == 0:
+            input_features.append("BG_{t}")
+        else:
+            input_features.append(f"BG_{{t-{offset}}}")
+    
     labels = [f"BG_{{t+{i+1}}}" for i in range(prediction_window_size)]
     
     transformed_data = {

@@ -216,8 +216,19 @@ def run(
             profiler.stop_monitoring()
             
             # Generate and save real performance report
-            model_size_mb = sum(p.numel() * p.element_size() for p in llm.model.parameters()) / (1024**2)
-            model_params = sum(p.numel() for p in llm.model.parameters())
+            if hasattr(llm, 'model'):
+                model_obj = llm.model
+            elif hasattr(llm, 'chronos_pipeline') and hasattr(llm.chronos_pipeline, 'model'):
+                model_obj = llm.chronos_pipeline.model
+            else:
+                model_obj = None
+            
+            if model_obj:
+                model_size_mb = sum(p.numel() * p.element_size() for p in model_obj.parameters()) / (1024**2)
+                model_params = sum(p.numel() for p in model_obj.parameters())
+            else:
+                model_size_mb = 0
+                model_params = 0
             
             real_report = profiler.get_comprehensive_report(
                 model_name=llm_settings["method"],

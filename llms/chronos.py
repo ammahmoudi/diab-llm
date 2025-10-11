@@ -266,11 +266,8 @@ class ChronosLLM(TimeSeriesLLM):
         )
 
         logging.info("Results saved successfully.")
-
-        if benchmark_efficiency:
-            return llm_prediction, targets, self.efficiency_metrics
-        else:
-            return llm_prediction, targets
+        
+        return llm_prediction, targets
 
     def train(
         self,
