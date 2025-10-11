@@ -49,6 +49,10 @@ from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utilities.seeds import fixed_seeds
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from utils.path_utils import get_project_root, get_data_path, get_models_path, get_arrow_data_path, get_formatted_data_path
+
 
 def find_latest_checkpoint(training_folder_pattern, patient_id):
     """
@@ -150,19 +154,11 @@ def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="
     
     if mode == "train":
         # For training: Use .arrow files from standardized folders
-        if data_scenario == "standardized":
-            # Use dataset-specific raw_standardized folders
-            return f"/home/amma/LLM-TIME/data/{dataset}/raw_standardized/{patient_id}-ws-training.arrow"
-        else:
-            # For other scenarios, use the scenario-specific folder
-            if dataset == "ohiot1dm":
-                return f"/home/amma/LLM-TIME/data/{data_scenario}/{patient_id}-ws-training.arrow"
-            else:
-                return f"/home/amma/LLM-TIME/data/{dataset}/{data_scenario}/{patient_id}-ws-training.arrow"
+        return str(get_arrow_data_path(dataset, data_scenario, patient_id))
     else:
         # For inference: Use formatted data with specific files (matches archived generators)
         # Format: ./data/formatted/{context_len}_{pred_len}
-        return f"./data/formatted/{context_length}_{prediction_length}"
+        return get_formatted_data_path(context_length, prediction_length)
 
 
 def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient_id, 
@@ -185,7 +181,7 @@ def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient
     
     # Prepare .gin configuration content in the correct format
     config_content = f'''run.log_dir = "{log_folder}"
-run.chronos_dir = "/home/amma/LLM-TIME/models/"
+run.chronos_dir = "{get_models_path()}/"
 
 run.data_settings = {{
     'path_to_train_data': '{train_data_path}',

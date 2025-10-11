@@ -13,10 +13,17 @@ Usage:
 """
 
 import os
+import sys
 import pandas as pd
 import argparse
 import logging
 from pathlib import Path
+
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.path_utils import get_data_path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.path_utils import get_data_path
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -95,7 +102,7 @@ def standardize_file(input_file, output_file, patient_id=None):
 
 def get_scenarios_for_dataset(dataset):
     """Get available scenarios for a dataset"""
-    base_path = f"/home/amma/LLM-TIME/data/{dataset}"
+    base_path = get_data_path(dataset)
     
     if not os.path.exists(base_path):
         logger.warning(f"Dataset path does not exist: {base_path}")
@@ -117,8 +124,8 @@ def standardize_dataset_scenario(dataset, scenario):
         dataset (str): Dataset name (d1namo, ohiot1dm)
         scenario (str): Scenario name (raw, missing_periodic, missing_random, noisy, denoised)
     """
-    input_folder = f"/home/amma/LLM-TIME/data/{dataset}/{scenario}"
-    output_folder = f"/home/amma/LLM-TIME/data/{dataset}/{scenario}_standardized"
+    input_folder = get_data_path(dataset, scenario)
+    output_folder = get_data_path(dataset, f"{scenario}_standardized")
     
     if not os.path.exists(input_folder):
         logger.warning(f"Input folder does not exist: {input_folder}")

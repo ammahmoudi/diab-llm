@@ -22,6 +22,10 @@ import pandas as pd
 from pathlib import Path
 import logging
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.path_utils import get_data_path
+
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -91,7 +95,7 @@ def get_window_config(window_str):
 
 def get_available_scenarios(dataset):
     """Get available data scenarios for a dataset"""
-    base_path = f"/home/amma/LLM-TIME/data/{dataset}"
+    base_path = get_data_path(dataset)
     
     available_scenarios = []
     potential_scenarios = ["raw", "missing_periodic", "missing_random", "noisy", "denoised"]
@@ -108,9 +112,9 @@ def get_available_files(dataset, scenario):
     """Get available CSV files for a dataset/scenario combination"""
     # Handle ohiot1dm raw scenario - use raw_standardized folder
     if dataset == "ohiot1dm" and scenario == "raw":
-        base_path = f"/home/amma/LLM-TIME/data/{dataset}/raw_standardized"
+        base_path = get_data_path(dataset, "raw_standardized")
     else:
-        base_path = f"/home/amma/LLM-TIME/data/{dataset}/{scenario}"
+        base_path = get_data_path(dataset, scenario)
     
     files = []
     if not os.path.exists(base_path):
@@ -119,7 +123,7 @@ def get_available_files(dataset, scenario):
     
     if dataset == "d1namo" and scenario == "raw":
         # Handle D1NAMO raw data structure (folders with patient IDs)
-        raw_folder_path = f"/home/amma/LLM-TIME/data/{dataset}/raw"
+        raw_folder_path = get_data_path(dataset, "raw")
         for patient_folder in os.listdir(raw_folder_path):
             patient_path = os.path.join(raw_folder_path, patient_folder)
             if os.path.isdir(patient_path):
@@ -163,7 +167,7 @@ def standardize_d1namo_raw_file(input_file, output_file):
 
 def create_missing_data_for_ohiot1dm():
     """Create missing_periodic and missing_random folders for ohiot1dm if they don't exist"""
-    base_path = "/home/amma/LLM-TIME/data/ohiot1dm"
+    base_path = get_data_path("ohiot1dm")
     raw_path = os.path.join(base_path, "raw")
     
     scenarios_to_create = ["missing_periodic", "missing_random"]
@@ -192,10 +196,10 @@ def format_dataset_scenario_window(dataset, scenario, window_config):
     logger.info(f"Formatting {dataset}/{scenario} with window {window_config} ({input_len}, {pred_len})")
     
     # Create output directory
-    output_base = f"/home/amma/LLM-TIME/data/{dataset}/{scenario}_formatted"
+    output_base = get_data_path(dataset, f"{scenario}_formatted")
     if scenario == "raw":
         # For raw data, don't add the _formatted suffix to match existing structure
-        output_base = f"/home/amma/LLM-TIME/data/{dataset}/raw_formatted"
+        output_base = get_data_path(dataset, "raw_formatted")
     
     window_dir = f"{input_len}_{pred_len}"
     output_dir = os.path.join(output_base, window_dir)

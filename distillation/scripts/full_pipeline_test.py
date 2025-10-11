@@ -12,11 +12,17 @@ import json
 import time
 from pathlib import Path
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from utils.path_utils import get_project_root
+
 
 class FullPipelineTest:
     """Complete pipeline test with configurable epochs for each phase."""
     
-    def __init__(self, base_dir="/home/amma/LLM-TIME"):
+    def __init__(self, base_dir=None):
+        if base_dir is None:
+            base_dir = get_project_root()
         self.base_dir = Path(base_dir)
         self.configs_dir = self.base_dir / "configs" / "distillation_test"
         self.configs_dir.mkdir(parents=True, exist_ok=True)

@@ -81,7 +81,13 @@ run.llm_settings = {{
     return config_content
 
 def main():
-    base_dir = Path("/home/amma/LLM-TIME")
+    # Add utils to path for path utilities
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+    from utils.path_utils import get_project_root
+    
+    base_dir = get_project_root()
     configs_dir = base_dir / "configs" / "distillation_test"
     configs_dir.mkdir(parents=True, exist_ok=True)
     

@@ -29,6 +29,10 @@ After activating the virtual environment, install the required dependencies list
 pip install -r requirements.txt
 ```
 
+### 4. Path Configuration (Automatic)
+
+The project uses dynamic path resolution and works automatically from any installation location. No manual path configuration is needed. See `docs/path_utilities.md` for details.
+
 ---
 
 ## Folder Structure

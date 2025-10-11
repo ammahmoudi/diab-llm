@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import sys
 import pandas as pd
 import numpy as np
 import argparse
@@ -19,6 +20,10 @@ import logging
 from pathlib import Path
 from typing import List, Union
 from gluonts.dataset.arrow import ArrowWriter
+
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from utils.path_utils import get_data_path
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -121,7 +126,7 @@ def convert_csv_to_arrow(csv_file_path: str, arrow_file_path: str):
 
 def get_standardized_scenarios_for_dataset(dataset):
     """Get available standardized scenarios for a dataset"""
-    base_path = f"/home/amma/LLM-TIME/data/{dataset}"
+    base_path = get_data_path(dataset)
     
     if not os.path.exists(base_path):
         logger.warning(f"Dataset path does not exist: {base_path}")
@@ -149,12 +154,12 @@ def convert_dataset_scenario(dataset, scenario):
     """
     if dataset == "standardized":
         # Handle global standardized folder
-        input_folder = f"/home/amma/LLM-TIME/data/standardized"
-        output_folder = f"/home/amma/LLM-TIME/data/standardized"
+        input_folder = get_data_path("standardized")
+        output_folder = get_data_path("standardized")
         scenario_name = "standardized"
     else:
-        input_folder = f"/home/amma/LLM-TIME/data/{dataset}/{scenario}_standardized"
-        output_folder = f"/home/amma/LLM-TIME/data/{dataset}/{scenario}_standardized"
+        input_folder = get_data_path(dataset, f"{scenario}_standardized")
+        output_folder = get_data_path(dataset, f"{scenario}_standardized")
         scenario_name = f"{dataset}/{scenario}"
     
     if not os.path.exists(input_folder):

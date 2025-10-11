@@ -12,13 +12,19 @@ import json
 import glob
 from pathlib import Path
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from utils.path_utils import get_project_root, get_configs_path
+
 
 class DistillationTrainer:
     """Class to handle automated distillation training."""
     
-    def __init__(self, base_dir="/home/amma/LLM-TIME", distill_epochs=1, 
+    def __init__(self, base_dir=None, distill_epochs=1, 
                  teacher_checkpoint_dir=None, student_config_dir=None, 
                  output_dir=None, config_output_dir=None):
+        if base_dir is None:
+            base_dir = get_project_root()
         self.base_dir = Path(base_dir)
         
         # Set directory paths based on parameters

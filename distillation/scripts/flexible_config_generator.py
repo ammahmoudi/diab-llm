@@ -6,18 +6,25 @@ Provides full control over datasets, data types, patients, and models.
 
 import json
 import os
+import sys
 import glob
 from pathlib import Path
 import argparse
 from datetime import datetime
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from utils.path_utils import get_project_root, get_data_path
+
 
 class FlexibleConfigGenerator:
     """Generate configurations with full control over all parameters."""
     
-    def __init__(self, base_dir="/home/amma/LLM-TIME", configs_dir=None):
+    def __init__(self, base_dir=None, configs_dir=None):
+        if base_dir is None:
+            base_dir = get_project_root()
         self.base_dir = Path(base_dir)
-        self.data_dir = self.base_dir / "data"
+        self.data_dir = get_data_path()
         if configs_dir:
             self.configs_dir = Path(configs_dir)
         else:

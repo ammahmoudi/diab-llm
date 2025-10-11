@@ -14,11 +14,17 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from utils.path_utils import get_project_root
+
 
 class FlexibleExperimentRunner:
     """Run experiments with flexible configuration control."""
     
-    def __init__(self, base_dir="/home/amma/LLM-TIME", output_dir=None):
+    def __init__(self, base_dir=None, output_dir=None):
+        if base_dir is None:
+            base_dir = get_project_root()
         self.base_dir = Path(base_dir)
         if output_dir:
             self.configs_dir = Path(output_dir) / "configs"

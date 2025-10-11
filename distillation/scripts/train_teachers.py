@@ -11,18 +11,25 @@ import argparse
 import json
 from pathlib import Path
 
+# Add utils to path for path utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from utils.path_utils import get_project_root, get_configs_path
+
 
 class TeacherTrainer:
     """Class to handle automated training of teacher models."""
     
-    def __init__(self, base_dir="/home/amma/LLM-TIME", output_dir=None, config_dir=None):
+    def __init__(self, base_dir=None, output_dir=None, config_dir=None):
+        if base_dir is None:
+            base_dir = get_project_root()
+        self.base_dir = Path(base_dir)
         self.base_dir = Path(base_dir)
         
         # Set config directory - use pipeline config dir if provided, otherwise root configs
         if config_dir:
             self.configs_dir = Path(config_dir)
         else:
-            self.configs_dir = self.base_dir / "configs"
+            self.configs_dir = get_configs_path()
         self.configs_dir.mkdir(parents=True, exist_ok=True)
         
         # Set results directory

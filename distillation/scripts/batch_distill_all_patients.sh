@@ -8,6 +8,11 @@ echo "🔬 Starting Batch Knowledge Distillation for All OhioT1DM Patients"
 echo "Teacher: BERT → Student: TinyBERT"
 echo "============================================================"
 
+# Get project root dynamically
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+echo "Project root: $PROJECT_ROOT"
+
 # List of all ohiot1dm patients
 PATIENTS=(540 544 552 567 570 575 588 591 596)
 
@@ -16,7 +21,7 @@ TEACHER="bert"
 STUDENT="tinybert"
 
 # Results summary file - in distillation_experiments
-SUMMARY_FILE="/home/amma/LLM-TIME/distillation_experiments/batch_distillation_summary.json"
+SUMMARY_FILE="$PROJECT_ROOT/distillation_experiments/batch_distillation_summary.json"
 
 # Initialize summary
 echo "{" > $SUMMARY_FILE
@@ -46,7 +51,7 @@ for i in "${!PATIENTS[@]}"; do
     echo "        \"start_time\": \"$(date -Iseconds)\"," >> $SUMMARY_FILE
     
     # Run distillation
-    if python /home/amma/LLM-TIME/distillation/scripts/distill_students.py --teacher $TEACHER --student $STUDENT --dataset $PATIENT; then
+    if python "$PROJECT_ROOT/distillation/scripts/distill_students.py" --teacher $TEACHER --student $STUDENT --dataset $PATIENT; then
         echo "✅ Patient $PATIENT: Distillation completed successfully"
         SUCCESSFUL_PATIENTS+=($PATIENT)
         echo "        \"status\": \"completed\"," >> $SUMMARY_FILE
