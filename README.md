@@ -3,6 +3,19 @@
 
 This project aims to make predictions using Large Language Models (LLMs) with a dataset for time-series and inference tasks. Follow the instructions below to set up the environment and run the scripts to generate and execute configurations.
 
+## Quick Start
+
+```bash
+# 1. Setup environment
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+
+# 2. Process your data (if needed)
+python scripts/data_formatting/quick_process.py all
+
+# 3. Run experiments
+python ./scripts/run_configs_time_llm_inference.py
+```
+
 ## Setup Instructions
 
 ### 1. Create a Virtual Environment
@@ -32,6 +45,17 @@ pip install -r requirements.txt
 ### 4. Path Configuration (Automatic)
 
 The project uses dynamic path resolution and works automatically from any installation location. No manual path configuration is needed. See `docs/path_utilities.md` for details.
+
+### 5. Process Your Data (Optional)
+
+If you have raw data that needs processing:
+
+```bash
+# Quick start - process all data
+python scripts/data_formatting/quick_process.py all
+```
+
+See the **Data Processing Pipeline** section below for details.
 
 ---
 
@@ -107,22 +131,53 @@ See `EFFICIENCY_BENCHMARKING_GUIDE.md` for detailed instructions.
 
 ---
 
-## Data Preprocessing
+## Data Processing Pipeline
 
-### 1. Standardize Raw Data Folder
+### Complete Data Processing (Recommended)
 
-To convert and standardize the raw dataset folder, run:
-
-```bash
-python ./scripts/format_files.py
-```
-
-### 2. Convert Data to Sequence & Prediction Length
-
-For converting the data into sequence format and prediction-length rows, use the following script:
+Process all data in one command - standardization, formatting (6_6 and 6_9), and Arrow conversion:
 
 ```bash
-python ./scripts/reformat_bg_Data_folder.py
+# Process all datasets and scenarios
+python scripts/data_formatting/quick_process.py all
+
+# Process specific dataset  
+python scripts/data_formatting/quick_process.py ohiot1dm
+python scripts/data_formatting/quick_process.py d1namo
+
+# Process specific scenarios only
+python scripts/data_formatting/quick_process.py ohiot1dm --scenarios raw,noisy
 ```
+
+### Advanced Pipeline Control
+
+For more control over the processing pipeline:
+
+```bash
+# Full pipeline with all options
+python scripts/data_formatting/complete_data_pipeline.py --dataset ohiot1dm --scenarios all
+
+# Dry run to see what will be processed
+python scripts/data_formatting/complete_data_pipeline.py --dataset ohiot1dm --dry-run
+
+# Skip specific steps
+python scripts/data_formatting/complete_data_pipeline.py --dataset ohiot1dm --skip-standardize
+python scripts/data_formatting/complete_data_pipeline.py --dataset ohiot1dm --skip-format --skip-arrow
+```
+
+### Processing Steps
+
+1. **Standardization** - Converts data to standard format (item_id, timestamp, target)
+2. **Formatting** - Creates time series windows for both 6_6 and 6_9 configurations  
+3. **Arrow Conversion** - Converts to Arrow format for efficient training
+
+### Supported Data
+
+- **Datasets**: ohiot1dm, d1namo
+- **Scenarios**: raw, missing_periodic, missing_random, noisy, denoised
+- **Window Configs**: 6_6 (input=6, pred=6), 6_9 (input=6, pred=9)
+- **Output Formats**: CSV (formatted), Arrow (training-ready)
+
+For detailed documentation, see `scripts/data_formatting/README.md`.
 
 ---
