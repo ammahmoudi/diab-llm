@@ -91,14 +91,33 @@ python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference 
 
 See `docs/README_chronos_commands.md` for complete command reference.
 
-### Time-LLM Experiments
+### Time-LLM Experiments (Unified System)
+
+The project includes a comprehensive unified Time-LLM system with cross-scenario inference:
+
+```bash
+# Generate comprehensive configs (train on standardized, test on noisy)
+python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+    --data_scenario noisy --train_data_scenario standardized \
+    --patients 570,584 --llm_models GPT2,LLAMA --epochs 10
+
+# Run all Time-LLM experiments
+python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm
+
+# Generate all possible combinations automatically
+python scripts/time_llm/generate_all_time_llm_configs.py
+```
+
+See `docs/README_time_llm_commands.md` for complete command reference.
+
+### Legacy Time-LLM Scripts (Deprecated)
 
 ```bash
 python ./scripts/run_configs_time_llm_inference.py
 python ./scripts/run_configs_time_llm_training.py
 ```
 
-For Time-LLM you can change the order of models or filter them by type by editing the order list in the run_configs_time_llm_ .py files. Also for multi-GPU runs you can edit the run_main.sh file.
+For legacy scripts, you can change the order of models or filter them by type by editing the order list in the run_configs_time_llm_ .py files. Also for multi-GPU runs you can edit the run_main.sh file.
 
 ---
 
@@ -257,9 +276,12 @@ For detailed documentation, see `scripts/data_formatting/README.md`.
 - **Dynamic Path Resolution**: Works from any installation location without configuration
 
 ### 🧠 Model Improvements
-- **Chronos Integration**: Full support for Amazon's Chronos foundation models
+- **Chronos Integration**: Full support for Amazon's Chronos foundation models with GPU acceleration
+- **Time-LLM Unified System**: Comprehensive support for GPT2, LLAMA, and BERT models
+- **Cross-Model Evaluation**: Compare performance across different LLM architectures
 - **LoRA Fine-tuning**: Parameter-efficient fine-tuning capabilities
-- **Multiple Model Sizes**: Support for tiny, base, and large Chronos variants
+- **Multiple Model Sizes**: Support for tiny, base, and large model variants
 - **Checkpoint Management**: Automatic checkpoint saving, loading, and cleanup
+- **Dual Data Formats**: Standard time-series (Time-LLM) and windowed (Chronos) formats
 
 ---
