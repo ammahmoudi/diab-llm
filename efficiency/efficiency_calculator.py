@@ -132,48 +132,86 @@ class EfficiencyCalculator:
             "trainable_parameters": 0,
             "model_size_mb": 0.0,
             "model_dtype": "unknown",
-            "device_location": "unknown"
+            "device_location": "unknown",
+            "model_architecture": "unknown"
         }
         
         try:
-            # Handle wrapped models (like TimeLLM wrapper)
-            if hasattr(model, 'llm_model'):
-                actual_model = model.llm_model
+            # Handle different model types
+            actual_model = self._extract_pytorch_model(model, model_name)
+            
+            if actual_model is not None:
+                # Count parameters
+                total_params = sum(p.numel() for p in actual_model.parameters())
+                trainable_params = sum(p.numel() for p in actual_model.parameters() if p.requires_grad)
+                
+                characteristics["total_parameters"] = total_params
+                characteristics["trainable_parameters"] = trainable_params
+                characteristics["model_architecture"] = type(actual_model).__name__
+                
+                # Estimate model size (parameters * bytes_per_parameter)
+                # Assuming float32 (4 bytes) by default
+                bytes_per_param = 4  # float32
+                if hasattr(actual_model, 'dtype'):
+                    if actual_model.dtype == torch.float16:
+                        bytes_per_param = 2
+                    elif actual_model.dtype == torch.bfloat16:
+                        bytes_per_param = 2
+                
+                characteristics["model_size_mb"] = (total_params * bytes_per_param) / (1024**2)
+                
+                # Get model dtype
+                for param in actual_model.parameters():
+                    characteristics["model_dtype"] = str(param.dtype)
+                    break
+                
+                # Get device location
+                for param in actual_model.parameters():
+                    characteristics["device_location"] = str(param.device)
+                    break
             else:
-                actual_model = model
-            
-            # Count parameters
-            total_params = sum(p.numel() for p in actual_model.parameters())
-            trainable_params = sum(p.numel() for p in actual_model.parameters() if p.requires_grad)
-            
-            characteristics["total_parameters"] = total_params
-            characteristics["trainable_parameters"] = trainable_params
-            
-            # Estimate model size (parameters * bytes_per_parameter)
-            # Assuming float32 (4 bytes) by default
-            bytes_per_param = 4  # float32
-            if hasattr(actual_model, 'dtype'):
-                if actual_model.dtype == torch.float16:
-                    bytes_per_param = 2
-                elif actual_model.dtype == torch.bfloat16:
-                    bytes_per_param = 2
-            
-            characteristics["model_size_mb"] = (total_params * bytes_per_param) / (1024**2)
-            
-            # Get model dtype
-            for param in actual_model.parameters():
-                characteristics["model_dtype"] = str(param.dtype)
-                break
-            
-            # Get device location
-            for param in actual_model.parameters():
-                characteristics["device_location"] = str(param.device)
-                break
+                self.logger.warning(f"Could not extract PyTorch model from {type(model).__name__}")
                 
         except Exception as e:
             self.logger.warning(f"Could not analyze model characteristics: {e}")
         
         return characteristics
+    
+    def _extract_pytorch_model(self, model, model_name: str):
+        """Extract the actual PyTorch model from various wrappers."""
+        
+        # For TimeLLM wrapper
+        if hasattr(model, 'llm_model'):
+            # Check if it's a ChronosPipeline inside TimeLLM wrapper
+            if hasattr(model.llm_model, 'model'):
+                return model.llm_model.model  # ChronosPipeline.model
+            else:
+                return model.llm_model
+        
+        # For direct ChronosPipeline
+        if hasattr(model, 'model'):
+            return model.model  # ChronosPipeline.model
+        
+        # For direct ChronosPipeline with tokenizer
+        if hasattr(model, 'tokenizer') and hasattr(model, 'model'):
+            return model.model
+        
+        # Check for nested model attributes common in HuggingFace
+        if hasattr(model, 'base_model'):
+            return model.base_model
+        
+        # If it's already a PyTorch model
+        if hasattr(model, 'parameters') and callable(getattr(model, 'parameters')):
+            return model
+        
+        # Last resort - try to find any attribute that looks like a model
+        for attr_name in ['model', 'base_model', 'transformer', 'bert', 'llm']:
+            if hasattr(model, attr_name):
+                attr_model = getattr(model, attr_name)
+                if hasattr(attr_model, 'parameters') and callable(getattr(attr_model, 'parameters')):
+                    return attr_model
+        
+        return None
     
     def _calculate_theoretical_metrics(self, model_char: Dict[str, Any], system_info: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate theoretical performance metrics."""
@@ -492,20 +530,80 @@ class EfficiencyCalculator:
         timing_results = {}
         
         try:
-            # Chronos has different interface, simpler measurement
-            timing_results["note"] = "Chronos inference timing - simplified measurement"
-            timing_results["model_type"] = "chronos"
+            # Extract ChronosPipeline
+            chronos_pipeline = None
+            if hasattr(model, 'llm_model'):
+                chronos_pipeline = model.llm_model  # ChronosLLM wrapper
+            elif hasattr(model, 'predict'):
+                chronos_pipeline = model  # Direct ChronosPipeline
             
-            # Basic timing estimate based on model complexity
-            if hasattr(model, 'llm_model') and hasattr(model.llm_model, 'model'):
-                # Try to access the actual Chronos pipeline
-                timing_results["inference_method"] = "chronos_pipeline"
-                timing_results["estimated_inference_time_ms"] = 50.0  # Conservative estimate
+            if chronos_pipeline is not None:
+                timing_results["model_type"] = "chronos_pipeline"
+                timing_results["pipeline_class"] = type(chronos_pipeline).__name__
+                
+                # Create minimal dummy time series data for timing
+                context_length = 64  # Standard context length
+                batch_size = 1
+                prediction_length = 6  # Small prediction length for timing
+                
+                # Generate dummy time series (single univariate series)
+                dummy_context = torch.randn(batch_size, context_length)
+                
+                # Warm-up run
+                try:
+                    with torch.no_grad():
+                        _ = chronos_pipeline.predict(
+                            context=dummy_context,
+                            prediction_length=prediction_length,
+                            num_samples=1,
+                            limit_prediction_length=True
+                        )
+                    timing_results["warmup_status"] = "successful"
+                except Exception as e:
+                    timing_results["warmup_error"] = str(e)
+                    return timing_results
+                
+                # Measure actual timing
+                num_runs = 3  # Fewer runs for Chronos to avoid long timing
+                times = []
+                
+                for _ in range(num_runs):
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    
+                    start_time = time.perf_counter()
+                    
+                    with torch.no_grad():
+                        _ = chronos_pipeline.predict(
+                            context=dummy_context,
+                            prediction_length=prediction_length,
+                            num_samples=1,
+                            limit_prediction_length=True
+                        )
+                    
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    
+                    end_time = time.perf_counter()
+                    times.append((end_time - start_time) * 1000)  # Convert to ms
+                
+                timing_results["inference_times_ms"] = times
+                timing_results["average_inference_time_ms"] = sum(times) / len(times)
+                timing_results["min_inference_time_ms"] = min(times)
+                timing_results["max_inference_time_ms"] = max(times)
+                timing_results["context_length"] = context_length
+                timing_results["prediction_length"] = prediction_length
+                timing_results["batch_size"] = batch_size
+                timing_results["measurement_runs"] = num_runs
+                timing_results["inference_method"] = "chronos_pipeline_predict"
+                
             else:
-                timing_results["note"] = "Could not access Chronos pipeline for timing"
+                timing_results["error"] = "Could not access Chronos pipeline for timing"
+                timing_results["available_attributes"] = [attr for attr in dir(model) if not attr.startswith('_')]
                 
         except Exception as e:
             timing_results["error"] = str(e)
+            timing_results["note"] = "Chronos inference timing failed"
         
         return timing_results
 

@@ -316,6 +316,28 @@ class ChronosLLM(TimeSeriesLLM):
         data_loaded["save_steps"] = settings["save_steps"]
         data_loaded["learning_rate"] = settings["learning_rate"]
         data_loaded["log_steps"] = settings["log_steps"]
+        
+        # 🆕 Add GPU-specific settings
+        if torch.cuda.is_available():
+            data_loaded["fp16"] = False  # Use FP32 as specified in settings
+            data_loaded["bf16"] = False  # Disable BF16 for compatibility
+            data_loaded["dataloader_pin_memory"] = True
+            data_loaded["dataloader_num_workers"] = 4  # Optimize for GPU training
+            data_loaded["gradient_checkpointing"] = True  # Save memory
+            # Force GPU usage in HuggingFace Trainer  
+            data_loaded["no_cuda"] = False  # Explicitly enable CUDA
+            data_loaded["use_cpu"] = False  # Don't use CPU
+            # Increase batch size for GPU training
+            data_loaded["per_device_train_batch_size"] = max(8, settings["batch_size"])
+            # Enable mixed precision for GPU (but keep FP32 for compatibility)
+            data_loaded["fp16"] = False
+            data_loaded["bf16"] = False
+            self.logger.info("🔧 Configured training for GPU with memory optimizations")
+        else:
+            data_loaded["dataloader_num_workers"] = 1  # Conservative for CPU
+            data_loaded["gradient_checkpointing"] = False
+            data_loaded["no_cuda"] = True  # Disable CUDA
+            self.logger.info("⚠️  Configured training for CPU")
 
         # Enable PEFT fine-tuning
         if settings["use_peft"]:
@@ -340,10 +362,22 @@ class ChronosLLM(TimeSeriesLLM):
         with io.open(custom_config_path, "w", encoding="utf8") as outfile:
             yaml.dump(data_loaded, outfile)
 
-        # Train the model
-        os.system(
-            f"python {chronos_dir}/chronos/scripts/training/train.py --config {custom_config_path}"
-        )
+        # Train the model with proper GPU configuration
+        if torch.cuda.is_available():
+            # Use direct GPU training with explicit environment variables
+            env_vars = "CUDA_VISIBLE_DEVICES=0 TORCH_USE_CUDA_DSA=1"
+            training_command = f"{env_vars} python {chronos_dir}/chronos/scripts/training/train.py --config {custom_config_path}"
+            self.logger.info(f"🚀 Training with GPU: {training_command}")
+            
+            # Set environment variables in current process too
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+            os.environ["TORCH_USE_CUDA_DSA"] = "1"
+        else:
+            # Fallback to CPU training
+            training_command = f"python {chronos_dir}/chronos/scripts/training/train.py --config {custom_config_path}"
+            self.logger.info(f"⚠️  Training with CPU (no GPU available): {training_command}")
+        
+        os.system(training_command)
 
         # Load the trained model with LoRA
         if settings["use_peft"]:
