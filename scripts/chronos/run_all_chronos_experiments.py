@@ -163,6 +163,18 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=None
             print(f"   ✅ Completed in {duration:.2f}s: {config_path}")
             if resume_file:
                 mark_experiment_completed(config_path, resume_file)
+            
+            # Extract metrics to CSV after successful completion
+            try:
+                from scripts.utilities.extract_metrics import extract_metrics_to_csv
+                experiment_base_dir = os.path.dirname(os.path.dirname(config_path))  # Go up to experiment folder
+                csv_filename = f"chronos_{experiment_name}_results.csv"
+                output_csv = os.path.join("./", csv_filename)  # Save in root directory
+                extract_metrics_to_csv(base_dir=experiment_base_dir, output_csv=output_csv)
+                print(f"   📊 Metrics extracted to: {output_csv}")
+            except Exception as e:
+                print(f"   ⚠️  Metrics extraction failed: {e}")
+            
             return True, f"Success ({duration:.2f}s): {config_path}"
         else:
             error_msg = f"Exit code {result.returncode}"
@@ -270,10 +282,16 @@ def main():
                        help="File to track completed experiments")
     parser.add_argument("--dry_run", action="store_true",
                        help="Show what would be run without executing")
-    parser.add_argument("--extract_metrics", action="store_true",
-                       help="Extract metrics after running experiments")
+    parser.add_argument("--extract_metrics", action="store_true", default=True,
+                       help="Extract metrics after running experiments (default: True)")
+    parser.add_argument("--no_extract_metrics", action="store_true",
+                       help="Disable metrics extraction")
     
     args = parser.parse_args()
+    
+    # Handle metrics extraction flags
+    if args.no_extract_metrics:
+        args.extract_metrics = False
     
     # Parse filter arguments
     mode_filter = args.modes.split(',') if args.modes else None
@@ -356,9 +374,18 @@ def main():
         if len(results['failed']) > 10:
             print(f"   ... and {len(results['failed']) - 10} more")
     
-    # Extract metrics if requested
+    # Extract comprehensive metrics if requested
     if args.extract_metrics and not args.dry_run:
-        print("\n📊 Extracting metrics from completed experiments...")
+        print("\n📊 Extracting comprehensive metrics from all completed experiments...")
+        try:
+            from scripts.utilities.extract_metrics import extract_metrics_to_csv
+            comprehensive_csv = "./chronos_comprehensive_results.csv"
+            extract_metrics_to_csv(base_dir=args.experiments_dir, output_csv=comprehensive_csv)
+            print(f"📊 Comprehensive metrics saved to: {comprehensive_csv}")
+        except Exception as e:
+            print(f"⚠️  Comprehensive metrics extraction failed: {e}")
+        
+        # Also extract individual experiment metrics
         for exp_type in experiments_by_type.keys():
             exp_dir = os.path.join(args.experiments_dir, exp_type)
             if os.path.exists(exp_dir):

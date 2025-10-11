@@ -147,6 +147,8 @@ python scripts/chronos/config_generator_chronos.py --mode trained_inference --da
 python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference --datasets ohiot1dm
 ```
 
+**Note**: All experiments automatically extract metrics to CSV files after completion. Results are saved to files like `chronos_trained_inference_ohiot1dm_noisy_results.csv` in the root directory.
+
 ---
 
 ## Advanced Usage

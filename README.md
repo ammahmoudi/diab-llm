@@ -157,6 +157,7 @@ python config_generator_time_llm.py  # For generating custom configurations for 
 - **Multiple window configurations**: 6_6 (6 input, 6 prediction) and 6_9 (6 input, 9 prediction)
 - **GPU acceleration**: Automatic GPU detection and optimization
 - **Comprehensive reporting**: Efficiency metrics, performance analysis, and result visualization
+- **Automatic CSV logging**: All experiment results automatically saved to CSV files with metrics and configuration details
 
 ---
 
@@ -249,6 +250,50 @@ For detailed documentation, see `scripts/data_formatting/README.md`.
 
 ---
 
+## Results & Metrics Extraction
+
+### Automatic CSV Logging
+
+All experiment runners automatically extract metrics to CSV files after each successful experiment:
+
+- **Individual Results**: Each experiment type gets its own CSV file (e.g., `chronos_training_ohiot1dm_results.csv`)
+- **Comprehensive Results**: All experiments combined into comprehensive CSV files
+- **Real-time Updates**: CSV files updated after each individual experiment completion
+
+### Manual Metrics Extraction
+
+Extract all results into CSV files:
+
+```bash
+# Extract all metrics (both Chronos and Time-LLM)
+python extract_all_metrics.py
+
+# Extract only Chronos metrics
+python extract_all_metrics.py --chronos_only
+
+# Extract only Time-LLM metrics  
+python extract_all_metrics.py --time_llm_only
+
+# Save to custom directory
+python extract_all_metrics.py --output_dir ./results
+```
+
+### CSV File Contents
+
+Each CSV includes:
+- **Configuration Details**: Model type, parameters, patient ID, seed, etc.
+- **Performance Metrics**: RMSE, MAE, MAPE values
+- **Experiment Metadata**: Timestamps, experiment type, data scenarios
+- **Cross-scenario Information**: Training vs testing data scenarios
+
+### Example CSV Structure
+```csv
+seed,model,dtype,mode,inference,pred_length,patient_id,log_datetime,rmse,mae,mape
+831363,amazon-chronos-t5-base,float32,trained_inference,context,6,540,2025-10-11_16-16-47,195.52,46.91,NaN
+```
+
+---
+
 ## Key Features & Improvements
 
 ### 🚀 GPU Acceleration
@@ -268,6 +313,8 @@ For detailed documentation, see `scripts/data_formatting/README.md`.
 - **Efficiency Metrics**: Model parameters (201M+ for Chronos-base), memory usage, inference speed
 - **Edge Feasibility Analysis**: Automatic assessment for edge deployment suitability
 - **Detailed Reports**: JSON and visual reports with publication-ready metrics
+- **Automatic CSV Logging**: Experiment results automatically extracted to CSV files after each run
+- **Consolidated Results**: Comprehensive CSV files combining all experiment metrics and configurations
 
 ### 🗃️ Advanced Data Processing
 - **Unified Data Pipeline**: Single command to process all datasets and scenarios

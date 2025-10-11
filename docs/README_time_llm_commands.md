@@ -131,7 +131,7 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode inference \
 ## 5. Run All Experiments
 
 ```bash
-# Run specific experiment types
+# Run specific experiment types (automatically extracts CSV results)
 python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm
 
 # Run with specific models
@@ -142,7 +142,12 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference 
 
 # Dry run (see what would be executed)
 python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm --dry_run
+
+# Disable automatic CSV extraction
+python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm --no_extract_metrics
 ```
+
+**Note**: All experiments automatically extract metrics to CSV files after each completion. Results are saved to files like `time_llm_training_inference_ohiot1dm_results.csv` in the root directory.
 
 ---
 
@@ -273,6 +278,34 @@ This script generates:
 - Cross-scenario configs (train clean, test on each scenario)
 - Both ohiot1dm and d1namo datasets
 - Multiple LLM models (GPT2, LLAMA, BERT)
+
+---
+
+## Results & CSV Extraction
+
+### Automatic CSV Logging
+- **After Each Experiment**: Metrics automatically extracted to individual CSV files
+- **Comprehensive Results**: Combined CSV with all experiment results
+- **File Naming**: `time_llm_{experiment_type}_results.csv`
+- **Contents**: Configuration details, performance metrics (RMSE, MAE, MAPE), timestamps
+
+### Manual Extraction
+```bash
+# Extract all Time-LLM metrics
+python extract_all_metrics.py --time_llm_only
+
+# Extract metrics from specific experiment directory
+python -c "
+from scripts.utilities.extract_metrics import extract_metrics_to_csv
+extract_metrics_to_csv('./experiments/time_llm_training_inference_ohiot1dm/', './custom_results.csv')
+"
+```
+
+### CSV Structure Example
+```csv
+seed,model,dim,seq,context,pred,patch,epochs,patient_id,log_datetime,rmse,mae,mape
+831363,GPT2,768,6,6,6,6,10,570,2025-10-11_16-30-15,28.45,15.23,8.92
+```
 
 ---
 
