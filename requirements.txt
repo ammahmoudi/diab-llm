@@ -29,3 +29,4 @@ seaborn
 # For Chrome installation (required for Kaleido):
 # pip install kaleido
 # plotly_get_chrome  # or follow Chrome installation instructions
+nvidia-ml-py
