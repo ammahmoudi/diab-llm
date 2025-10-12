@@ -186,7 +186,11 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=True
                 
                 # Extract metrics to CSV after successful completion
                 try:
-                    from scripts.utilities.extract_metrics import extract_metrics_to_csv
+                    # Add the path to scripts/utilities
+                    scripts_utilities_path = os.path.join(os.path.dirname(__file__), '..', 'utilities')
+                    if scripts_utilities_path not in sys.path:
+                        sys.path.insert(0, scripts_utilities_path)
+                    from extract_metrics import extract_metrics_to_csv
                     experiment_base_dir = os.path.dirname(os.path.dirname(config_path))  # Go up to experiment folder
                     csv_filename = f"time_llm_{experiment_name}_results.csv"
                     output_csv = os.path.join("./", csv_filename)  # Save in root directory
@@ -247,7 +251,11 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=True
 def extract_metrics_for_experiment(experiment_dir):
     """Extract metrics for a completed experiment."""
     try:
-        from utilities.extract_metrics import extract_metrics_to_csv
+        # Add the path to scripts/utilities
+        scripts_utilities_path = os.path.join(os.path.dirname(__file__), '..', 'utilities')
+        if scripts_utilities_path not in sys.path:
+            sys.path.insert(0, scripts_utilities_path)
+        from extract_metrics import extract_metrics_to_csv
         csv_file = os.path.join(experiment_dir, "experiment_results.csv")
         extract_metrics_to_csv(base_dir=experiment_dir, output_csv=csv_file)
         print(f"   📊 Metrics extracted: {csv_file}")
@@ -425,7 +433,11 @@ def main():
     if args.extract_metrics and not args.dry_run:
         print("\n📊 Extracting comprehensive metrics from all completed experiments...")
         try:
-            from scripts.utilities.extract_metrics import extract_metrics_to_csv
+            # Add the path to scripts/utilities
+            scripts_utilities_path = os.path.join(os.path.dirname(__file__), '..', 'utilities')
+            if scripts_utilities_path not in sys.path:
+                sys.path.insert(0, scripts_utilities_path)
+            from extract_metrics import extract_metrics_to_csv
             comprehensive_csv = "./time_llm_comprehensive_results.csv"
             extract_metrics_to_csv(base_dir=args.experiments_dir, output_csv=comprehensive_csv)
             print(f"📊 Comprehensive metrics saved to: {comprehensive_csv}")
