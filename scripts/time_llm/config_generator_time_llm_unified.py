@@ -72,19 +72,19 @@ def get_length_sets(mode):
     ]
 
 
+# Map scenarios to subfolder names in datasets - always use standardized versions
+SCENARIO_MAP = {
+    "standardized": "raw_standardized",  
+    "noisy": "noisy_standardized",
+    "denoised": "denoised_standardized", 
+    "missing_periodic": "missing_periodic_standardized",
+    "missing_random": "missing_random_standardized"
+}
+
 def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="ohiot1dm", is_train_data=True):
     """Get appropriate data file path based on mode, data scenario, and dataset."""
     
-    # Map scenarios to subfolder names in datasets - Time-LLM uses standardized data
-    scenario_map = {
-        "standardized": "raw_standardized",  
-        "noisy": "noisy_standardized",
-        "denoised": "denoised_standardized", 
-        "missing_periodic": "missing_periodic_standardized",
-        "missing_random": "missing_random_standardized"
-    }
-    
-    scenario_folder = scenario_map[data_scenario]
+    scenario_folder = SCENARIO_MAP[data_scenario]
     base_path = f"./data/{dataset}/{scenario_folder}"
     
     # For Time-LLM, we use CSV files
@@ -104,16 +104,8 @@ def generate_config_content(mode, seed, llm_config, length_set, patient_id, trai
     train_data_path = get_data_file_path(mode, patient_id, actual_train_scenario, dataset, is_train_data=True)
     test_data_path = get_data_file_path(mode, patient_id, data_scenario, dataset, is_train_data=False)
     
-    # Get prompt file path - use the same directory as the test data
-    scenario_map = {
-        "standardized": "raw_standardized",  
-        "noisy": "noisy_standardized",
-        "denoised": "denoised_standardized", 
-        "missing_periodic": "missing_periodic_standardized",
-        "missing_random": "missing_random_standardized"
-    }
-    scenario_folder = scenario_map.get(data_scenario, 'raw_standardized')
-    prompt_path = f"./data/{dataset}/{scenario_folder}/t1dm_prompt.txt"
+    # Get prompt file path
+    prompt_path = f"./data/{dataset}/{SCENARIO_MAP.get(data_scenario, 'raw_standardized')}/t1dm_prompt.txt"
     
     log_folder_placeholder = "LOGS_PLACEHOLDER"  # Will be replaced with actual log folder
     

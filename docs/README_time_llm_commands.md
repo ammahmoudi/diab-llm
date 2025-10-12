@@ -13,12 +13,31 @@ This guide provides all commands needed to generate Time-LLM training and infere
 
 ---
 
+## Parameter Reference
+
+Time-LLM config generator supports the following parameters:
+
+- `--mode`: Operation mode (train, inference, train_inference)
+- `--dataset`: Dataset type (ohiot1dm, d1namo)
+- `--data_scenario`: Data type for testing/inference (standardized, noisy, denoised, missing_periodic, missing_random)
+- `--train_data_scenario`: Data type used for training (for cross-scenario evaluation)
+- `--patients`: Comma-separated patient IDs (e.g., "570,584")
+- `--llm_models`: Comma-separated LLM models (GPT2, LLAMA, BERT)
+- `--seeds`: Comma-separated random seeds (e.g., "831363" or "831363,809906,427368")
+- `--epochs`: Number of training epochs (default: 10 for train modes, 0 for inference)
+- `--output_dir`: Custom output directory (optional)
+
+**Note**: Unlike Chronos, Time-LLM automatically generates both 6_6 and 6_9 window configurations without needing a `--window_config` parameter.
+
+---
+
 ## Quick Start Example
 
 ```bash
 # 1. Generate training configs for standardized data
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
-    --patients 570,584 --data_scenario standardized --llm_models GPT2 --epochs 10
+    --patients 570,584 --data_scenario standardized --llm_models GPT2 \
+    --seeds 831363 --epochs 10
 
 # 2. Run training experiments
 python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets ohiot1dm
@@ -26,7 +45,7 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets
 # 3. Generate cross-scenario inference configs (train standardized → test noisy)
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --data_scenario noisy --train_data_scenario standardized \
-    --patients 570,584 --llm_models GPT2 --epochs 10
+    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 
 # 4. Run inference experiments
 python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm
@@ -41,7 +60,7 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference 
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario standardized \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --epochs 10
+    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
 ```
 
 ### Train on Other Scenarios
@@ -50,25 +69,25 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario missing_periodic \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --epochs 10
+    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
 
 # Missing Random  
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario missing_random \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --epochs 10
+    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
 
 # Noisy
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario noisy \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --epochs 10
+    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
 
 # Denoised
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario denoised \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --epochs 10
+    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
 ```
 
 ---
@@ -93,21 +112,21 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets
 ```bash
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --dataset ohiot1dm --data_scenario noisy --train_data_scenario standardized \
-    --patients 570,584 --llm_models GPT2 --epochs 10
+    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 ```
 
 #### Train on Standardized, Test on Missing Periodic
 ```bash
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --dataset ohiot1dm --data_scenario missing_periodic --train_data_scenario standardized \
-    --patients 570,584 --llm_models GPT2 --epochs 10
+    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 ```
 
 #### Train on Standardized, Test on Missing Random
 ```bash
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --dataset ohiot1dm --data_scenario missing_random --train_data_scenario standardized \
-    --patients 570,584 --llm_models GPT2 --epochs 10
+    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 ```
 
 ---
@@ -118,12 +137,12 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train_infere
 # Standardized data inference
 python scripts/time_llm/config_generator_time_llm_unified.py --mode inference \
     --dataset ohiot1dm --data_scenario standardized \
-    --patients 570,584 --llm_models GPT2 --epochs 0
+    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 0
 
 # Noisy data inference  
 python scripts/time_llm/config_generator_time_llm_unified.py --mode inference \
     --dataset ohiot1dm --data_scenario noisy \
-    --patients 570,584 --llm_models GPT2 --epochs 0
+    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 0
 ```
 
 ---
@@ -159,7 +178,7 @@ Time-LLM fully supports the D1NAMO dataset:
 # Generate D1NAMO configs
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --dataset d1namo --data_scenario standardized \
-    --patients 001,002,003,004,005,006,007 --llm_models GPT2 --epochs 10
+    --patients 001,002,003,004,005,006,007 --llm_models GPT2 --seeds 831363 --epochs 10
 
 # Run D1NAMO experiments
 python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets d1namo
@@ -188,7 +207,7 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train_infere
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --dataset ohiot1dm --data_scenario standardized \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA,BERT --epochs 10
+    --llm_models GPT2,LLAMA,BERT --seeds 831363 --epochs 10
 ```
 
 ---
@@ -199,7 +218,7 @@ Time-LLM automatically generates configurations for both window types:
 - **6_6**: 6 input timesteps → 6 prediction timesteps  
 - **6_9**: 6 input timesteps → 9 prediction timesteps
 
-Both configurations are created automatically when running the config generator.
+**Note**: Unlike Chronos which requires explicit `--window_config` parameter, Time-LLM automatically creates both window configurations during config generation. No additional parameter needed.
 
 ---
 
