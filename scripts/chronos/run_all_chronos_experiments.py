@@ -15,6 +15,7 @@ Features:
 - Full console output visibility for training logs
 - Progress tracking and logging
 - Automatic metrics extraction
+- Automated outlier detection and correction (--fix_results)
 - Resume capability (skip completed experiments)
 - Configurable execution parameters
 
@@ -30,6 +31,12 @@ Usage Examples:
     
     # Run with parallel execution (hides individual logs)
     python run_all_chronos_experiments.py --modes training --parallel --max_workers 2
+    
+    # Run with outlier correction (fixes bad predictions)
+    python run_all_chronos_experiments.py --modes training --fix_results
+    
+    # Run with custom outlier threshold (default is 3.0)
+    python run_all_chronos_experiments.py --modes training --fix_results --fix_threshold 2.5
     
     # Resume from previous run
     python run_all_chronos_experiments.py --modes training --resume
@@ -202,11 +209,33 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=None
             mark_experiment_failed(config_path, resume_file, error_msg)
         return False, f"Exception: {config_path} - {error_msg}"
 
-def extract_metrics_for_experiment(experiment_dir):
-    """Extract metrics for a completed experiment."""
+def extract_metrics_for_experiment(experiment_dir, fix_results=False, fix_threshold=3.0):
+    """Extract metrics for a completed experiment, optionally with outlier correction."""
     try:
-        from utilities.extract_metrics import extract_metrics_to_csv
+        from scripts.utilities.extract_metrics import extract_metrics_to_csv
         csv_file = os.path.join(experiment_dir, "experiment_results.csv")
+        
+        # Apply outlier correction if requested
+        if fix_results:
+            try:
+                from scripts.utilities.fix_results import fix_experiment_results
+                print(f"   🔧 Applying outlier correction with threshold {fix_threshold}...")
+                fix_results_info = fix_experiment_results(experiment_dir, fix_threshold)
+                
+                if fix_results_info['success']:
+                    corrections_count = len(fix_results_info['corrections_made'])
+                    if corrections_count > 0:
+                        print(f"   ✅ Fixed {corrections_count} outliers")
+                        print(f"   📈 Original metrics: {fix_results_info['original_metrics']}")
+                        print(f"   📈 Corrected metrics: {fix_results_info['corrected_metrics']}")
+                    else:
+                        print(f"   ✅ No outliers detected - results already clean")
+                else:
+                    print(f"   ⚠️  Outlier correction failed: {fix_results_info.get('error', 'Unknown error')}")
+            except Exception as e:
+                print(f"   ⚠️  Outlier correction failed: {e}")
+        
+        # Extract metrics to CSV
         extract_metrics_to_csv(base_dir=experiment_dir, output_csv=csv_file)
         print(f"   📊 Metrics extracted: {csv_file}")
         return True
@@ -286,6 +315,10 @@ def main():
                        help="Extract metrics after running experiments (default: True)")
     parser.add_argument("--no_extract_metrics", action="store_true",
                        help="Disable metrics extraction")
+    parser.add_argument("--fix_results", action="store_true",
+                       help="Apply outlier detection and correction to results (fixes bad predictions)")
+    parser.add_argument("--fix_threshold", type=float, default=3.0,
+                       help="Threshold factor for outlier detection (default: 3.0)")
     
     args = parser.parse_args()
     
@@ -389,7 +422,7 @@ def main():
         for exp_type in experiments_by_type.keys():
             exp_dir = os.path.join(args.experiments_dir, exp_type)
             if os.path.exists(exp_dir):
-                extract_metrics_for_experiment(exp_dir)
+                extract_metrics_for_experiment(exp_dir, args.fix_results, args.fix_threshold)
     
     print(f"\n🎉 Chronos experiment execution finished!")
     return 0 if not results['failed'] else 1

@@ -8,6 +8,8 @@ This guide provides all commands needed to generate Chronos training and inferen
 - **Fixed Data Format**: Corrected column names (`BG_{t}` instead of `BG_{t-0}`)
 - **Comprehensive Config Generation**: All required parameters included automatically
 - **Performance Monitoring**: Real-time GPU utilization, memory usage, and efficiency metrics
+- **Automated Result Correction**: Built-in outlier detection and correction with `--fix_results`
+- **CSV Metrics Extraction**: Automatic metrics extraction after each experiment
 
 ---
 
@@ -187,6 +189,41 @@ python scripts/chronos/config_generator_chronos.py --mode train \
 - **GPU Memory**: ~1217MB peak usage
 - **Processing Speed**: ~21 seconds for 2885 samples
 - **GPU Utilization**: ~38% average
+
+---
+
+## Automated Result Correction
+
+The Chronos experiment runner now includes automated outlier detection and correction:
+
+### Basic Usage
+```bash
+# Run experiments with automatic outlier correction
+python scripts/chronos/run_all_chronos_experiments.py --modes training --fix_results
+
+# Use custom outlier threshold (default is 3.0)
+python scripts/chronos/run_all_chronos_experiments.py --modes training --fix_results --fix_threshold 2.5
+```
+
+### How It Works
+- **Outlier Detection**: Identifies predictions that exceed `threshold_factor × median_value`
+- **Correction Method**: Replaces outliers with average of neighboring predictions
+- **Metrics Tracking**: Reports both original and corrected metrics
+- **Automatic Integration**: Corrected results saved as `final_results.csv` in each experiment
+
+### Output Example
+```
+🔧 Applying outlier correction with threshold 3.0...
+✅ Fixed 12 outliers
+📈 Original metrics: {'rmse': 245.82, 'mae': 58.34, 'mape': 12.45}
+📈 Corrected metrics: {'rmse': 195.52, 'mae': 46.91, 'mape': 9.87}
+📊 Metrics extracted: ./experiments/chronos_training_ohiot1dm/experiment_results.csv
+```
+
+### When to Use
+- **Post-Training**: Recommended for all training experiments to clean results
+- **Inference**: Especially useful for cross-scenario inference where noise may introduce outliers
+- **Quality Assurance**: Provides both corrected and original metrics for comparison
 
 ---
 
