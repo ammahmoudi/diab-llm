@@ -107,6 +107,46 @@ def find_latest_checkpoint(training_folder_pattern, patient_id):
         return ""
 
 
+def find_checkpoint_with_fallback(args, seed, model, torch_dtype, train_scenario, patient_id):
+    """
+    Finds checkpoint with priority on matching seed, but falls back to any available seed.
+    
+    Priority:
+    1. Try to find checkpoint with exact seed match
+    2. If not found, try to find checkpoint with any seed for the same model/scenario
+    
+    Returns: (checkpoint_path, used_seed) or (None, None) if no checkpoint found
+    """
+    dataset_suffix = f"_{args.dataset}"
+    scenario_suffix = "" if train_scenario == "standardized" else f"_{train_scenario}"
+    combined_suffix = f"{dataset_suffix}{scenario_suffix}"
+    model_pattern = model.replace('/', '-').replace('_', '-')
+    
+    # First, try with the specific seed
+    training_pattern_specific = f"./experiments/chronos_training{combined_suffix}/seed_{seed}_model_{model_pattern}_dtype_{torch_dtype}_mode_train_*"
+    checkpoint_path = find_latest_checkpoint(training_pattern_specific, patient_id)
+    
+    if checkpoint_path:
+        print(f"✅ Found checkpoint with matching seed {seed}")
+        return checkpoint_path, seed
+    
+    # If no checkpoint found with specific seed, try with any seed
+    print(f"⚠️ No checkpoint found with seed {seed}, trying any available seed...")
+    training_pattern_any = f"./experiments/chronos_training{combined_suffix}/seed_*_model_{model_pattern}_dtype_{torch_dtype}_mode_train_*"
+    checkpoint_path = find_latest_checkpoint(training_pattern_any, patient_id)
+    
+    if checkpoint_path:
+        # Extract the seed from the found checkpoint path
+        import re
+        seed_match = re.search(r'/seed_(\d+)_model_', checkpoint_path)
+        used_seed = seed_match.group(1) if seed_match else "unknown"
+        print(f"✅ Found checkpoint with different seed {used_seed} (requested: {seed})")
+        return checkpoint_path, used_seed
+    
+    print(f"❌ No checkpoint found for model {model} with train_scenario {train_scenario}")
+    return None, None
+
+
 def get_feature_label_sets(mode, window_config=None):
     """Get appropriate feature/label sets based on mode and window configuration."""
     if mode == "train":
@@ -184,25 +224,38 @@ def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="
 
 
 def generate_config_content(mode, seed, model, torch_dtype, feature_set, patient_id, 
-                          max_steps=None, checkpoint_path=None, use_lora=False, data_scenario="standardized", dataset="ohiot1dm", log_folder="./logs/"):
+                          max_steps=None, checkpoint_path=None, use_lora=False, data_scenario="standardized", dataset="ohiot1dm", log_folder="./logs/", requested_seed=None, train_scenario=None):
     """Generate the configuration content based on parameters."""
     
     pred_len = feature_set["prediction_length"]
     context_len = feature_set["context_length"] 
-    data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset, pred_len, context_len)
     
     # Handle data paths based on mode
     if mode == 'train':
         # Training mode: data_folder is the full .arrow file path
+        data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset, pred_len, context_len)
         train_data_path = data_folder
         test_data_path = f"./data/{dataset}/raw_standardized/{patient_id}-ws-testing.csv"
     else:
-        # Inference mode: data_folder is the base folder, append specific files
-        train_data_path = f"{data_folder}/{patient_id}-ws-training.csv"
-        test_data_path = f"{data_folder}/{patient_id}-ws-testing.csv"
+        # Inference mode: Use train_scenario for training data, data_scenario for test data
+        if train_scenario and mode in ['trained_inference', 'lora_inference']:
+            # Cross-scenario inference: training data from train_scenario, test data from data_scenario
+            train_data_folder = get_data_file_path(mode, patient_id, train_scenario, dataset, pred_len, context_len)
+            test_data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset, pred_len, context_len)
+            train_data_path = f"{train_data_folder}/{patient_id}-ws-training.csv"
+            test_data_path = f"{test_data_folder}/{patient_id}-ws-testing.csv"
+        else:
+            # Regular inference: both from same scenario
+            data_folder = get_data_file_path(mode, patient_id, data_scenario, dataset, pred_len, context_len)
+            train_data_path = f"{data_folder}/{patient_id}-ws-training.csv"
+            test_data_path = f"{data_folder}/{patient_id}-ws-testing.csv"
     
     # Prepare .gin configuration content in the correct format
-    config_content = f'''run.log_dir = "{log_folder}"
+    seed_comment = ""
+    if requested_seed is not None and str(seed) != str(requested_seed):
+        seed_comment = f"# NOTE: Using seed {seed} (requested seed {requested_seed} not found in training)\n"
+    
+    config_content = f'''{seed_comment}run.log_dir = "{log_folder}"
 run.chronos_dir = "{get_models_path()}/"
 
 run.data_settings = {{
@@ -361,13 +414,13 @@ def main():
             
             # Handle checkpoint finding for trained inference modes
             checkpoint_path = None
+            used_seed = seed
             if args.mode in ["trained_inference", "lora_inference"]:
                 # Use train_scenario for finding training checkpoints (supports cross-scenario inference)
-                dataset_suffix = f"_{args.dataset}"
-                scenario_suffix = "" if train_scenario == "standardized" else f"_{train_scenario}"
-                combined_suffix = f"{dataset_suffix}{scenario_suffix}"
-                training_pattern = f"./experiments/chronos_training{combined_suffix}/seed_{seed}_model_{model.replace('/', '-').replace('_','-')}_dtype_{torch_dtype}_mode_train_*"
-                checkpoint_path = find_latest_checkpoint(training_pattern, patient_id)
+                # Priority: matching seed first, then any available seed
+                checkpoint_path, used_seed = find_checkpoint_with_fallback(
+                    args, seed, model, torch_dtype, train_scenario, patient_id
+                )
                 if not checkpoint_path:
                     print(f"⚠️ Skipping {patient_id} - no checkpoint found for train_scenario: {train_scenario}")
                     continue
@@ -375,8 +428,9 @@ def main():
             # Generate config content
             use_lora = (args.mode == "lora_inference") or (args.mode == "train" and getattr(args, 'use_lora', False))
             config_content = generate_config_content(
-                args.mode, seed, model, torch_dtype, feature_set, patient_id,
-                checkpoint_path=checkpoint_path, use_lora=use_lora, data_scenario=args.data_scenario, dataset=args.dataset, log_folder=log_folder
+                args.mode, used_seed, model, torch_dtype, feature_set, patient_id,
+                checkpoint_path=checkpoint_path, use_lora=use_lora, data_scenario=args.data_scenario, 
+                dataset=args.dataset, log_folder=log_folder, requested_seed=seed, train_scenario=train_scenario
             )
             
             # Save config file
