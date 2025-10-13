@@ -5,7 +5,7 @@ This guide provides all commands needed to generate Chronos training and inferen
 ## ✅ Recent Improvements
 - **GPU Acceleration**: All training/inference now uses GPU automatically
 - **Cross-Scenario Inference**: Train on one scenario, test on another (e.g., standardized → noisy)
-- **Fixed Data Format**: Corrected column names (`BG_{t}` instead of `BG_{t-0}`)
+- **Fixed Data Format**: Corrected column names (`BG_{t}` instead of `BG_{t}`)
 - **Comprehensive Config Generation**: All required parameters included automatically
 - **Performance Monitoring**: Real-time GPU utilization, memory usage, and efficiency metrics
 - **Automated Result Correction**: Built-in outlier detection and correction with `--fix_results`

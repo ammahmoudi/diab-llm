@@ -57,19 +57,29 @@ from utils.path_utils import get_project_root, get_data_path, get_models_path, g
 def find_latest_checkpoint(training_folder_pattern, patient_id):
     """
     Finds the latest 'checkpoint-final' inside the correct patient folder.
+    Falls back to any available seed if the specific seed is not found.
     Example path:
     experiments/chronos_training/seed_*_model_amazon_chronos-t5-*/patient_575/logs/logs_YYYY-MM-DD_HH-MM-SS/chronos-t5-*/run-0/checkpoint-final
     """
     print(f"\n🔍 Searching for checkpoint in: {training_folder_pattern} for patient {patient_id}")
 
     try:
-        # Expand wildcard pattern (match any seed)
+        # Expand wildcard pattern (match specific seed first)
         training_folders = glob.glob(training_folder_pattern)
         if not training_folders:
-            print(f"⚠️ No matching training folders found for {training_folder_pattern}!")
-            return ""
+            # Fallback: Try to find ANY available checkpoint for this patient
+            base_pattern = training_folder_pattern.replace("seed_*", "seed_*")
+            fallback_pattern = "/".join(training_folder_pattern.split("/")[:-1]) + "/seed_*_model_*"
+            print(f"🔄 Trying fallback pattern: {fallback_pattern}")
+            training_folders = glob.glob(fallback_pattern)
+            
+            if not training_folders:
+                print(f"⚠️ No training folders found even with fallback pattern!")
+                return ""
+            else:
+                print(f"✅ Found {len(training_folders)} training folders with fallback pattern")
 
-        # Find all checkpoint-final files in the correct patient logs
+        # Find all checkpoint-final files in the correct patient logs  
         checkpoint_paths = []
         for training_folder in training_folders:
             patient_logs_path = os.path.join(training_folder, f"patient_{patient_id}")
@@ -81,7 +91,7 @@ def find_latest_checkpoint(training_folder_pattern, patient_id):
                 checkpoint_paths.extend(checkpoints)
 
         if not checkpoint_paths:
-            print(f"⚠️ No 'checkpoint-final' found for patient {patient_id} in {training_folder_pattern}!")
+            print(f"⚠️ No 'checkpoint-final' found for patient {patient_id} in any training folder!")
             return ""
 
         # Sort checkpoints by modification time (latest first)

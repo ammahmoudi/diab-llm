@@ -3,12 +3,8 @@ import pandas as pd
 from torch.utils.data import Dataset
 from data_processing.data_scaler import StandardScaler
 from utils.timefeatures import time_features
-
-import logging
-import pandas as pd
-from torch.utils.data import Dataset
-from data_processing.data_scaler import StandardScaler
-from utils.timefeatures import time_features
+import numpy as np
+import random
 import numpy as np
 import random
 
@@ -120,8 +116,17 @@ class Dataset_T1DM(Dataset):
             "timestamp" in df_raw.columns and self.target in df_raw.columns
         ), "Dataset must contain 'timestamp' (timestamp) and target columns."
 
-        # Sort by timestamp
-        df_raw["timestamp"] = pd.to_datetime(df_raw["timestamp"], format="%d-%m-%Y %H:%M:%S")
+        # Sort by timestamp - handle multiple date formats
+        try:
+            # Try dd-mm-yyyy format first (training data format)
+            df_raw["timestamp"] = pd.to_datetime(df_raw["timestamp"], format="%d-%m-%Y %H:%M:%S")
+        except ValueError:
+            try:
+                # Try yyyy-mm-dd format (testing data format)
+                df_raw["timestamp"] = pd.to_datetime(df_raw["timestamp"], format="%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                # Fall back to automatic inference
+                df_raw["timestamp"] = pd.to_datetime(df_raw["timestamp"])
         df_raw = df_raw.sort_values("timestamp")
 
         # Apply the percent parameter to reduce the dataset size

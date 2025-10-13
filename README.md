@@ -42,11 +42,30 @@ After activating the virtual environment, install the required dependencies list
 pip install -r requirements.txt
 ```
 
-### 4. Path Configuration (Automatic)
+### 4. System Dependencies (Required for Plotting)
+
+For plotting functionality with Kaleido/Chrome (required for result visualization), install these system packages:
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libcups2 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2
+```
+
+**Chrome Installation (automatically handled by plotly_get_chrome):**
+```bash
+# Activate your virtual environment first
+source venv/bin/activate
+# Chrome will be automatically installed when you run experiments
+plotly_get_chrome  # Optional: install Chrome manually
+```
+
+**Note:** The system will automatically attempt to install Chrome dependencies when running experiments. If you encounter plotting errors, ensure the above system packages are installed.
+
+### 5. Path Configuration (Automatic)
 
 The project uses dynamic path resolution and works automatically from any installation location. No manual path configuration is needed. All scripts automatically detect the project root and configure paths accordingly.
 
-### 5. Process Your Data (Optional)
+### 6. Process Your Data (Optional)
 
 If you have raw data that needs processing:
 
@@ -314,6 +333,49 @@ seed,model,dtype,mode,inference,pred_length,patient_id,log_datetime,rmse,mae,map
 - **Edge Feasibility Analysis**: Automatic assessment for edge deployment suitability
 - **Detailed Reports**: JSON and visual reports with publication-ready metrics
 - **Automatic CSV Logging**: Experiment results automatically extracted to CSV files after each run
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Plotting/Visualization Errors
+If you encounter errors related to Kaleido or Chrome during plotting:
+
+```bash
+# Error: "Kaleido requires Google Chrome to be installed"
+# Solution: Install system dependencies
+sudo apt update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libcups2 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 libpango-1.0-0 libcairo2 libasound2
+
+# Error: "BrowserDepsError: missing common dependencies"
+# Solution: Install Chrome via plotly_get_chrome
+source venv/bin/activate
+plotly_get_chrome
+
+# Error: Plotly version compatibility
+# Solution: Update plotly to compatible version
+pip install "plotly>=6.1.1"
+```
+
+#### CUDA/GPU Issues
+```bash
+# Check GPU availability
+python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"
+
+# For CUDA out of memory errors, reduce batch size in config files
+# or use CPU mode by setting device: 'cpu' in configs
+```
+
+#### Permission Issues
+```bash
+# Make scripts executable
+chmod +x run_cross_scenario_inference.sh
+chmod +x run_time_llm_bert_cross_scenario.sh
+
+# Fix Python path issues
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+```
 - **Consolidated Results**: Comprehensive CSV files combining all experiment metrics and configurations
 
 ### 🗃️ Advanced Data Processing

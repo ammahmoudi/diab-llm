@@ -83,16 +83,42 @@ def extract_metrics_to_csv(base_dir, output_csv):
                             "Experiment or patient folder not found in path"
                         )
 
-                    # Parse experiment folder details dynamically
+                    # Parse experiment folder details using proper key-value extraction
+                    # Expected format: seed_VALUE_model_VALUE_dtype_VALUE_mode_VALUE[_inference]_context_VALUE_pred_VALUE
                     experiment_details = experiment_folder.split("_")
-
-                    # Extract the basic experiment parameters from folder structure
+                    
                     experiment_params = {}
-                    for i in range(0, len(experiment_details), 2):
-                        if i + 1 < len(experiment_details):
-                            key = experiment_details[i]
-                            value = experiment_details[i + 1]
+                    i = 0
+                    while i < len(experiment_details) - 1:  # Ensure we don't go out of bounds
+                        key = experiment_details[i]
+                        
+                        if key in ["seed", "model", "dtype", "mode", "context", "pred"]:
+                            if key == "model":
+                                # Handle multi-part model names like amazon-chronos-t5-base
+                                # Collect parts until we hit the next known key
+                                value_parts = []
+                                j = i + 1
+                                while j < len(experiment_details) and experiment_details[j] not in ["dtype", "mode", "context", "pred"]:
+                                    value_parts.append(experiment_details[j])
+                                    j += 1
+                                value = "-".join(value_parts)  # Join with hyphens for model names
+                                i = j - 1
+                            elif key == "mode":
+                                # Handle mode which might be followed by "inference"
+                                value = experiment_details[i + 1]
+                                # Check if next token is "inference" and append it
+                                if i + 2 < len(experiment_details) and experiment_details[i + 2] == "inference":
+                                    value += "_inference"
+                                    i += 1  # Skip the "inference" token
+                                i += 1
+                            else:
+                                # Simple key-value pair
+                                value = experiment_details[i + 1]
+                                i += 1
+                            
                             experiment_params[key] = value
+                        
+                        i += 1
 
                     # Add patient_id from the patient folder
                     patient_id = patient_folder.split("_")[1]
@@ -131,20 +157,29 @@ def extract_metrics_to_csv(base_dir, output_csv):
                             logging.error(f"Error parsing metrics in {log_path}: {e}")
                             continue
 
-                        # Dynamically generate the header if the CSV is empty
+                        # Generate proper header with meaningful column names
                         if not csv_header:
-                            csv_header = list(experiment_params.keys()) + [
-                                "rmse",
-                                "mae",
-                                "mape",
+                            # Create header with proper column names in logical order
+                            csv_header = [
+                                "seed", "model", "dtype", "mode", 
+                                "context_length", "pred_length", 
+                                "patient_id", "log_datetime",
+                                "rmse", "mae", "mape"
                             ]
 
-                        # Store the extracted values in the results list
-                        result_row = tuple(
-                            str(value) for value in list(experiment_params.values())
-                        ) + tuple(
-                            sanitize_metric(metrics.get(k))
-                            for k in ["rmse", "mae", "mape"]
+                        # Store the extracted values in the correct order to match header
+                        result_row = (
+                            str(experiment_params.get("seed", "")),
+                            str(experiment_params.get("model", "")),
+                            str(experiment_params.get("dtype", "")),
+                            str(experiment_params.get("mode", "")),
+                            str(experiment_params.get("context", "")),
+                            str(experiment_params.get("pred", "")),
+                            str(experiment_params.get("patient_id", "")),
+                            str(experiment_params.get("log_datetime", "")),
+                            sanitize_metric(metrics.get("rmse")),
+                            sanitize_metric(metrics.get("mae")),
+                            sanitize_metric(metrics.get("mape"))
                         )
 
                         if result_row not in existing_rows:  # Avoid duplicate rows
