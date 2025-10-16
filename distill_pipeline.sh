@@ -120,9 +120,6 @@ PHASE1_DIR="$PIPELINE_DIR/phase_1_teacher"
 PHASE2_DIR="$PIPELINE_DIR/phase_2_student"
 PHASE3_DIR="$PIPELINE_DIR/phase_3_distillation"
 
-# Create directories (no centralized configs dir)
-mkdir -p "$PHASE1_DIR" "$PHASE2_DIR" "$PHASE3_DIR"
-
 # Validate required parameters
 if [[ -z "$TEACHER" || -z "$STUDENT" || -z "$PATIENTS" ]]; then
     echo "❌ Missing required parameters!"
@@ -153,140 +150,161 @@ echo "  KL Weight: $KL_WEIGHT"
 echo "  Temperature: $TEMPERATURE"
 echo "  Pipeline Directory: $PIPELINE_DIR"
 
-if [ -n "$DRY_RUN" ]; then
-    echo "  Mode: Dry Run"
+# Create main pipeline directory
+mkdir -p "$PIPELINE_DIR"
+
+# Convert comma-separated patients to array
+IFS=',' read -ra PATIENT_ARRAY <<< "$PATIENTS"
+
+echo ""
+echo "=========================================="
+echo "🧠 Multi-Patient Pipeline Execution"
+echo "=========================================="
+echo "Total patients to process: ${#PATIENT_ARRAY[@]}"
+echo "Patients: $(IFS=','; echo "${PATIENT_ARRAY[*]}")"
+echo ""
+
+# Loop through each patient and run complete 3-phase pipeline
+for CURRENT_PATIENT in "${PATIENT_ARRAY[@]}"; do
+    echo "=================================================="
+    echo "🔄 Processing Patient: $CURRENT_PATIENT"
+    echo "=================================================="
+    
+    # Create patient-specific directories
+    PATIENT_PIPELINE_DIR="$PIPELINE_DIR/patient_$CURRENT_PATIENT"
+    PHASE1_DIR="$PATIENT_PIPELINE_DIR/phase_1_teacher"
+    PHASE2_DIR="$PATIENT_PIPELINE_DIR/phase_2_student"
+    PHASE3_DIR="$PATIENT_PIPELINE_DIR/phase_3_distillation"
+    
+    # Create patient-specific directories
+    mkdir -p "$PHASE1_DIR" "$PHASE2_DIR" "$PHASE3_DIR"
+    
+    echo "Patient Directory: $PATIENT_PIPELINE_DIR"
     echo ""
+    
+    # PHASE 1: Teacher Training
     echo "=========================================="
-    echo "DRY RUN: 3-Step Distillation Pipeline"
+    echo "🎓 Phase 1/3: Training Teacher Model ($TEACHER)"
     echo "=========================================="
-    echo "Step 1: Would train $TEACHER teacher model ($TEACHER_EPOCHS epochs)"
-    echo "Step 2: Would train $STUDENT student baseline ($STUDENT_EPOCHS epochs)"  
-    echo "Step 3: Would distill $STUDENT from $TEACHER ($DISTILL_EPOCHS epochs)"
+    echo "Training $TEACHER on patient $CURRENT_PATIENT for $TEACHER_EPOCHS epochs..."
+    echo "Output directory: $PHASE1_DIR"
+    python distillation/scripts/train_teachers.py --model $TEACHER --patients $CURRENT_PATIENT --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --epochs $TEACHER_EPOCHS --output-dir "$PHASE1_DIR" --config-dir "$PHASE1_DIR"
+    if [ $? -ne 0 ]; then
+        echo "❌ Teacher training failed for patient $CURRENT_PATIENT!"
+        exit 1
+    fi
+    echo "✅ Teacher training completed for patient $CURRENT_PATIENT"
     echo ""
-    echo "Directory structure that would be created:"
-    echo "  $PIPELINE_DIR/"
-    echo "    ├── phase_1_teacher/ (includes teacher config & model directory)"
-    echo "    ├── phase_2_student/ (includes student config & model directory)" 
-    echo "    └── phase_3_distillation/ (includes distillation config & model directory)"
+    
+    # PHASE 2: Student Baseline Training
+    echo "=========================================="
+    echo "👨‍🎓 Phase 2/3: Training Student Baseline ($STUDENT)"
+    echo "=========================================="
+    echo "Training baseline $STUDENT on patient $CURRENT_PATIENT for $STUDENT_EPOCHS epochs..."
+    echo "Output directory: $PHASE2_DIR"
+    python distillation/scripts/train_students.py \
+        --model $STUDENT \
+        --patients $CURRENT_PATIENT \
+        --dataset $DATASET_NAME \
+        --seed $SEED \
+        --lr $LR \
+        --batch-size $BATCH_SIZE \
+        --epochs $STUDENT_EPOCHS \
+        --output-dir "$PHASE2_DIR" \
+        --config-dir "$PHASE2_DIR"
+    if [ $? -ne 0 ]; then
+        echo "❌ Student baseline training failed for patient $CURRENT_PATIENT!"
+        exit 1
+    fi
+    echo "✅ Student baseline training completed for patient $CURRENT_PATIENT"
     echo ""
-    echo "Commands that would be executed:"
-    echo "  python distillation/scripts/train_teachers.py --model $TEACHER --patients $PATIENTS --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --epochs $TEACHER_EPOCHS --output-dir \"$PHASE1_DIR\" --config-dir \"$PHASE1_DIR\""
-    echo "  python distillation/scripts/train_students.py --model $STUDENT --patients $PATIENTS --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --epochs $STUDENT_EPOCHS --output-dir \"$PHASE2_DIR\" --config-dir \"$PHASE2_DIR\""
-    echo "  python distillation/scripts/distill_students.py --teacher $TEACHER --student $STUDENT --patients $PATIENTS --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --alpha $ALPHA --beta $BETA --kl-weight $KL_WEIGHT --temperature $TEMPERATURE --distill-epochs $DISTILL_EPOCHS --teacher-checkpoint-dir \"$PHASE1_DIR\" --student-config-dir \"$PHASE2_DIR\" --output-dir \"$PHASE3_DIR\" --config-output-dir \"$PHASE3_DIR\" --pipeline-dir \"$PIPELINE_DIR\""
-    exit 0
-fi
+    
+    # PHASE 3: Knowledge Distillation
+    echo "=========================================="
+    echo "🧠 Phase 3/3: Knowledge Distillation ($TEACHER → $STUDENT)"
+    echo "=========================================="
+    echo "Distilling knowledge from $TEACHER to $STUDENT for patient $CURRENT_PATIENT ($DISTILL_EPOCHS epochs)..."
+    echo "Output directory: $PHASE3_DIR"
+    python distillation/scripts/distill_students.py \
+        --teacher $TEACHER \
+        --student $STUDENT \
+        --patients $CURRENT_PATIENT \
+        --dataset $DATASET_NAME \
+        --seed $SEED \
+        --lr $LR \
+        --batch-size $BATCH_SIZE \
+        --alpha $ALPHA \
+        --beta $BETA \
+        --kl-weight $KL_WEIGHT \
+        --temperature $TEMPERATURE \
+        --distill-epochs $DISTILL_EPOCHS \
+        --teacher-checkpoint-dir "$PHASE1_DIR" \
+        --student-config-dir "$PHASE2_DIR" \
+        --output-dir "$PHASE3_DIR" \
+        --config-output-dir "$PHASE3_DIR" \
+        --pipeline-dir "$PATIENT_PIPELINE_DIR"
+    if [ $? -ne 0 ]; then
+        echo "❌ Knowledge distillation failed for patient $CURRENT_PATIENT!"
+        exit 1
+    fi
+    echo "✅ Knowledge distillation completed for patient $CURRENT_PATIENT"
+    echo ""
+    
+    # Calculate runtime for this patient
+    PATIENT_END_TIME=$(date +%s)
+    PATIENT_RUNTIME=$((PATIENT_END_TIME - PIPELINE_START_TIME))
+    
+    # Log this patient's results to CSV
+    echo "📊 Logging patient $CURRENT_PATIENT results to CSV..."
+    python distillation/scripts/pipeline_csv_logger.py \
+        --pipeline-dir "$PATIENT_PIPELINE_DIR" \
+        --patients "$CURRENT_PATIENT" \
+        --dataset "$DATASET_NAME" \
+        --seed "$SEED" \
+        --teacher "$TEACHER" \
+        --student "$STUDENT" \
+        --lr "$LR" \
+        --batch-size "$BATCH_SIZE" \
+        --teacher-epochs "$TEACHER_EPOCHS" \
+        --student-epochs "$STUDENT_EPOCHS" \
+        --distill-epochs "$DISTILL_EPOCHS" \
+        --alpha "$ALPHA" \
+        --beta "$BETA" \
+        --kl-weight "$KL_WEIGHT" \
+        --temperature "$TEMPERATURE" \
+        --teacher-metrics "$PHASE1_DIR/teacher_training_summary.json" \
+        --student-metrics "$PHASE2_DIR/student_baseline_summary.json" \
+        --distillation-metrics "$PHASE3_DIR/distillation_summary.json" \
+        --total-runtime "$PATIENT_RUNTIME" \
+        --notes "Patient $CURRENT_PATIENT complete 3-phase pipeline run"
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Patient $CURRENT_PATIENT results successfully logged to CSV!"
+    else
+        echo "⚠️  CSV logging failed for patient $CURRENT_PATIENT, but pipeline completed successfully"
+    fi
+    
+    echo ""
+    echo "🎉 Patient $CURRENT_PATIENT: Complete 3-Phase Pipeline Finished!"
+    echo "✅ Teacher trained: $TEACHER ($TEACHER_EPOCHS epochs)"
+    echo "✅ Student baseline: $STUDENT ($STUDENT_EPOCHS epochs)"  
+    echo "✅ Knowledge distilled: $TEACHER → $STUDENT ($DISTILL_EPOCHS epochs)"
+    echo "📁 Results saved in: $PATIENT_PIPELINE_DIR"
+    echo ""
+    
+done
 
-echo ""
-echo "=========================================="
-echo "🎓 Step 1/3: Training Teacher Model ($TEACHER)"
-echo "=========================================="
-echo "Training $TEACHER on patients $PATIENTS for $TEACHER_EPOCHS epochs..."
-echo "Output directory: $PHASE1_DIR"
-echo "Config will be saved in: $PHASE1_DIR"
-python distillation/scripts/train_teachers.py --model $TEACHER --patients $PATIENTS --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --epochs $TEACHER_EPOCHS --output-dir "$PHASE1_DIR" --config-dir "$PHASE1_DIR"
-if [ $? -ne 0 ]; then
-    echo "❌ Teacher training failed!"
-    exit 1
-fi
-
-echo ""
-echo "=========================================="
-echo "👨‍🎓 Step 2/3: Training Student Baseline ($STUDENT)"
-echo "=========================================="
-echo "Training baseline $STUDENT on patients $PATIENTS for $STUDENT_EPOCHS epochs..."
-echo "Output directory: $PHASE2_DIR"
-echo "Config will be saved in: $PHASE2_DIR"
-python distillation/scripts/train_students.py \
-    --model $STUDENT \
-    --patients $PATIENTS \
-    --dataset $DATASET_NAME \
-    --seed $SEED \
-    --lr $LR \
-    --batch-size $BATCH_SIZE \
-    --epochs $STUDENT_EPOCHS \
-    --output-dir "$PHASE2_DIR" \
-    --config-dir "$PHASE2_DIR"
-if [ $? -ne 0 ]; then
-    echo "❌ Student baseline training failed!"
-    exit 1
-fi
-
-echo ""
-echo "=========================================="
-echo "🧠 Step 3/3: Knowledge Distillation ($TEACHER → $STUDENT)"
-echo "=========================================="
-echo "Distilling knowledge from $TEACHER to $STUDENT for patients $PATIENTS ($DISTILL_EPOCHS epochs)..."
-echo "Output directory: $PHASE3_DIR"
-echo "Using teacher from: $PHASE1_DIR"
-echo "Using student from: $PHASE2_DIR"
-python distillation/scripts/distill_students.py \
-    --teacher $TEACHER \
-    --student $STUDENT \
-    --patients $PATIENTS \
-    --dataset $DATASET_NAME \
-    --seed $SEED \
-    --lr $LR \
-    --batch-size $BATCH_SIZE \
-    --alpha $ALPHA \
-    --beta $BETA \
-    --kl-weight $KL_WEIGHT \
-    --temperature $TEMPERATURE \
-    --distill-epochs $DISTILL_EPOCHS \
-    --teacher-checkpoint-dir "$PHASE1_DIR" \
-    --student-config-dir "$PHASE2_DIR" \
-    --output-dir "$PHASE3_DIR" \
-    --config-output-dir "$PHASE3_DIR" \
-    --pipeline-dir "$PIPELINE_DIR"
-if [ $? -ne 0 ]; then
-    echo "❌ Knowledge distillation failed!"
-    exit 1
-fi
-
-echo ""
-echo "🎉 SUCCESS: Complete 3-Step Distillation Pipeline Finished!"
-echo "============================================="
-echo "✅ Teacher trained: $TEACHER (patients $PATIENTS, $TEACHER_EPOCHS epochs)"
-echo "✅ Student baseline: $STUDENT (patients $PATIENTS, $STUDENT_EPOCHS epochs)"  
-echo "✅ Knowledge distilled: $TEACHER → $STUDENT (patients $PATIENTS, $DISTILL_EPOCHS epochs)"
-echo ""
-echo "📁 Results saved in: distillation_experiments/"
-echo "🔍 Check logs for detailed performance metrics"
-
-# Calculate pipeline runtime
+# Calculate total pipeline runtime
 PIPELINE_END_TIME=$(date +%s)
 TOTAL_RUNTIME=$((PIPELINE_END_TIME - PIPELINE_START_TIME))
 
 echo ""
-echo "📊 Logging pipeline run to CSV..."
-# Log the complete pipeline run to CSV
-python distillation/scripts/pipeline_csv_logger.py \
-    --pipeline-dir "$PIPELINE_DIR" \
-    --patients "$PATIENTS" \
-    --dataset "$DATASET_NAME" \
-    --seed "$SEED" \
-    --teacher "$TEACHER" \
-    --student "$STUDENT" \
-    --lr "$LR" \
-    --batch-size "$BATCH_SIZE" \
-    --teacher-epochs "$TEACHER_EPOCHS" \
-    --student-epochs "$STUDENT_EPOCHS" \
-    --distill-epochs "$DISTILL_EPOCHS" \
-    --alpha "$ALPHA" \
-    --beta "$BETA" \
-    --kl-weight "$KL_WEIGHT" \
-    --temperature "$TEMPERATURE" \
-    --teacher-metrics "$PHASE1_DIR/teacher_training_summary.json" \
-    --student-metrics "$PHASE2_DIR/student_baseline_summary.json" \
-    --distillation-metrics "$PHASE3_DIR/distillation_summary.json" \
-    --total-runtime "$TOTAL_RUNTIME" \
-    --notes "Complete 3-phase pipeline run"
-
-if [ $? -eq 0 ]; then
-    echo "✅ Pipeline results successfully logged to CSV!"
-else
-    echo "⚠️  CSV logging failed, but pipeline completed successfully"
-fi
-
+echo "🎉🎉 SUCCESS: Multi-Patient Pipeline Completed! 🎉🎉"
+echo "============================================="
+echo "✅ Total patients processed: ${#PATIENT_ARRAY[@]}"
+echo "✅ Patients: $(IFS=','; echo "${PATIENT_ARRAY[*]}")"
+echo "✅ Each patient completed all 3 phases successfully"
 echo ""
-echo "📊 Pipeline Runtime: ${TOTAL_RUNTIME}s"
+echo "📁 Results saved in: $PIPELINE_DIR"
 echo "📊 CSV Results: distillation_experiments/pipeline_results.csv"
+echo "📊 Total Pipeline Runtime: ${TOTAL_RUNTIME}s"
