@@ -16,6 +16,9 @@ if [[ "$VIRTUAL_ENV" == "" ]]; then
     fi
 fi
 
+# Record pipeline start time for runtime calculation
+PIPELINE_START_TIME=$(date +%s)
+
 echo "🧠 Time-LLM Knowledge Distillation Pipeline"
 echo "============================================="
 
@@ -123,11 +126,11 @@ mkdir -p "$PHASE1_DIR" "$PHASE2_DIR" "$PHASE3_DIR"
 # Validate required parameters
 if [[ -z "$TEACHER" || -z "$STUDENT" || -z "$PATIENTS" ]]; then
     echo "❌ Missing required parameters!"
-    echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --data-path <path> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--dry-run]"
+    echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--kl-weight <weight>] [--temperature <temp>] [--dry-run]"
     echo ""
     echo "Examples:"
-    echo "  $0 --teacher bert --student tinybert --patients 570 --dataset ohiot1dm --data-path data --seed 238822 --teacher-epochs 1 --student-epochs 1 --distill-epochs 1"
-    echo "  $0 --teacher distilbert --student tinybert --patients 584 --dataset d1namo --data-path data --seed 42 --teacher-epochs 2 --student-epochs 2 --distill-epochs 2"
+    echo "  $0 --teacher bert-base-uncased --student prajjwal1/bert-tiny --patients 570 --dataset ohiot1dm --seed 42 --teacher-epochs 1 --student-epochs 1 --distill-epochs 1"
+    echo "  $0 --teacher bert-base-uncased --student prajjwal1/bert-tiny --patients 570,584 --dataset ohiot1dm --seed 42 --teacher-epochs 1 --student-epochs 1 --distill-epochs 1"
     echo ""
     exit 1
 fi
@@ -248,3 +251,42 @@ echo "✅ Knowledge distilled: $TEACHER → $STUDENT (patients $PATIENTS, $DISTI
 echo ""
 echo "📁 Results saved in: distillation_experiments/"
 echo "🔍 Check logs for detailed performance metrics"
+
+# Calculate pipeline runtime
+PIPELINE_END_TIME=$(date +%s)
+TOTAL_RUNTIME=$((PIPELINE_END_TIME - PIPELINE_START_TIME))
+
+echo ""
+echo "📊 Logging pipeline run to CSV..."
+# Log the complete pipeline run to CSV
+python distillation/scripts/pipeline_csv_logger.py \
+    --pipeline-dir "$PIPELINE_DIR" \
+    --patients "$PATIENTS" \
+    --dataset "$DATASET_NAME" \
+    --seed "$SEED" \
+    --teacher "$TEACHER" \
+    --student "$STUDENT" \
+    --lr "$LR" \
+    --batch-size "$BATCH_SIZE" \
+    --teacher-epochs "$TEACHER_EPOCHS" \
+    --student-epochs "$STUDENT_EPOCHS" \
+    --distill-epochs "$DISTILL_EPOCHS" \
+    --alpha "$ALPHA" \
+    --beta "$BETA" \
+    --kl-weight "$KL_WEIGHT" \
+    --temperature "$TEMPERATURE" \
+    --teacher-metrics "$PHASE1_DIR/teacher_training_summary.json" \
+    --student-metrics "$PHASE2_DIR/student_baseline_summary.json" \
+    --distillation-metrics "$PHASE3_DIR/distillation_summary.json" \
+    --total-runtime "$TOTAL_RUNTIME" \
+    --notes "Complete 3-phase pipeline run"
+
+if [ $? -eq 0 ]; then
+    echo "✅ Pipeline results successfully logged to CSV!"
+else
+    echo "⚠️  CSV logging failed, but pipeline completed successfully"
+fi
+
+echo ""
+echo "📊 Pipeline Runtime: ${TOTAL_RUNTIME}s"
+echo "📊 CSV Results: distillation_experiments/pipeline_results.csv"

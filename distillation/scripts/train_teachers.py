@@ -426,7 +426,13 @@ class TeacherTrainer:
         with open(summary_file, 'w') as f:
             json.dump(summary, f, indent=2)
         
+        # Also save with standardized name for pipeline CSV logging
+        standard_summary_file = self.results_dir / "teacher_training_summary.json"
+        with open(standard_summary_file, 'w') as f:
+            json.dump(summary, f, indent=2)
+        
         print(f"✓ Enhanced training summary saved: {summary_file}")
+        print(f"✓ Standardized summary saved: {standard_summary_file}")
         if performance_metrics:
             print(f"  📊 Performance: RMSE={performance_metrics.get('rmse', 'N/A'):.3f}, MAE={performance_metrics.get('mae', 'N/A'):.3f}, MAPE={performance_metrics.get('mape', 'N/A'):.3f}%")
 
