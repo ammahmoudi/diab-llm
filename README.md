@@ -3,6 +3,20 @@
 
 This project aims to make predictions using Large Language Models (LLMs) with a dataset for time-series and inference tasks. Follow the instructions below to set up the environment and run the scripts to generate and execute configurations.
 
+## Clone Repository
+
+To clone this repository with all its submodules (including the Chronos forecasting model), use:
+
+```bash
+git clone --recursive https://github.com/PeterDomanski/LLM-TIME.git
+```
+
+Or if you've already cloned the repository, initialize and update the submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
 ## Quick Start
 
 ```bash
