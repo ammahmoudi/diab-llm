@@ -232,7 +232,7 @@ class FlexibleConfigGenerator:
     def generate_config(self, dataset, data_type, patient_id, model_name, 
                        train_epochs=20, learning_rate=0.001, batch_size=32,
                        sequence_length=6, prediction_length=9, mode="training+inference",
-                       custom_params=None):
+                       custom_params=None, custom_log_dir=None):
         """Generate a configuration for specific parameters."""
         
         if model_name not in self.models:
@@ -282,11 +282,17 @@ class FlexibleConfigGenerator:
             if "data_settings" in custom_params:
                 config["data_settings"].update(custom_params["data_settings"])
         
-        # Generate log directory following experiments structure
+        # Generate experiment ID and log directory
         experiment_id = f"{model_name}_{dataset}_{data_type}_{patient_id}_{train_epochs}epochs"
-        model_config = self.models[model_name]
-        experiment_folder = f"seed_{config['llm_settings']['seed']}_model_{model_config['llm_model']}_dim_{model_config['llm_dim']}_seq_{config['llm_settings']['sequence_length']}_context_{config['llm_settings']['context_length']}_pred_{config['llm_settings']['prediction_length']}_patch_{config['llm_settings']['patch_len']}_epochs_{train_epochs}"
-        log_dir = f"./distillation_experiments/{dataset}_distillation/{experiment_folder}/patient_{patient_id}/logs"
+        
+        if custom_log_dir:
+            # Use provided custom log directory
+            log_dir = custom_log_dir
+        else:
+            # Generate log directory following default experiments structure
+            model_config = self.models[model_name]
+            experiment_folder = f"seed_{config['llm_settings']['seed']}_model_{model_config['llm_model']}_dim_{model_config['llm_dim']}_seq_{config['llm_settings']['sequence_length']}_context_{config['llm_settings']['context_length']}_pred_{config['llm_settings']['prediction_length']}_patch_{config['llm_settings']['patch_len']}_epochs_{train_epochs}"
+            log_dir = f"./distillation_experiments/{dataset}_distillation/{experiment_folder}/patient_{patient_id}/logs"
         
         return config, experiment_id, log_dir
 

@@ -22,10 +22,11 @@ from utils.path_utils import get_project_root
 class FlexibleExperimentRunner:
     """Run experiments with flexible configuration control."""
     
-    def __init__(self, base_dir=None, output_dir=None):
+    def __init__(self, base_dir=None, output_dir=None, pipeline_dir=None):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
+        self.pipeline_dir = pipeline_dir
         if output_dir:
             self.configs_dir = Path(output_dir) / "configs"
             self.results_dir = Path(output_dir) / "results"
@@ -293,14 +294,23 @@ class FlexibleExperimentRunner:
         experiments_spec = []
         for patient_id in patient_ids:
             for model_name in model_names:
-                experiments_spec.append({
+                experiment_spec = {
                     "dataset": dataset,
                     "data_type": data_type,
                     "patient_id": patient_id,
                     "model_name": model_name,
                     "train_epochs": epochs,
                     "learning_rate": learning_rate
-                })
+                }
+                
+                # Add custom log dir if pipeline directory is provided
+                if self.pipeline_dir:
+                    # Create organized log path for pipeline
+                    experiment_id = f"{model_name}_{dataset}_{data_type}_{patient_id}_{epochs}epochs"
+                    pipeline_log_dir = os.path.join(self.pipeline_dir, "phase_2_student", "results", "logs", experiment_id)
+                    experiment_spec["custom_log_dir"] = pipeline_log_dir
+                
+                experiments_spec.append(experiment_spec)
         
         # Create batch configurations
         batch_name = f"generated_{dataset}_{data_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -358,6 +368,8 @@ class FlexibleExperimentRunner:
                 print(f"  - {result.stem}: {successful}/{total} successful")
 
 
+
+
 def main():
     parser = argparse.ArgumentParser(description="Flexible Experiment Runner for Time-LLM")
     
@@ -379,6 +391,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Generate configs but don't run")
     parser.add_argument("--parallel", action="store_true", help="Run experiments in parallel (future)")
     parser.add_argument("--output-dir", help="Output directory for experiments")
+    parser.add_argument("--pipeline-dir", help="Pipeline directory for organized output")
     
     # Information
     parser.add_argument("--list-configs", action="store_true", help="List available configurations")
@@ -386,7 +399,7 @@ def main():
     
     args = parser.parse_args()
     
-    runner = FlexibleExperimentRunner(output_dir=args.output_dir)
+    runner = FlexibleExperimentRunner(output_dir=args.output_dir, pipeline_dir=args.pipeline_dir)
     
     if args.list_configs:
         runner.list_available_configs()

@@ -128,8 +128,8 @@ if [ -n "$DRY_RUN" ]; then
     echo ""
     echo "Commands that would be executed:"
     echo "  python distillation/scripts/train_teachers.py --model $TEACHER --dataset $DATASET --epochs $TEACHER_EPOCHS --output-dir \"$PHASE1_DIR\" --config-dir \"$CONFIGS_DIR\""
-    echo "  python distillation/scripts/flexible_experiment_runner.py --dataset ohiot1dm --data-type $DATA_TYPE --patients $DATASET --models $STUDENT --epochs $STUDENT_EPOCHS --lr $LR --output-dir \"$PHASE2_DIR\""
-    echo "  python distillation/scripts/distill_students.py --teacher $TEACHER --student $STUDENT --dataset $DATASET --distill-epochs $DISTILL_EPOCHS --teacher-checkpoint-dir \"$PHASE1_DIR\" --student-config-dir \"$PHASE2_DIR\" --output-dir \"$PHASE3_DIR\" --config-output-dir \"$CONFIGS_DIR\""
+    echo "  python distillation/scripts/flexible_experiment_runner.py --dataset ohiot1dm --data-type $DATA_TYPE --patients $DATASET --models $STUDENT --epochs $STUDENT_EPOCHS --lr $LR --output-dir \"$PHASE2_DIR\" --pipeline-dir \"$PIPELINE_DIR\""
+    echo "  python distillation/scripts/distill_students.py --teacher $TEACHER --student $STUDENT --dataset $DATASET --distill-epochs $DISTILL_EPOCHS --teacher-checkpoint-dir \"$PHASE1_DIR\" --student-config-dir \"$PHASE2_DIR\" --output-dir \"$PHASE3_DIR\" --config-output-dir \"$CONFIGS_DIR\" --pipeline-dir \"$PIPELINE_DIR\""
     exit 0
 fi
 
@@ -159,7 +159,8 @@ python distillation/scripts/flexible_experiment_runner.py \
     --models $STUDENT \
     --epochs $STUDENT_EPOCHS \
     --lr $LR \
-    --output-dir "$PHASE2_DIR"
+    --output-dir "$PHASE2_DIR" \
+    --pipeline-dir "$PIPELINE_DIR"
 if [ $? -ne 0 ]; then
     echo "❌ Student baseline training failed!"
     exit 1
@@ -181,7 +182,8 @@ python distillation/scripts/distill_students.py \
     --teacher-checkpoint-dir "$PHASE1_DIR" \
     --student-config-dir "$PHASE2_DIR" \
     --output-dir "$PHASE3_DIR" \
-    --config-output-dir "$CONFIGS_DIR"
+    --config-output-dir "$CONFIGS_DIR" \
+    --pipeline-dir "$PIPELINE_DIR"
 if [ $? -ne 0 ]; then
     echo "❌ Knowledge distillation failed!"
     exit 1

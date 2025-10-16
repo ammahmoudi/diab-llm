@@ -187,9 +187,8 @@ class DistillationDriver:
             'd_ff': settings.get('d_ff', 32)
         }
         
-        # Create distillation log directory in distillation_experiments
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.distill_log_dir = f"./distillation_experiments/distillation_runs/distill_{timestamp}"
+        # Use the provided log directory instead of creating a hardcoded one
+        self.distill_log_dir = log_dir
         os.makedirs(self.distill_log_dir, exist_ok=True)
         
     def distill_knowledge(self, train_loader, val_loader=None, epochs=1):

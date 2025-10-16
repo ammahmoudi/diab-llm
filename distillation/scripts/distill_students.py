@@ -22,7 +22,7 @@ class DistillationTrainer:
     
     def __init__(self, base_dir=None, distill_epochs=1, 
                  teacher_checkpoint_dir=None, student_config_dir=None, 
-                 output_dir=None, config_output_dir=None):
+                 output_dir=None, config_output_dir=None, pipeline_dir=None):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
@@ -46,6 +46,7 @@ class DistillationTrainer:
             self.teacher_results_dir = self.base_dir / "results" / "teacher_models"
             
         self.student_config_dir = Path(student_config_dir) if student_config_dir else None
+        self.pipeline_dir = pipeline_dir
         
         # Store epoch parameters
         self.distill_epochs = distill_epochs
@@ -243,8 +244,11 @@ class DistillationTrainer:
         config["llm_settings"]["teacher_checkpoint_path"] = str(teacher_checkpoint)
         config["llm_settings"]["teacher_model"] = teacher_model.upper()
         
-        # Generate log directory path using provided output directory
-        log_dir = str(self.results_dir / f"{teacher_model}_to_{student_model}_{dataset}" / "logs")
+        # Generate log directory path - use pipeline directory if available
+        if self.pipeline_dir:
+            log_dir = os.path.join(self.pipeline_dir, "phase_3_distillation", f"{teacher_model}_to_{student_model}_{dataset}", "logs")
+        else:
+            log_dir = str(self.results_dir / f"{teacher_model}_to_{student_model}_{dataset}" / "logs")
         config_content = f'run.log_dir = "{log_dir}"\n'
         
         # Convert data_settings to gin format
@@ -362,6 +366,8 @@ class DistillationTrainer:
         else:
             print("⚠️ Distilled model not found in expected locations")
 
+
+
     def create_distillation_summary(self, teacher_model, student_model, dataset, config_path, teacher_checkpoint):
         """Create a summary of the distillation run."""
         summary = {
@@ -471,6 +477,7 @@ def main():
     parser.add_argument("--student-config-dir", help="Directory containing student configs")
     parser.add_argument("--output-dir", help="Output directory for distillation results")
     parser.add_argument("--config-output-dir", help="Directory for saving distillation configs")
+    parser.add_argument("--pipeline-dir", help="Pipeline directory for organized output structure")
     # NOTE: teacher-epochs and student-epochs removed - this script only does distillation!
     # Use train_teachers.py and flexible_experiment_runner.py for training
     
@@ -481,7 +488,8 @@ def main():
         teacher_checkpoint_dir=args.teacher_checkpoint_dir,
         student_config_dir=args.student_config_dir,
         output_dir=args.output_dir,
-        config_output_dir=args.config_output_dir
+        config_output_dir=args.config_output_dir,
+        pipeline_dir=args.pipeline_dir
     )
     
     if args.list_models:
