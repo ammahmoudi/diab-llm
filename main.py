@@ -9,7 +9,7 @@ from absl import app, flags
 from llms.chronos import ChronosLLM
 from llms.student_llm import StudentLLM
 from llms.time_llm import TimeLLM
-from distillation.core.distillation_driver import DistillationDriver
+from distillation.core.distillation_wrapper import DistillationWrapper
 from utils.logger import setup_logging
 import logging
 import pickle
@@ -752,8 +752,8 @@ def run(
     elif llm_settings["method"] == "distillation":
         logging.info("Starting Knowledge Distillation...")
         
-        # Initialize distillation driver
-        distillation_driver = DistillationDriver(
+        # Initialize distillation wrapper with proper trainer
+        distillation_driver = DistillationWrapper(
             settings=llm_settings,
             data_settings=data_settings,
             log_dir=log_dir,
