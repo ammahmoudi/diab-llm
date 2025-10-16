@@ -82,10 +82,9 @@ PIPELINE_DIR="distillation_experiments/pipeline_runs/pipeline_${TIMESTAMP}"
 PHASE1_DIR="$PIPELINE_DIR/phase_1_teacher"
 PHASE2_DIR="$PIPELINE_DIR/phase_2_student"
 PHASE3_DIR="$PIPELINE_DIR/phase_3_distillation"
-CONFIGS_DIR="$PIPELINE_DIR/configs"
 
-# Create directories
-mkdir -p "$PHASE1_DIR" "$PHASE2_DIR" "$PHASE3_DIR" "$CONFIGS_DIR"
+# Create directories (no centralized configs dir)
+mkdir -p "$PHASE1_DIR" "$PHASE2_DIR" "$PHASE3_DIR"
 
 # Validate required parameters
 if [[ -z "$TEACHER" || -z "$STUDENT" || -z "$DATASET" ]]; then
@@ -121,15 +120,14 @@ if [ -n "$DRY_RUN" ]; then
     echo ""
     echo "Directory structure that would be created:"
     echo "  $PIPELINE_DIR/"
-    echo "    ├── phase_1_teacher/"
+    echo "    ├── phase_1_teacher/ (includes teacher config)"
     echo "    ├── phase_2_student/"
-    echo "    ├── phase_3_distillation/"
-    echo "    └── configs/"
+    echo "    └── phase_3_distillation/ (includes distillation config)"
     echo ""
     echo "Commands that would be executed:"
-    echo "  python distillation/scripts/train_teachers.py --model $TEACHER --dataset $DATASET --epochs $TEACHER_EPOCHS --output-dir \"$PHASE1_DIR\" --config-dir \"$CONFIGS_DIR\""
+    echo "  python distillation/scripts/train_teachers.py --model $TEACHER --dataset $DATASET --epochs $TEACHER_EPOCHS --output-dir \"$PHASE1_DIR\" --config-dir \"$PHASE1_DIR\""
     echo "  python distillation/scripts/flexible_experiment_runner.py --dataset ohiot1dm --data-type $DATA_TYPE --patients $DATASET --models $STUDENT --epochs $STUDENT_EPOCHS --lr $LR --output-dir \"$PHASE2_DIR\" --pipeline-dir \"$PIPELINE_DIR\""
-    echo "  python distillation/scripts/distill_students.py --teacher $TEACHER --student $STUDENT --dataset $DATASET --distill-epochs $DISTILL_EPOCHS --teacher-checkpoint-dir \"$PHASE1_DIR\" --student-config-dir \"$PHASE2_DIR\" --output-dir \"$PHASE3_DIR\" --config-output-dir \"$CONFIGS_DIR\" --pipeline-dir \"$PIPELINE_DIR\""
+    echo "  python distillation/scripts/distill_students.py --teacher $TEACHER --student $STUDENT --dataset $DATASET --distill-epochs $DISTILL_EPOCHS --teacher-checkpoint-dir \"$PHASE1_DIR\" --student-config-dir \"$PHASE2_DIR\" --output-dir \"$PHASE3_DIR\" --config-output-dir \"$PHASE3_DIR\" --pipeline-dir \"$PIPELINE_DIR\""
     exit 0
 fi
 
@@ -139,8 +137,8 @@ echo "🎓 Step 1/3: Training Teacher Model ($TEACHER)"
 echo "=========================================="
 echo "Training $TEACHER on patient $DATASET for $TEACHER_EPOCHS epochs..."
 echo "Output directory: $PHASE1_DIR"
-echo "Config directory: $CONFIGS_DIR"
-python distillation/scripts/train_teachers.py --model $TEACHER --dataset $DATASET --epochs $TEACHER_EPOCHS --output-dir "$PHASE1_DIR" --config-dir "$CONFIGS_DIR"
+echo "Config will be saved in: $PHASE1_DIR"
+python distillation/scripts/train_teachers.py --model $TEACHER --dataset $DATASET --epochs $TEACHER_EPOCHS --output-dir "$PHASE1_DIR" --config-dir "$PHASE1_DIR"
 if [ $? -ne 0 ]; then
     echo "❌ Teacher training failed!"
     exit 1
@@ -182,7 +180,7 @@ python distillation/scripts/distill_students.py \
     --teacher-checkpoint-dir "$PHASE1_DIR" \
     --student-config-dir "$PHASE2_DIR" \
     --output-dir "$PHASE3_DIR" \
-    --config-output-dir "$CONFIGS_DIR" \
+    --config-output-dir "$PHASE3_DIR" \
     --pipeline-dir "$PIPELINE_DIR"
 if [ $? -ne 0 ]; then
     echo "❌ Knowledge distillation failed!"
