@@ -26,8 +26,24 @@ python3 -m venv venv && source venv/bin/activate && pip install -r requirements.
 # 2. Process your data (if needed)
 python scripts/data_formatting/quick_process.py all
 
-# 3. Run experiments
+# 3A. Run basic experiments
 python ./scripts/run_configs_time_llm_inference.py
+
+# 3B. OR run knowledge distillation pipeline (recommended)
+bash distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
+  --teacher-epochs 1 --student-epochs 1 --distill-epochs 1 --dry-run
+```
+
+## 🧠 Knowledge Distillation
+
+For comprehensive knowledge distillation (training teacher models, student models, and distillation):
+
+**📖 See the complete guide: [DISTILLATION_COMPLETE_GUIDE.md](DISTILLATION_COMPLETE_GUIDE.md)**
+
+Quick command:
+```bash
+bash distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
+  --teacher-epochs 1 --student-epochs 1 --distill-epochs 1
 ```
 
 ## Setup Instructions
