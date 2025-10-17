@@ -54,16 +54,30 @@ class TeacherTrainer:
             "bert-large-uncased": "bert-large",
             "bert-large-cased": "bert-large",
             # DistilBERT variants
-            "distilbert": "distilbert",
+            "distilbert": "distilbert", 
             "distilbert-base-uncased": "distilbert",
             "distilbert-base-cased": "distilbert",
-            # TinyBERT variants
+            # TinyBERT and small model variants
             "tinybert": "tinybert",
+            "huawei-noah/TinyBERT_General_4L_312D": "tinybert",
             "prajjwal1/bert-tiny": "bert-tiny",
             "prajjwal1/bert-mini": "bert-mini",
             "prajjwal1/bert-small": "bert-small",
             "prajjwal1/bert-medium": "bert-medium",
-            # Other models
+            # Additional models from Time-LLM
+            "gpt2": "gpt2",
+            "openai-community/gpt2": "gpt2",
+            "llama": "llama",
+            "huggyllama/llama-7b": "llama",
+            "minilm": "minilm",
+            "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large": "minilm",
+            "mobilebert": "mobilebert",
+            "google/mobilebert-uncased": "mobilebert",
+            "albert": "albert",
+            "albert/albert-base-v2": "albert",
+            "opt-125m": "opt-125m",
+            "facebook/opt-125m": "opt-125m",
+            # Meta option
             "all": "all"
         }
         
@@ -84,7 +98,7 @@ class TeacherTrainer:
                 "llm_model": "DistilBERT", 
                 "llm_layers": 6,
                 "llm_dim": 768,
-                "model_comment": "time_llm_distilBERT_768_6_6_9_6"
+                "model_comment": "time_llm_DistilBERT_768_6_6_9_6"
             },
             "tinybert": {
                 "llm_model": "TinyBERT",
@@ -93,10 +107,10 @@ class TeacherTrainer:
                 "model_comment": "time_llm_TinyBERT_312_6_6_9_6"
             },
             "bert-tiny": {
-                "llm_model": "BERT",
+                "llm_model": "BERT-tiny",
                 "llm_layers": 2,
                 "llm_dim": 128,
-                "model_comment": "time_llm_BERT_128_6_6_9_6"
+                "model_comment": "time_llm_BERT-tiny_128_6_6_9_6"
             },
             "bert-mini": {
                 "llm_model": "BERT",
@@ -115,6 +129,42 @@ class TeacherTrainer:
                 "llm_layers": 8,
                 "llm_dim": 512,
                 "model_comment": "time_llm_BERT_512_6_6_9_6"
+            },
+            "gpt2": {
+                "llm_model": "GPT2",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "time_llm_GPT2_768_6_6_9_6"
+            },
+            "llama": {
+                "llm_model": "LLAMA",
+                "llm_layers": 32,
+                "llm_dim": 4096,
+                "model_comment": "time_llm_LLAMA_4096_6_6_9_6"
+            },
+            "minilm": {
+                "llm_model": "MiniLM",
+                "llm_layers": 6,
+                "llm_dim": 384,
+                "model_comment": "time_llm_MiniLM_384_6_6_9_6"
+            },
+            "mobilebert": {
+                "llm_model": "MobileBERT",
+                "llm_layers": 24,
+                "llm_dim": 512,
+                "model_comment": "time_llm_MobileBERT_512_6_6_9_6"
+            },
+            "albert": {
+                "llm_model": "ALBERT",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "time_llm_ALBERT_768_6_6_9_6"
+            },
+            "opt-125m": {
+                "llm_model": "OPT-125M",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "time_llm_OPT-125M_768_6_6_9_6"
             }
         }
         

@@ -48,12 +48,26 @@ class DistillationTrainer:
             "distilbert": "distilbert",
             "distilbert-base-uncased": "distilbert",
             "distilbert-base-cased": "distilbert",
-            # TinyBERT variants
+            # TinyBERT and small models (consistent with other scripts)
             "tinybert": "tinybert",
-            "prajjwal1/bert-tiny": "bert_tiny",
-            "prajjwal1/bert-mini": "bert_mini", 
-            "prajjwal1/bert-small": "bert_small",
-            "prajjwal1/bert-medium": "bert_medium",
+            "huawei-noah/TinyBERT_General_4L_312D": "tinybert",
+            "prajjwal1/bert-tiny": "bert-tiny",  # Fixed: use dash not underscore
+            "prajjwal1/bert-mini": "bert-mini",  # Fixed: use dash not underscore
+            "prajjwal1/bert-small": "bert-small",  # Fixed: use dash not underscore
+            "prajjwal1/bert-medium": "bert-medium",  # Fixed: use dash not underscore
+            # Additional models from Time-LLM
+            "gpt2": "gpt2",
+            "openai-community/gpt2": "gpt2",
+            "llama": "llama",
+            "huggyllama/llama-7b": "llama",
+            "minilm": "minilm",
+            "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large": "minilm",
+            "mobilebert": "mobilebert",
+            "google/mobilebert-uncased": "mobilebert",
+            "albert": "albert",
+            "albert/albert-base-v2": "albert",
+            "opt-125m": "opt-125m",
+            "facebook/opt-125m": "opt-125m",
         }
         
         # Set directory paths based on parameters
@@ -83,7 +97,7 @@ class DistillationTrainer:
         # Store epoch parameters
         self.distill_epochs = distill_epochs
         
-        # Define student model configurations
+        # Define student model configurations (extended to support all Time-LLM models)
         self.student_models = {
             "tinybert": {
                 "llm_model": "TinyBERT",
@@ -97,11 +111,65 @@ class DistillationTrainer:
                 "llm_dim": 768,
                 "model_comment": "student_DistilBERT_768_6_6_9_6"
             },
-            "bert_tiny": {
+            "bert-tiny": {
                 "llm_model": "BERT-tiny",
                 "llm_layers": 2,
                 "llm_dim": 128,
                 "model_comment": "student_BERT_tiny_128_6_6_9_6"
+            },
+            "bert-mini": {
+                "llm_model": "BERT",
+                "llm_layers": 4,
+                "llm_dim": 256,
+                "model_comment": "student_BERT_256_6_6_9_6"
+            },
+            "bert-small": {
+                "llm_model": "BERT",
+                "llm_layers": 4,
+                "llm_dim": 512,
+                "model_comment": "student_BERT_512_6_6_9_6"
+            },
+            "bert-medium": {
+                "llm_model": "BERT",
+                "llm_layers": 8,
+                "llm_dim": 512,
+                "model_comment": "student_BERT_512_6_6_9_6"
+            },
+            "bert": {
+                "llm_model": "BERT",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "student_BERT_768_6_6_9_6"
+            },
+            "gpt2": {
+                "llm_model": "GPT2",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "student_GPT2_768_6_6_9_6"
+            },
+            "minilm": {
+                "llm_model": "MiniLM",
+                "llm_layers": 6,
+                "llm_dim": 384,
+                "model_comment": "student_MiniLM_384_6_6_9_6"
+            },
+            "mobilebert": {
+                "llm_model": "MobileBERT",
+                "llm_layers": 24,
+                "llm_dim": 512,
+                "model_comment": "student_MobileBERT_512_6_6_9_6"
+            },
+            "albert": {
+                "llm_model": "ALBERT",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "student_ALBERT_768_6_6_9_6"
+            },
+            "opt-125m": {
+                "llm_model": "OPT-125M",
+                "llm_layers": 12,
+                "llm_dim": 768,
+                "model_comment": "student_OPT_125M_768_6_6_9_6"
             }
         }
         

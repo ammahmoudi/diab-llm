@@ -33,9 +33,36 @@ def parse_args():
 def get_model_config(model_name):
     """Get model configuration based on model name"""
     model_configs = {
+        # Large teacher models
         "bert": {"llm_model": "BERT", "llm_dim": 768},
+        "bert-large": {"llm_model": "BERT", "llm_dim": 1024},
         "gpt2": {"llm_model": "GPT2", "llm_dim": 768},
         "llama": {"llm_model": "LLAMA", "llm_dim": 4096},
+        "distilbert": {"llm_model": "DistilBERT", "llm_dim": 768},
+        # Small student models
+        "tinybert": {"llm_model": "TinyBERT", "llm_dim": 312},
+        "bert-tiny": {"llm_model": "BERT-tiny", "llm_dim": 128},
+        "bert-mini": {"llm_model": "BERT", "llm_dim": 256},
+        "bert-small": {"llm_model": "BERT", "llm_dim": 512},
+        "bert-medium": {"llm_model": "BERT", "llm_dim": 512},
+        "minilm": {"llm_model": "MiniLM", "llm_dim": 384},
+        "mobilebert": {"llm_model": "MobileBERT", "llm_dim": 512},
+        "albert": {"llm_model": "ALBERT", "llm_dim": 768},
+        "opt-125m": {"llm_model": "OPT-125M", "llm_dim": 768},
+        # HuggingFace model name mappings
+        "google-bert/bert-base-uncased": {"llm_model": "BERT", "llm_dim": 768},
+        "distilbert/distilbert-base-uncased": {"llm_model": "DistilBERT", "llm_dim": 768},
+        "prajjwal1/bert-tiny": {"llm_model": "BERT-tiny", "llm_dim": 128},
+        "prajjwal1/bert-mini": {"llm_model": "BERT", "llm_dim": 256},
+        "prajjwal1/bert-small": {"llm_model": "BERT", "llm_dim": 512},
+        "prajjwal1/bert-medium": {"llm_model": "BERT", "llm_dim": 512},
+        "huawei-noah/TinyBERT_General_4L_312D": {"llm_model": "TinyBERT", "llm_dim": 312},
+        "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large": {"llm_model": "MiniLM", "llm_dim": 384},
+        "google/mobilebert-uncased": {"llm_model": "MobileBERT", "llm_dim": 512},
+        "albert/albert-base-v2": {"llm_model": "ALBERT", "llm_dim": 768},
+        "openai-community/gpt2": {"llm_model": "GPT2", "llm_dim": 768},
+        "huggyllama/llama-7b": {"llm_model": "LLAMA", "llm_dim": 4096},
+        "facebook/opt-125m": {"llm_model": "OPT-125M", "llm_dim": 768},
     }
     return model_configs.get(model_name.lower(), {"llm_model": "BERT", "llm_dim": 768})
 

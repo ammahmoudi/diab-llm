@@ -54,13 +54,42 @@ from utilities.seeds import fixed_seeds
 
 
 def get_llm_config(llm_model):
-    """Get LLM model configuration."""
+    """Get LLM model configuration - updated to support all Time-LLM models."""
+    
+    # First map HuggingFace model names to our short names
+    hf_to_short_name = {
+        "bert-base-uncased": "BERT",
+        "distilbert-base-uncased": "DistilBERT", 
+        "huawei-noah/TinyBERT_General_4L_312D": "TinyBERT",
+        "prajjwal1/bert-tiny": "BERT-tiny",
+        "microsoft/MiniLM-L12-H384-A12": "MiniLM",
+        "google/mobilebert-uncased": "MobileBERT",
+        "albert-base-v2": "ALBERT",
+        "gpt2": "GPT2",
+        "facebook/opt-125m": "OPT-125M",
+        "meta-llama/Llama-2-7b-hf": "LLAMA",
+    }
+    
+    # Convert HuggingFace name to short name if needed
+    short_name = hf_to_short_name.get(llm_model, llm_model)
+    
     llm_configs = {
+        # Large teacher models
+        "BERT": {"llm_model": "BERT", "llm_dim": 768},
         "GPT2": {"llm_model": "GPT2", "llm_dim": 768},
         "LLAMA": {"llm_model": "LLAMA", "llm_dim": 4096},
-        "BERT": {"llm_model": "BERT", "llm_dim": 768},
+        "DistilBERT": {"llm_model": "DistilBERT", "llm_dim": 768},
+        # Small student models
+        "TinyBERT": {"llm_model": "TinyBERT", "llm_dim": 312},
+        "BERT-tiny": {"llm_model": "BERT-tiny", "llm_dim": 128},
+        "MiniLM": {"llm_model": "MiniLM", "llm_dim": 384},
+        "MobileBERT": {"llm_model": "MobileBERT", "llm_dim": 512},
+        "ALBERT": {"llm_model": "ALBERT", "llm_dim": 768},
+        "OPT-125M": {"llm_model": "OPT-125M", "llm_dim": 768},
     }
-    return llm_configs.get(llm_model, llm_configs["GPT2"])
+    # Ensure we always have a valid short name
+    final_short_name = short_name if short_name else "BERT"
+    return llm_configs.get(final_short_name, llm_configs["BERT"])
 
 
 def get_length_sets(mode):

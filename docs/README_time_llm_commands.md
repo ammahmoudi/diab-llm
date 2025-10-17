@@ -13,6 +13,49 @@ This guide provides all commands needed to generate Time-LLM training and infere
 
 ---
 
+## 🤖 Supported Models
+
+Time-LLM supports a comprehensive range of language models from large teacher models to small efficient student models:
+
+### Large Teacher Models
+- **BERT** (110M params): Best general performance, most tested
+- **GPT2** (117M params): Decoder-only architecture 
+- **LLAMA** (6.7B params): High-capacity model (requires significant GPU memory)
+- **DistilBERT** (66M params): Good balance of size and performance
+
+### Small Efficient Models  
+- **TinyBERT** (14M params): Purpose-built for knowledge distillation
+- **BERT-tiny** (4.4M params): Ultra-small, fastest inference
+- **MiniLM** (33M params): Good performance/size trade-off
+- **MobileBERT** (25M params): Mobile-optimized architecture
+- **ALBERT** (12-18M params): Compact with shared parameters
+- **OPT-125M** (125M params): Meta's efficient decoder model
+
+### Model Selection Guidelines
+
+**For Training/Research**:
+```bash
+--llm_models BERT,DistilBERT,TinyBERT  # Balanced performance
+```
+
+**For Efficiency Focus**:
+```bash
+--llm_models BERT-tiny,TinyBERT,MiniLM  # Fast inference
+```
+
+**For High Performance**:
+```bash
+--llm_models BERT,GPT2,DistilBERT  # Best accuracy
+```
+
+**For Knowledge Distillation**:
+```bash
+# Use in distillation pipeline - see docs/DISTILLATION_README.md
+bash distill_pipeline.sh --teacher BERT --student BERT-tiny --patients 570,584
+```
+
+---
+
 ## Parameter Reference
 
 Time-LLM config generator supports the following parameters:
@@ -22,7 +65,7 @@ Time-LLM config generator supports the following parameters:
 - `--data_scenario`: Data type for testing/inference (standardized, noisy, denoised, missing_periodic, missing_random)
 - `--train_data_scenario`: Data type used for training (for cross-scenario evaluation)
 - `--patients`: Comma-separated patient IDs (e.g., "570,584")
-- `--llm_models`: Comma-separated LLM models (GPT2, LLAMA, BERT)
+- `--llm_models`: Comma-separated LLM models (BERT, GPT2, LLAMA, DistilBERT, TinyBERT, BERT-tiny, MiniLM, MobileBERT, ALBERT, OPT-125M)
 - `--seeds`: Comma-separated random seeds (e.g., "831363" or "831363,809906,427368")
 - `--epochs`: Number of training epochs (default: 10 for train modes, 0 for inference)
 - `--output_dir`: Custom output directory (optional)
@@ -36,7 +79,7 @@ Time-LLM config generator supports the following parameters:
 ```bash
 # 1. Generate training configs for standardized data
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
-    --patients 570,584 --data_scenario standardized --llm_models GPT2 \
+    --patients 570,584 --data_scenario standardized --llm_models BERT \
     --seeds 831363 --epochs 10
 
 # 2. Run training experiments
@@ -45,7 +88,7 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets
 # 3. Generate cross-scenario inference configs (train standardized → test noisy)
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
     --data_scenario noisy --train_data_scenario standardized \
-    --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
+    --patients 570,584 --llm_models BERT --seeds 831363 --epochs 10
 
 # 4. Run inference experiments
 python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm
@@ -60,7 +103,7 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference 
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario standardized \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
+    --llm_models BERT,DistilBERT,TinyBERT --seeds 831363 --epochs 10
 ```
 
 ### Train on Other Scenarios
@@ -69,25 +112,25 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario missing_periodic \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
+    --llm_models BERT,TinyBERT --seeds 831363 --epochs 10
 
 # Missing Random  
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario missing_random \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
+    --llm_models BERT,TinyBERT --seeds 831363 --epochs 10
 
 # Noisy
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario noisy \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
+    --llm_models BERT,DistilBERT --seeds 831363 --epochs 10
 
 # Denoised
 python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
     --dataset ohiot1dm --data_scenario denoised \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
-    --llm_models GPT2,LLAMA --seeds 831363 --epochs 10
+    --llm_models BERT,MiniLM --seeds 831363 --epochs 10
 ```
 
 ---

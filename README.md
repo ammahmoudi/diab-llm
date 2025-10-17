@@ -34,6 +34,42 @@ bash distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
   --teacher-epochs 1 --student-epochs 1 --distill-epochs 1 --dry-run
 ```
 
+## 📊 Time-LLM Model Support Summary
+
+The Time-LLM implementation supports **10 different language models** across the entire ecosystem:
+
+### 🔬 **Core Models** (Production Ready)
+- **🧠 BERT** `(bert-base-uncased)` - 768 dimensions, proven performance
+- **⚡ DistilBERT** `(distilbert-base-uncased)` - 768 dimensions, 40% faster than BERT  
+- **🏃 TinyBERT** `(huawei-noah/TinyBERT_General_4L_312D)` - 312 dimensions, ultra-fast inference
+- **🎯 BERT-tiny** `(prajjwal1/bert-tiny)` - 128 dimensions, minimal resource usage
+
+### 🚀 **Advanced Models** (Extended Support)
+- **💡 MiniLM** `(microsoft/MiniLM-L12-H384-A12)` - 384 dimensions, efficient transformer
+- **📱 MobileBERT** `(google/mobilebert-uncased)` - 512 dimensions, mobile-optimized
+- **🎓 ALBERT** `(albert-base-v2)` - 768 dimensions, parameter sharing architecture  
+- **🔤 GPT2** `(gpt2)` - 768 dimensions, generative capabilities
+- **🌟 OPT-125M** `(facebook/opt-125m)` - 768 dimensions, Meta's optimized model
+- **🦙 LLAMA** `(Various sizes)` - Research/experimental support
+
+### 🔧 **Ecosystem Consistency**
+✅ **Main Training**: All 10 models supported in `main.py`  
+✅ **Distillation Pipeline**: Full model support in `distillation/scripts/`  
+✅ **Config Generation**: Unified generator supports all models  
+✅ **Run Scripts**: Automated execution for all model types  
+✅ **Documentation**: Comprehensive guides for each model
+
+### 📈 **Performance Characteristics**
+| Model | Size | Speed | Accuracy | Use Case |
+|-------|------|-------|----------|----------|
+| BERT-tiny | XS | ⚡⚡⚡⚡ | ⭐⭐⭐ | Quick prototyping |
+| TinyBERT | S | ⚡⚡⚡ | ⭐⭐⭐⭐ | Fast inference |
+| MiniLM | S-M | ⚡⚡⚡ | ⭐⭐⭐⭐ | Balanced performance |
+| DistilBERT | M | ⚡⚡ | ⭐⭐⭐⭐ | Production standard |
+| BERT | L | ⚡ | ⭐⭐⭐⭐⭐ | Benchmark reference |
+
+> **Note**: All models are consistently mapped across training, distillation, and inference pipelines. Use the unified config generator for seamless model switching.
+
 ## 🧠 Knowledge Distillation Pipeline
 
 **NEW**: Complete 3-phase knowledge distillation pipeline with multi-patient support and automatic CSV logging!
@@ -67,6 +103,26 @@ bash distill_pipeline.sh \
   --student-epochs 1 \
   --distill-epochs 1
 ```
+
+### 🤖 Supported Models
+
+The project supports **10 different language models** ranging from large high-performance teacher models to small efficient student models:
+
+**Large Teacher Models**:
+- 🎯 **BERT** (110M) - Best general performance  
+- 🚀 **GPT2** (117M) - Decoder-only architecture
+- 🔥 **LLAMA** (6.7B) - High-capacity model
+- ⚡ **DistilBERT** (66M) - Balanced size/performance
+
+**Small Efficient Models**:
+- 💎 **TinyBERT** (14M) - Purpose-built for distillation
+- ⚡ **BERT-tiny** (4.4M) - Ultra-fast inference
+- 🏃 **MiniLM** (33M) - Performance/size optimized
+- 📱 **MobileBERT** (25M) - Mobile-optimized
+- 🎯 **ALBERT** (12-18M) - Parameter sharing efficient
+- 🚀 **OPT-125M** (125M) - Meta's efficient decoder
+
+**📋 Full Model Details**: [docs/SUPPORTED_MODELS.md](docs/SUPPORTED_MODELS.md)
 
 ### Features
 - ✅ **Multi-Patient Support**: Process multiple patients with comma-separated IDs
