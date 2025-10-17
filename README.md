@@ -38,7 +38,7 @@ bash distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
 
 **NEW**: Complete 3-phase knowledge distillation pipeline with multi-patient support and automatic CSV logging!
 
-**📖 Full Documentation: [DISTILLATION_README.md](DISTILLATION_README.md)**
+**📖 Full Documentation: [docs/DISTILLATION_README.md](docs/DISTILLATION_README.md)**
 
 ### Quick Start Examples
 

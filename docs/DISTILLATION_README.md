@@ -177,6 +177,23 @@ This approach ensures:
 - ✅ **Resource Management**: Memory is freed between patients
 - ✅ **Easy Analysis**: Individual patient results are clearly separated
 
+## 📊 Available Datasets
+
+### OhioT1DM (Recommended for Research)
+- **Patients**: 540, 559, 563, 570, 575, 588, 591, 596
+- **Use Cases**: Research experiments, production training
+- **Characteristics**: Larger datasets, longer training times, more robust results
+
+### D1NAMO (Good for Testing)
+- **Patients**: 001, 002, 003, 004, 005, 006, 007
+- **Use Cases**: Quick testing, development, proof of concept
+- **Characteristics**: Smaller datasets, faster training, good for validation
+
+### Data Types
+- `raw_standardized`: Standard preprocessed data (recommended for most use cases)
+- `noisy_standardized`: Data with added noise for robustness testing
+- `missing_data_*`: Data with simulated missing values for imputation research
+
 ## 🎛️ Advanced Usage
 
 ### Custom Hyperparameters
@@ -221,6 +238,50 @@ bash distill_pipeline.sh \
   --teacher-epochs 2 \
   --student-epochs 2 \
   --distill-epochs 3
+```
+
+### Development vs Production Workflows
+
+#### Development Workflow
+```bash
+# 1. Start with small dataset and single epoch
+bash distill_pipeline.sh \
+  --teacher bert-base-uncased \
+  --student prajjwal1/bert-tiny \
+  --patients 001 \
+  --dataset d1namo \
+  --seed 42 \
+  --teacher-epochs 1 \
+  --student-epochs 1 \
+  --distill-epochs 1 \
+  --dry-run
+
+# 2. Test with real training
+bash distill_pipeline.sh \
+  --teacher bert-base-uncased \
+  --student prajjwal1/bert-tiny \
+  --patients 001 \
+  --dataset d1namo \
+  --seed 42 \
+  --teacher-epochs 1 \
+  --student-epochs 1 \
+  --distill-epochs 1
+```
+
+#### Production Workflow
+```bash
+# High-quality training with more epochs and multiple patients
+bash distill_pipeline.sh \
+  --teacher bert-base-uncased \
+  --student prajjwal1/bert-tiny \
+  --patients 570,575,588,591 \
+  --dataset ohiot1dm \
+  --seed 42 \
+  --teacher-epochs 10 \
+  --student-epochs 8 \
+  --distill-epochs 5 \
+  --lr 0.0001 \
+  --batch-size 32
 ```
 
 ## 🐛 Troubleshooting
@@ -339,10 +400,37 @@ After successful knowledge distillation:
 
 ---
 
+## 🎓 Getting Started Checklist
+
+Before running your first distillation experiment:
+
+- [ ] **Environment Setup**
+  - [ ] Clone repository: `git clone --recursive https://github.com/PeterDomanski/LLM-TIME.git`
+  - [ ] Create virtual environment: `python3 -m venv venv`
+  - [ ] Activate environment: `source venv/bin/activate`
+  - [ ] Install dependencies: `pip install -r requirements.txt`
+
+- [ ] **Initial Testing**
+  - [ ] Test pipeline setup: `bash distill_pipeline.sh --help`
+  - [ ] Run dry run: `bash distill_pipeline.sh ... --dry-run`
+  - [ ] Check GPU availability: `python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"`
+
+- [ ] **First Experiment**
+  - [ ] Start with small dataset (D1NAMO patient 001)
+  - [ ] Use 1 epoch for each phase
+  - [ ] Verify results in `distillation_experiments/`
+  - [ ] Check CSV logging works correctly
+
+- [ ] **Scale Up**
+  - [ ] Move to OhioT1DM dataset for production experiments
+  - [ ] Increase epochs for better performance
+  - [ ] Test multi-patient execution
+  - [ ] Analyze performance improvements in CSV results
+
 For more details on the underlying models and training procedures, see:
-- [Time-LLM Documentation](docs/README_time_llm_commands.md)
-- [Main Project README](README.md)
-- [Efficiency Benchmarking Guide](EFFICIENCY_BENCHMARKING_GUIDE.md)
+- [Time-LLM Documentation](README_timellm_commands.md)
+- [Main Project README](../README.md)
+- [Chronos Model Documentation](README_chronos_commands.md)
 
 ## 🚀 Quick Start
 
