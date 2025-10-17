@@ -76,6 +76,28 @@ The Time-LLM implementation supports **10 different language models** across the
 
 **📖 Full Documentation: [docs/DISTILLATION_README.md](docs/DISTILLATION_README.md)**
 
+### 🔬 **NEW: Distillation Testing Framework**
+
+Automatically find the best teacher-student pairs for your use case:
+
+```bash
+# Quick test (3 pairs, ~30 minutes)
+./test_distillation_pairs.sh quick
+
+# Strategic test (8 pairs, ~2 hours) - RECOMMENDED
+./test_distillation_pairs.sh balanced
+
+# Test single best pair (~20 minutes)
+./test_distillation_pairs.sh best
+
+# Test ultra-tiny models (~45 minutes)
+./test_distillation_pairs.sh tiny
+```
+
+**📊 Automatic Analysis**: Results include performance comparison, rankings, and specific recommendations for your use case.
+
+**📖 Detailed Guide: [docs/DISTILLATION_MODEL_PAIRS.md](docs/DISTILLATION_MODEL_PAIRS.md)**
+
 ### Quick Start Examples
 
 **Single Patient**:
