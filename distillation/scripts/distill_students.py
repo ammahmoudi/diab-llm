@@ -25,7 +25,7 @@ class DistillationTrainer:
                  teacher_checkpoint_dir=None, student_config_dir=None, 
                  output_dir=None, config_output_dir=None, pipeline_dir=None,
                  dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32,
-                 alpha=0.5, beta=0.5, kl_weight=0.1, temperature=3.0):
+                 alpha=0.5, beta=0.5):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
@@ -33,8 +33,6 @@ class DistillationTrainer:
         self.batch_size = batch_size
         self.alpha = alpha
         self.beta = beta
-        self.kl_weight = kl_weight
-        self.temperature = temperature
         
         # Model name mappings from HuggingFace names to internal config names
         self.model_name_mapping = {
@@ -177,8 +175,6 @@ class DistillationTrainer:
         self.distillation_params = {
             "alpha": self.alpha,        # Weight for ground truth loss
             "beta": self.beta,         # Weight for teacher output loss  
-            "kl_weight": self.kl_weight,    # Weight for KL divergence loss
-            "temperature": self.temperature,   # Temperature for softmax
             "train_epochs": self.distill_epochs,   # Use provided distillation epochs
             "learning_rate": self.lr  # Use provided learning rate
         }
@@ -682,8 +678,6 @@ def main():
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
     parser.add_argument("--alpha", type=float, default=0.5, help="Weight for ground truth loss")
     parser.add_argument("--beta", type=float, default=0.5, help="Weight for teacher output loss")
-    parser.add_argument("--kl-weight", type=float, default=0.1, help="Weight for KL divergence loss")
-    parser.add_argument("--temperature", type=float, default=3.0, help="Temperature for knowledge distillation softmax")
     parser.add_argument("--all", action="store_true", help="Run all distillation combinations")
     parser.add_argument("--dry-run", action="store_true", help="Generate configs but don't train")
     parser.add_argument("--list-models", action="store_true", help="List available models")
@@ -711,9 +705,7 @@ def main():
         lr=args.lr,
         batch_size=args.batch_size,
         alpha=args.alpha,
-        beta=args.beta,
-        kl_weight=args.kl_weight,
-        temperature=args.temperature
+        beta=args.beta
     )
     
     if args.list_models:

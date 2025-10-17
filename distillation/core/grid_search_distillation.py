@@ -15,8 +15,6 @@ def run_distillation_experiment(
     accelerator,
     alpha,
     beta,
-    kl_weight,
-    temperature,
     train_epochs,
     output_dir,
     llm_settings
@@ -50,8 +48,6 @@ def run_distillation_experiment(
         early_stopping=early_stopping,
         alpha=alpha,
         beta=beta,
-        kl_weight=kl_weight,
-        temperature=temperature,
         train_epochs=train_epochs,
     )
 
@@ -59,7 +55,7 @@ def run_distillation_experiment(
 
     # Save loss history for analysis
     os.makedirs(output_dir, exist_ok=True)
-    log_path = os.path.join(output_dir, f"loss_alpha{alpha}_beta{beta}_kl{kl_weight}_temp{temperature}.txt")
+    log_path = os.path.join(output_dir, f"loss_alpha{alpha}_beta{beta}.txt")
     with open(log_path, "w") as f:
         for epoch, loss in enumerate(loss_history):
             f.write(f"Epoch {epoch+1}, Loss: {loss:.7f}\n")
@@ -71,13 +67,11 @@ def grid_search_distillation(
     device,
     alphas,
     betas,
-    kl_weights,
-    temperatures,
     train_epochs,
     output_dir,
     llm_settings
 ):
-    grid = list(itertools.product(alphas, betas, kl_weights, temperatures))
+    grid = list(itertools.product(alphas, betas))
 
     print(f"Running grid search with {len(grid)} combinations...")
 
@@ -88,8 +82,8 @@ def grid_search_distillation(
 
     teacher.to(accelerator.device)
 
-    for alpha, beta, kl_weight, temperature in grid:
-        print(f"\n--- alpha={alpha}, beta={beta}, kl_weight={kl_weight}, temp={temperature} ---")
+    for alpha, beta in grid:
+        print(f"\n--- alpha={alpha}, beta={beta} ---")
 
         run_distillation_experiment(
             teacher,
@@ -99,8 +93,6 @@ def grid_search_distillation(
             accelerator,
             alpha,
             beta,
-            kl_weight,
-            temperature,
             train_epochs,
             output_dir,
             llm_settings
@@ -188,8 +180,7 @@ if __name__ == "__main__":
         # Grid params
         alphas = [ 0.5]
         betas = [0.7]
-        kl_weights = [ 0.1, 0.2]
-        temperatures = [2.0, 3.0, 5.0]
+        # No KL weights or temperatures needed for simplified distillation
 
         grid_search_distillation(
             teacher,
@@ -198,8 +189,6 @@ if __name__ == "__main__":
             device="cuda",
             alphas=alphas,
             betas=betas,
-            kl_weights=kl_weights,
-            temperatures=temperatures,
             train_epochs=20,
             # train_epochs=llm_settings["train_epochs"],
             output_dir=os.path.join(log_dir, "distillation_grid_logs"),

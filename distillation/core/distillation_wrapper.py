@@ -21,13 +21,11 @@ class DistillationWrapper:
         # Distillation parameters
         self.alpha = settings.get('distillation_alpha', 0.5)
         self.beta = settings.get('distillation_beta', 0.5) 
-        self.kl_weight = settings.get('distillation_kl_weight', 0.1)
-        self.temperature = settings.get('distillation_temperature', 3.0)
         
         logging.info(f"🎓 Initializing Distillation Wrapper")
         logging.info(f"  📍 Log Directory: {log_dir}")
         logging.info(f"  👨‍🏫 Teacher Checkpoint: {teacher_checkpoint_path}")
-        logging.info(f"  🔥 Distillation Parameters: α={self.alpha}, β={self.beta}, KL={self.kl_weight}, T={self.temperature}")
+        logging.info(f"  🔥 Distillation Parameters: α={self.alpha}, β={self.beta}")
         
     def _create_model_config(self, is_student=False):
         """Create model configuration based on settings"""
@@ -136,8 +134,6 @@ class DistillationWrapper:
             device=self.device,
             alpha=self.alpha,
             beta=self.beta,
-            kl_weight=self.kl_weight,
-            temperature=self.temperature,
             train_epochs=epochs,
             logger=logging.getLogger()
         )

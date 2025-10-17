@@ -73,21 +73,13 @@ while [[ $# -gt 0 ]]; do
             BETA="$2"
             shift 2
             ;;
-        --kl-weight)
-            KL_WEIGHT="$2"
-            shift 2
-            ;;
-        --temperature)
-            TEMPERATURE="$2"
-            shift 2
-            ;;
         --dry-run)
             DRY_RUN="--dry-run"
             shift
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--kl-weight <weight>] [--temperature <temp>] [--dry-run]"
+            echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--dry-run]"
             exit 1
             ;;
     esac
@@ -109,8 +101,6 @@ LR=${LR:-0.001}
 BATCH_SIZE=${BATCH_SIZE:-32}
 ALPHA=${ALPHA:-0.5}
 BETA=${BETA:-0.5}
-KL_WEIGHT=${KL_WEIGHT:-0.1}
-TEMPERATURE=${TEMPERATURE:-3.0}
 DATA_TYPE="raw_standardized"
 
 # Create organized pipeline directory structure
@@ -123,7 +113,7 @@ PHASE3_DIR="$PIPELINE_DIR/phase_3_distillation"
 # Validate required parameters
 if [[ -z "$TEACHER" || -z "$STUDENT" || -z "$PATIENTS" ]]; then
     echo "❌ Missing required parameters!"
-    echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--kl-weight <weight>] [--temperature <temp>] [--dry-run]"
+    echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--dry-run]"
     echo ""
     echo "Examples:"
     echo "  $0 --teacher bert-base-uncased --student prajjwal1/bert-tiny --patients 570 --dataset ohiot1dm --seed 42 --teacher-epochs 1 --student-epochs 1 --distill-epochs 1"
@@ -146,8 +136,6 @@ echo "  Learning Rate: $LR"
 echo "  Batch Size: $BATCH_SIZE"
 echo "  Distillation Alpha: $ALPHA"
 echo "  Distillation Beta: $BETA"
-echo "  KL Weight: $KL_WEIGHT"
-echo "  Temperature: $TEMPERATURE"
 echo "  Pipeline Directory: $PIPELINE_DIR"
 
 # Create main pipeline directory
@@ -235,8 +223,6 @@ for CURRENT_PATIENT in "${PATIENT_ARRAY[@]}"; do
         --batch-size $BATCH_SIZE \
         --alpha $ALPHA \
         --beta $BETA \
-        --kl-weight $KL_WEIGHT \
-        --temperature $TEMPERATURE \
         --distill-epochs $DISTILL_EPOCHS \
         --teacher-checkpoint-dir "$PHASE1_DIR" \
         --student-config-dir "$PHASE2_DIR" \
@@ -270,8 +256,6 @@ for CURRENT_PATIENT in "${PATIENT_ARRAY[@]}"; do
         --distill-epochs "$DISTILL_EPOCHS" \
         --alpha "$ALPHA" \
         --beta "$BETA" \
-        --kl-weight "$KL_WEIGHT" \
-        --temperature "$TEMPERATURE" \
         --teacher-metrics "$PHASE1_DIR/teacher_training_summary.json" \
         --student-metrics "$PHASE2_DIR/student_baseline_summary.json" \
         --distillation-metrics "$PHASE3_DIR/distillation_summary.json" \

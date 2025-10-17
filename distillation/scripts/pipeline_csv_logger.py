@@ -56,8 +56,6 @@ class PipelineCSVLogger:
             # Distillation hyperparameters
             'alpha',
             'beta',
-            'kl_weight',
-            'temperature',
             
             # Phase 1: Teacher metrics
             'teacher_rmse',
@@ -219,8 +217,6 @@ class PipelineCSVLogger:
             # Distillation hyperparameters
             'alpha': run_params.get('alpha', ''),
             'beta': run_params.get('beta', ''),
-            'kl_weight': run_params.get('kl_weight', ''),
-            'temperature': run_params.get('temperature', ''),
             
             # Phase 1: Teacher metrics
             'teacher_rmse': teacher_metrics.get('rmse', ''),
@@ -326,8 +322,6 @@ def main():
     parser.add_argument("--distill-epochs", help="Distillation epochs")
     parser.add_argument("--alpha", help="Distillation alpha")
     parser.add_argument("--beta", help="Distillation beta")
-    parser.add_argument("--kl-weight", help="KL divergence weight")
-    parser.add_argument("--temperature", help="Distillation temperature")
     
     # Actions
     parser.add_argument("--summary", action="store_true", help="Show recent runs summary")
@@ -354,8 +348,6 @@ def main():
         'distill_epochs': args.distill_epochs,
         'alpha': args.alpha,
         'beta': args.beta,
-        'kl_weight': args.kl_weight,
-        'temperature': args.temperature,
     }
     
     # Log the pipeline run
