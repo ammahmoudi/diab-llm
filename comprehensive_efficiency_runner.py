@@ -169,9 +169,8 @@ class ComprehensiveEfficiencyRunner:
                     f"--epochs {mode_config['epochs']}"
                 ]
                 
-                # Add window config if specified
-                if "window_config" in config:
-                    cmd_parts.append(f"--window_config {config['window_config']}")
+                # Note: Time-LLM config generator doesn't support --window_config parameter
+                # The window configuration is handled internally by the Time-LLM models
                 
                 cmd = " ".join(cmd_parts)
                 
