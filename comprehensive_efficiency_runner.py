@@ -314,103 +314,7 @@ class ComprehensiveEfficiencyRunner:
         print(f"📝 Efficiency summary saved to: {summary_file}")
         return all_reports
     
-    def run_efficiency_tests(self, model_types=None):
-        """Run comprehensive efficiency tests for specified model types."""
-        if model_types is None:
-            model_types = ["time_llm", "chronos", "distillation"]
-        
-        print(f"\n🚀 STARTING COMPREHENSIVE EFFICIENCY TESTING")
-        print(f"{'='*80}")
-        print(f"📋 Model types to test: {', '.join(model_types)}")
-        print(f"⏰ Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        all_results = {}
-        
-        # Phase 1: Generate configurations
-        if "time_llm" in model_types:
-            all_results["time_llm_config"] = self.generate_time_llm_configs()
-        
-        if "chronos" in model_types:
-            all_results["chronos_config"] = self.generate_chronos_configs()
-        
-        # Phase 2: Run experiments (if not dry run)
-        if not self.dry_run:
-            if "time_llm" in model_types:
-                all_results["time_llm_experiments"] = self.run_generated_experiments("time_llm")
-            
-            if "chronos" in model_types:
-                all_results["chronos_experiments"] = self.run_generated_experiments("chronos")
-        else:
-            # In dry run mode, still show what experiments would be executed
-            if "time_llm" in model_types:
-                print(f"\n🏃 [DRY RUN] TIME-LLM EXPERIMENTS WOULD BE EXECUTED")
-                print(f"{'='*80}")
-                cmd = "python scripts/time_llm/run_all_time_llm_experiments.py --modes train,inference --datasets ohiot1dm --models BERT,GPT2,LLAMA --log_level INFO"
-                efficiency_cmd = f"python3 efficiency/real_time_profiler.py --output_file time_llm_efficiency_TIMESTAMP.json -- {cmd}"
-                print(f"🚀 Command: {efficiency_cmd}")
-                
-            if "chronos" in model_types:
-                print(f"\n🏃 [DRY RUN] CHRONOS EXPERIMENTS WOULD BE EXECUTED")
-                print(f"{'='*80}")
-                cmd = "python scripts/chronos/run_all_chronos_experiments.py --modes training,inference --datasets ohiot1dm --log_level INFO"
-                efficiency_cmd = f"python3 efficiency/real_time_profiler.py --output_file chronos_efficiency_TIMESTAMP.json -- {cmd}"
-                print(f"⏰ Command: {efficiency_cmd}")
-        
-        # Phase 3: Run distillation (separate pipeline)
-        if "distillation" in model_types:
-            if not self.dry_run:
-                all_results["distillation"] = self.run_distillation_efficiency()
-            else:
-                print(f"\n🏃 [DRY RUN] DISTILLATION EXPERIMENTS WOULD BE EXECUTED")
-                print(f"{'='*80}")
-                cmd = "./distill_pipeline.sh --dataset ohiot1dm --data_scenario standardized --patients 570 --epochs 10 --seed 831363"
-                efficiency_cmd = f"python3 efficiency/real_time_profiler.py --output_file distillation_efficiency_TIMESTAMP.json -- {cmd}"
-                print(f"🧠 Command: {efficiency_cmd}")
-        
-        # Phase 4: Collect reports
-        if not self.dry_run:
-            efficiency_reports = self.collect_efficiency_reports()
-            all_results["reports_collected"] = len(efficiency_reports)
-        
-        # Summary
-        self.print_final_summary(all_results)
-        
-        return all_results
-    
-    def print_final_summary(self, results):
-        """Print a comprehensive summary of all efficiency tests."""
-        print(f"\n🎯 COMPREHENSIVE EFFICIENCY TESTING SUMMARY")
-        print(f"{'='*80}")
-        print(f"⏰ Completion time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        total_success = 0
-        total_attempted = 0
-        
-        for phase, phase_results in results.items():
-            if isinstance(phase_results, list):
-                print(f"\n📊 {phase.upper().replace('_', ' ')}:")
-                for exp_name, success in phase_results:
-                    status = "✅" if success else "❌"
-                    print(f"  {status} {exp_name}")
-                    total_attempted += 1
-                    if success:
-                        total_success += 1
-            elif isinstance(phase_results, int):
-                print(f"\n📋 {phase.upper().replace('_', ' ')}: {phase_results}")
-        
-        if total_attempted > 0:
-            success_rate = (total_success / total_attempted) * 100
-            print(f"\n🎉 OVERALL SUCCESS RATE: {total_success}/{total_attempted} ({success_rate:.1f}%)")
-        
-        print(f"\n💡 NEXT STEPS:")
-        print(f"  1. 📊 Use the experiment_efficiency_analysis.ipynb notebook to analyze results")
-        print(f"  2. 📁 Check the experiments/ folder for efficiency reports")
-        print(f"  3. 🔍 Look for *_performance_report_*.json files with detailed metrics")
-        print(f"  4. 📈 Compare memory usage, latency, and power consumption across models")
-        
-        if self.dry_run:
-            print(f"\n🔍 This was a DRY RUN - no actual experiments were executed")
-            print(f"💡 Remove --dry-run flag to run the actual efficiency tests")
+
     
     def find_focused_configs(self):
         """Find specific configs for focused efficiency testing."""
@@ -450,81 +354,7 @@ class ComprehensiveEfficiencyRunner:
         
         return configs
     
-    def generate_time_llm_configs(self):
-        """Generate Time-LLM configurations for efficiency testing."""
-        models = ["BERT", "GPT2", "LLAMA"]
-        windows = ["6_6", "6_9"]  # context_pred combinations
-        
-        for model in models:
-            for window in windows:
-                context, pred = window.split("_")
-                
-                # Training config
-                train_cmd = [
-                    "python3", "scripts/experiment_configs/time_llm_unified_config_generator.py",
-                    "--output_dir", "experiments",
-                    "--dataset", self.dataset,
-                    "--seed", self.test_seed,
-                    "--patient", self.test_patient,
-                    "--model", model,
-                    "--context_length", context,
-                    "--pred_length", pred,
-                    "--epochs", "10",
-                    "--mode", "train"
-                ]
-                
-                # Inference config
-                inference_cmd = [
-                    "python3", "scripts/experiment_configs/time_llm_unified_config_generator.py", 
-                    "--output_dir", "experiments",
-                    "--dataset", self.dataset,
-                    "--seed", self.test_seed,
-                    "--patient", self.test_patient,
-                    "--model", model,
-                    "--context_length", context,
-                    "--pred_length", pred,
-                    "--epochs", "0",
-                    "--mode", "inference"
-                ]
-                
-                if self.dry_run:
-                    print(f"  📝 Would generate: Time-LLM {model} {context}→{pred}")
-                else:
-                    subprocess.run(train_cmd, capture_output=True)
-                    subprocess.run(inference_cmd, capture_output=True)
-    
-    def generate_chronos_configs(self):
-        """Generate Chronos configurations for efficiency testing."""
-        models = ["amazon/chronos-t5-base", "amazon/chronos-t5-tiny"]
-        
-        for model in models:
-            # Training config
-            train_cmd = [
-                "python3", "scripts/experiment_configs/chronos_unified_config_generator.py",
-                "--output_dir", "experiments", 
-                "--dataset", self.dataset,
-                "--seed", self.test_seed,
-                "--patient", self.test_patient,
-                "--model", model,
-                "--mode", "train"
-            ]
-            
-            # Inference config
-            inference_cmd = [
-                "python3", "scripts/experiment_configs/chronos_unified_config_generator.py",
-                "--output_dir", "experiments",
-                "--dataset", self.dataset, 
-                "--seed", self.test_seed,
-                "--patient", self.test_patient,
-                "--model", model,
-                "--mode", "inference"
-            ]
-            
-            if self.dry_run:
-                print(f"  📝 Would generate: Chronos {model.split('/')[-1]}")
-            else:
-                subprocess.run(train_cmd, capture_output=True)
-                subprocess.run(inference_cmd, capture_output=True)
+
     
     def run_single_experiment(self, config_path, experiment_type):
         """Run a single experiment with efficiency monitoring."""
@@ -581,24 +411,15 @@ class ComprehensiveEfficiencyRunner:
         configs = self.find_focused_configs()
         
         if not configs:
-            print("📝 No configs found - generating them now...")
-            
-            # Generate Time-LLM configs
-            print("� Generating Time-LLM configurations...")
-            self.generate_time_llm_configs()
-            
-            # Generate Chronos configs  
-            print("🔧 Generating Chronos configurations...")
-            self.generate_chronos_configs()
-            
-            # Try to find configs again
-            configs = self.find_focused_configs()
-            
-            if not configs:
-                print("❌ Failed to generate configs!")
-                return False
-            
-            print(f"✅ Generated {len(configs)} experiment configurations")
+            print("❌ No focused test configs found!")
+            print("💡 The focused configs should be generated automatically.")
+            print("💡 Make sure you have configs in the experiments/ directory:")
+            print("   - experiments/time_llm_training_ohiot1dm/")
+            print("   - experiments/time_llm_inference_ohiot1dm/") 
+            print("   - experiments/chronos_training_ohiot1dm/")
+            print("   - experiments/chronos_inference_ohiot1dm/")
+            print("💡 Run the config generators first if needed.")
+            return False
         
         print(f"\n📋 Found {len(configs)} focused test configs:")
         for config in configs:
@@ -660,11 +481,6 @@ Examples:
     runner = ComprehensiveEfficiencyRunner(dry_run=args.dry_run)
     success = runner.run_focused_experiments()
     return 0 if success else 1
-    results = runner.run_efficiency_tests(model_types=model_types)
-    
-    # Return success code based on results
-    if args.dry_run:
-        return 0
     
     # Check if any experiments failed
     failed_experiments = []
