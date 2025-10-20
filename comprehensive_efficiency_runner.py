@@ -355,73 +355,48 @@ class ComprehensiveEfficiencyRunner:
         return configs
     
     def generate_all_configs(self):
-        """Generate all focused experiment configurations using working scripts."""
-        print("🔧 Generating Time-LLM and Chronos configurations...")
+        """Generate all configs using the appropriate generators."""
+        print("🔧 Generating fresh configs...")
         
-        success = True
-        
-        # Generate Time-LLM configs using the working script
+        # Time-LLM config generation
+        venv_python = str(self.base_dir / "venv" / "bin" / "python")
         time_llm_cmd = [
-            "python3", "scripts/experiment_configs/time_llm_unified_config_generator.py",
-            "--mode", "both",  # Generate both training and inference
-            "--dataset", self.dataset,
-            "--data_scenario", self.data_scenario,
-            "--patients", self.test_patient,
-            "--llm_models", "BERT,GPT2,LLAMA",
-            "--seeds", self.test_seed,
-            "--epochs", "10",
-            "--window_config", "6_6,6_9"
+            venv_python, 
+            str(self.base_dir / "scripts" / "time_llm" / "config_generator_time_llm_unified.py"),
+            "--mode", "train_inference",
+            "--patients", "570,584",
+            "--llm_models", "BERT,GPT2,LLAMA", 
+            "--seeds", "42,123",
+            "--epochs", "1"  # Quick efficiency test
         ]
         
-        print("  📝 Generating Time-LLM configs...")
-        if self.dry_run:
-            print(f"    Would run: {' '.join(time_llm_cmd)}")
+        print(f"🤖 Running Time-LLM config generation...")
+        result = subprocess.run(time_llm_cmd, capture_output=True, text=True, cwd=self.base_dir)
+        if result.returncode != 0:
+            print(f"❌ Time-LLM config generation failed: {result.stderr}")
+            return False
         else:
-            try:
-                result = subprocess.run(time_llm_cmd, capture_output=True, text=True, timeout=60)
-                if result.returncode != 0:
-                    print(f"    ❌ Time-LLM config generation failed: {result.stderr}")
-                    success = False
-                else:
-                    print(f"    ✅ Time-LLM configs generated successfully")
-            except subprocess.TimeoutExpired:
-                print(f"    ⏰ Time-LLM config generation timed out")
-                success = False
-            except Exception as e:
-                print(f"    💥 Time-LLM config generation error: {str(e)}")
-                success = False
+            print("✅ Time-LLM configs generated successfully")
         
-        # Generate Chronos configs using the working script
+        # Chronos config generation  
         chronos_cmd = [
-            "python3", "scripts/experiment_configs/chronos_unified_config_generator.py",
-            "--mode", "both",  # Generate both training and inference
-            "--dataset", self.dataset,
-            "--data_scenario", self.data_scenario,
-            "--patients", self.test_patient,
-            "--chronos_models", "amazon/chronos-t5-base,amazon/chronos-t5-tiny",
-            "--seeds", self.test_seed,
-            "--window_config", "6_9"
+            venv_python,
+            str(self.base_dir / "scripts" / "chronos" / "config_generator_chronos.py"),
+            "--mode", "train",
+            "--patients", "570,584", 
+            "--models", "amazon/chronos-t5-base,amazon/chronos-t5-tiny",
+            "--seeds", "42,123"
         ]
         
-        print("  📝 Generating Chronos configs...")
-        if self.dry_run:
-            print(f"    Would run: {' '.join(chronos_cmd)}")
+        print(f"⏰ Running Chronos config generation...")
+        result = subprocess.run(chronos_cmd, capture_output=True, text=True, cwd=self.base_dir)
+        if result.returncode != 0:
+            print(f"❌ Chronos config generation failed: {result.stderr}")
+            return False
         else:
-            try:
-                result = subprocess.run(chronos_cmd, capture_output=True, text=True, timeout=60)
-                if result.returncode != 0:
-                    print(f"    ❌ Chronos config generation failed: {result.stderr}")
-                    success = False
-                else:
-                    print(f"    ✅ Chronos configs generated successfully")
-            except subprocess.TimeoutExpired:
-                print(f"    ⏰ Chronos config generation timed out")
-                success = False
-            except Exception as e:
-                print(f"    💥 Chronos config generation error: {str(e)}")
-                success = False
+            print("✅ Chronos configs generated successfully")
         
-        return success
+        return True
 
     def run_single_experiment(self, config_path, experiment_type):
         """Run a single experiment with efficiency monitoring."""
@@ -435,8 +410,9 @@ class ComprehensiveEfficiencyRunner:
             return True
         
         # Command to run the experiment directly (no efficiency wrapper)
+        venv_python = str(self.base_dir / "venv" / "bin" / "python")
         cmd = [
-            "python3", "main.py",
+            venv_python, "main.py",
             "--config_path", str(config_path),
             "--log_level", "INFO"
         ]
