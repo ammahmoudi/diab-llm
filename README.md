@@ -23,13 +23,16 @@ git submodule update --init --recursive
 # 1. Setup environment
 python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 
-# 2. Process your data (if needed)
+# 2. Install Chronos for advanced time series forecasting (optional but recommended)
+cd models/chronos && pip install --editable ".[training]" && cd ../..
+
+# 3. Process your data (if needed)
 python scripts/data_formatting/quick_process.py all
 
-# 3A. Run basic experiments
+# 4A. Run basic experiments
 python ./scripts/run_configs_time_llm_inference.py
 
-# 3B. OR run knowledge distillation pipeline (recommended)
+# 4B. OR run knowledge distillation pipeline (recommended)
 bash distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
   --teacher-epochs 1 --student-epochs 1 --distill-epochs 1 --dry-run
 ```
@@ -189,7 +192,47 @@ After activating the virtual environment, install the required dependencies list
 pip install -r requirements.txt
 ```
 
-### 4. System Dependencies (Required for Plotting)
+### 4. Install Chronos Time Series Forecasting (Training Mode)
+
+For advanced time series forecasting capabilities, install the Chronos model in training mode:
+
+```bash
+# Navigate to the chronos directory and install in editable mode with training dependencies
+cd models/chronos && pip install --editable ".[training]"
+```
+
+**What this provides:**
+- 🧠 **Chronos Models**: State-of-the-art time series forecasting with T5-based architectures
+- ⚡ **Chronos-Bolt**: Ultra-fast variants (250x faster, 20x more memory efficient)
+- 🎯 **Multiple Model Sizes**: From tiny (8M params) to large (710M params)
+- 🔧 **Training Capabilities**: Fine-tuning, pretraining, and research features
+- 📊 **Zero-shot Forecasting**: Pretrained models work out-of-the-box
+
+**Available Models:**
+| Model | Parameters | Speed | Use Case |
+|-------|------------|--------|----------|
+| chronos-t5-tiny | 8M | ⚡⚡⚡⚡ | Quick testing |
+| chronos-t5-small | 46M | ⚡⚡⚡ | Production ready |
+| chronos-t5-base | 200M | ⚡⚡ | High accuracy |
+| chronos-bolt-* | Various | ⚡⚡⚡⚡ | Ultra-fast inference |
+
+**Usage Example:**
+```python
+import torch
+from chronos import BaseChronosPipeline
+
+# Load model
+pipeline = BaseChronosPipeline.from_pretrained("amazon/chronos-t5-small")
+
+# Generate forecasts
+quantiles, mean = pipeline.predict_quantiles(
+    context=torch.tensor(your_time_series_data),
+    prediction_length=12,
+    quantile_levels=[0.1, 0.5, 0.9]
+)
+```
+
+### 5. System Dependencies (Required for Plotting)
 
 For plotting functionality with Kaleido/Chrome (required for result visualization), install these system packages:
 
@@ -208,11 +251,11 @@ plotly_get_chrome  # Optional: install Chrome manually
 
 **Note:** The system will automatically attempt to install Chrome dependencies when running experiments. If you encounter plotting errors, ensure the above system packages are installed.
 
-### 5. Path Configuration (Automatic)
+### 6. Path Configuration (Automatic)
 
 The project uses dynamic path resolution and works automatically from any installation location. No manual path configuration is needed. All scripts automatically detect the project root and configure paths accordingly.
 
-### 6. Process Your Data (Optional)
+### 7. Process Your Data (Optional)
 
 If you have raw data that needs processing:
 
