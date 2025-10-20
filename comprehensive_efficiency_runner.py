@@ -223,73 +223,88 @@ class ComprehensiveEfficiencyRunner:
         results = []
         config = self.models_config["distillation"]
         
-        for teacher, student in config["pairs"]:
-            cmd = (
-                f"bash {config['script']} "
-                f"--teacher {teacher} "
-                f"--student {student} "
-                f"--patients {self.test_patient} "
-                f"--dataset {self.dataset} "
-                f"--seed {self.test_seed} "
-                f"--teacher-epochs {config['teacher_epochs']} "
-                f"--student-epochs {config['student_epochs']} "
-                f"--distill-epochs {config['distill_epochs']}"
-            )
-            
-            pair_name = f"{teacher}_to_{student}".replace("/", "_").replace("-", "_")
-            description = f"Run distillation efficiency: {teacher} → {student}"
-            success = self.run_command(cmd, description)
-            results.append((f"distillation_{pair_name}", success))
-            
+        # Use the actual distillation pipeline script
+        cmd = [
+            "./distill_pipeline.sh",
+            "--dataset", self.dataset,
+            "--data_scenario", self.data_scenario,
+            "--patients", self.test_patient,
+            "--epochs", str(config["teacher_epochs"]),  # Use teacher epochs
+            "--seed", str(self.test_seed)
+        ]
+        
+        cmd_str = " ".join(cmd)
+        print(f"🧠 Distillation Command: {cmd_str}")
+        
+        # Wrap with efficiency monitoring
+        efficiency_cmd = [
+            "python", "efficiency/real_time_profiler.py",
+            "--output_file", f"distillation_efficiency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            "--"
+        ] + cmd
+        
+        efficiency_cmd_str = " ".join(efficiency_cmd)
+        description = f"Run distillation pipeline (BERT→TinyBERT) with efficiency monitoring"
+        success = self.run_command(efficiency_cmd_str, description)
+        results.append(("distillation_bert_to_tinybert", success))
+        
         return results
     
     def run_generated_experiments(self, experiment_type):
-        """Run the generated experiment configurations."""
+        """Run the generated experiment configurations using proper experiment runners."""
         print(f"\n🏃 RUNNING {experiment_type.upper()} EFFICIENCY EXPERIMENTS")
         print(f"{'='*80}")
         
         results = []
         
-        # Find experiment directories 
         if experiment_type == "time_llm":
-            patterns = [
-                f"experiments/time_llm_train_{self.dataset}_{self.data_scenario}",
-                f"experiments/time_llm_inference_{self.dataset}_{self.data_scenario}"
+            # Use the Time-LLM experiment runner
+            cmd = [
+                "python", "scripts/time_llm/run_all_time_llm_experiments.py",
+                "--modes", "train,inference",
+                "--datasets", self.dataset,
+                "--models", "BERT,GPT2,LLAMA",
+                "--log_level", "INFO"
             ]
-            main_script = "main.py"
+            
+            cmd_str = " ".join(cmd)
+            print(f"🚀 Time-LLM Command: {cmd_str}")
+            
+            # Wrap with efficiency monitoring
+            efficiency_cmd = [
+                "python", "efficiency/real_time_profiler.py",
+                "--output_file", f"time_llm_efficiency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                "--"
+            ] + cmd
+            
+            efficiency_cmd_str = " ".join(efficiency_cmd)
+            description = f"Run Time-LLM experiments with efficiency monitoring"
+            success = self.run_command(efficiency_cmd_str, description)
+            results.append(("time_llm_all_models", success))
+            
         elif experiment_type == "chronos":
-            patterns = [
-                f"experiments/chronos_train_{self.dataset}_{self.data_scenario}",
-                f"experiments/chronos_inference_{self.dataset}_{self.data_scenario}"
+            # Use the Chronos experiment runner  
+            cmd = [
+                "python", "scripts/chronos/run_all_chronos_experiments.py",
+                "--modes", "training,inference",
+                "--datasets", self.dataset,
+                "--log_level", "INFO"
             ]
-            main_script = "main.py"
-        else:
-            # Distillation is handled separately
-            return results
             
-        # Check all patterns
-        experiment_dirs = []
-        for pattern in patterns:
-            experiment_dirs.extend(list(self.base_dir.glob(pattern)))
-        
-        for exp_dir in experiment_dirs:
-            if not exp_dir.is_dir():
-                continue
-                
-            # Find config files in subdirectories
-            config_files = list(exp_dir.rglob("config.gin"))
+            cmd_str = " ".join(cmd)
+            print(f"⏰ Chronos Command: {cmd_str}")
             
-            for config_file in config_files:
-                if f"patient_{self.test_patient}" in str(config_file):
-                    # Run the experiment
-                    cmd = f"python {main_script} --config {config_file}"
-                    
-                    rel_path = config_file.relative_to(self.base_dir)
-                    description = f"Run {experiment_type} efficiency experiment: {rel_path}"
-                    success = self.run_command(cmd, description)
-                    
-                    exp_name = f"{experiment_type}_{config_file.parent.parent.name}"
-                    results.append((exp_name, success))
+            # Wrap with efficiency monitoring
+            efficiency_cmd = [
+                "python", "efficiency/real_time_profiler.py",
+                "--output_file", f"chronos_efficiency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                "--"
+            ] + cmd
+            
+            efficiency_cmd_str = " ".join(efficiency_cmd)
+            description = f"Run Chronos experiments with efficiency monitoring"
+            success = self.run_command(efficiency_cmd_str, description)
+            results.append(("chronos_all_models", success))
         
         return results
     
@@ -378,10 +393,32 @@ class ComprehensiveEfficiencyRunner:
             
             if "chronos" in model_types:
                 all_results["chronos_experiments"] = self.run_generated_experiments("chronos")
+        else:
+            # In dry run mode, still show what experiments would be executed
+            if "time_llm" in model_types:
+                print(f"\n🏃 [DRY RUN] TIME-LLM EXPERIMENTS WOULD BE EXECUTED")
+                print(f"{'='*80}")
+                cmd = "python scripts/time_llm/run_all_time_llm_experiments.py --modes train,inference --datasets ohiot1dm --models BERT,GPT2,LLAMA --log_level INFO"
+                efficiency_cmd = f"python efficiency/real_time_profiler.py --output_file time_llm_efficiency_TIMESTAMP.json -- {cmd}"
+                print(f"🚀 Command: {efficiency_cmd}")
+                
+            if "chronos" in model_types:
+                print(f"\n🏃 [DRY RUN] CHRONOS EXPERIMENTS WOULD BE EXECUTED")
+                print(f"{'='*80}")
+                cmd = "python scripts/chronos/run_all_chronos_experiments.py --modes training,inference --datasets ohiot1dm --log_level INFO"
+                efficiency_cmd = f"python efficiency/real_time_profiler.py --output_file chronos_efficiency_TIMESTAMP.json -- {cmd}"
+                print(f"⏰ Command: {efficiency_cmd}")
         
         # Phase 3: Run distillation (separate pipeline)
         if "distillation" in model_types:
-            all_results["distillation"] = self.run_distillation_efficiency()
+            if not self.dry_run:
+                all_results["distillation"] = self.run_distillation_efficiency()
+            else:
+                print(f"\n🏃 [DRY RUN] DISTILLATION EXPERIMENTS WOULD BE EXECUTED")
+                print(f"{'='*80}")
+                cmd = "./distill_pipeline.sh --dataset ohiot1dm --data_scenario standardized --patients 570 --epochs 10 --seed 831363"
+                efficiency_cmd = f"python efficiency/real_time_profiler.py --output_file distillation_efficiency_TIMESTAMP.json -- {cmd}"
+                print(f"🧠 Command: {efficiency_cmd}")
         
         # Phase 4: Collect reports
         if not self.dry_run:
