@@ -67,7 +67,8 @@ class ComprehensiveEfficiencyRunner:
                 "modes": {
                     "train": {"epochs": 10, "mode": "train"},
                     "inference": {"epochs": 0, "mode": "inference"}
-                }
+                },
+                "window_config": "6_9"  # 6 context, 9 prediction
             },
             "chronos": {
                 "script": "scripts/chronos/config_generator_chronos.py", 
@@ -75,7 +76,8 @@ class ComprehensiveEfficiencyRunner:
                 "modes": {
                     "train": {"mode": "train"},
                     "inference": {"mode": "inference"}
-                }
+                },
+                "window_config": "6_9"  # 6 context, 9 prediction
             },
             "distillation": {
                 "script": "distill_pipeline.sh",
@@ -155,18 +157,25 @@ class ComprehensiveEfficiencyRunner:
         
         for llm_model in config["models"]:
             for mode_name, mode_config in config["modes"].items():
-                cmd = (
-                    f"python {config['script']} "
-                    f"--mode {mode_config['mode']} "
-                    f"--dataset {self.dataset} "
-                    f"--data_scenario {self.data_scenario} "
-                    f"--patients {self.test_patient} "
-                    f"--llm_models {llm_model} "
-                    f"--seeds {self.test_seed} "
+                # Check if unified config generator supports window_config parameter
+                cmd_parts = [
+                    f"python {config['script']}",
+                    f"--mode {mode_config['mode']}",
+                    f"--dataset {self.dataset}",
+                    f"--data_scenario {self.data_scenario}",
+                    f"--patients {self.test_patient}",
+                    f"--llm_models {llm_model}",
+                    f"--seeds {self.test_seed}",
                     f"--epochs {mode_config['epochs']}"
-                )
+                ]
                 
-                description = f"Generate Time-LLM {llm_model} {mode_name} efficiency config"
+                # Add window config if specified
+                if "window_config" in config:
+                    cmd_parts.append(f"--window_config {config['window_config']}")
+                
+                cmd = " ".join(cmd_parts)
+                
+                description = f"Generate Time-LLM {llm_model} {mode_name} efficiency config (6_9 window)"
                 success = self.run_command(cmd, description)
                 results.append((f"time_llm_{llm_model.lower()}_{mode_name}", success))
             
@@ -184,17 +193,23 @@ class ComprehensiveEfficiencyRunner:
             model_name = chronos_model.replace("/", "_").replace("-", "_")
             
             for mode_name, mode_config in config["modes"].items():
-                cmd = (
-                    f"python {config['script']} "
-                    f"--mode {mode_config['mode']} "
-                    f"--dataset {self.dataset} "
-                    f"--data_scenario {self.data_scenario} "
-                    f"--patients {self.test_patient} "
-                    f"--models {chronos_model} "
+                cmd_parts = [
+                    f"python {config['script']}",
+                    f"--mode {mode_config['mode']}",
+                    f"--dataset {self.dataset}",
+                    f"--data_scenario {self.data_scenario}",
+                    f"--patients {self.test_patient}",
+                    f"--models {chronos_model}",
                     f"--seeds {self.test_seed}"
-                )
+                ]
                 
-                description = f"Generate Chronos {chronos_model} {mode_name} efficiency config" 
+                # Add window config if specified (for inference mode)
+                if "window_config" in config and mode_config['mode'] == "inference":
+                    cmd_parts.append(f"--window_config {config['window_config']}")
+                
+                cmd = " ".join(cmd_parts)
+                
+                description = f"Generate Chronos {chronos_model} {mode_name} efficiency config (6_9 window)" 
                 success = self.run_command(cmd, description)
                 results.append((f"chronos_{model_name}_{mode_name}", success))
             
