@@ -37,6 +37,9 @@ from pathlib import Path
 from datetime import datetime
 
 # Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from utils.path_utils import get_project_root, get_scripts_path
+
 # Fixed seeds for consistency
 FIXED_SEEDS = [831363, 809906, 427368, 238822, 247659]
 
@@ -46,8 +49,9 @@ class ComprehensiveEfficiencyRunner:
     def __init__(self, base_dir=None, dry_run=False):
         """Initialize the efficiency runner."""
         if base_dir is None:
-            base_dir = os.getcwd()
-        self.base_dir = Path(base_dir)
+            self.base_dir = get_project_root()
+        else:
+            self.base_dir = Path(base_dir)
         self.dry_run = dry_run
         
         # Test parameters for efficiency focus
@@ -352,6 +356,10 @@ class ComprehensiveEfficiencyRunner:
                         'relative_path': config_file.relative_to(self.base_dir)
                     })
         
+        print(f"🔍 Found {len(configs)} configs:")
+        for config in configs:
+            print(f"  {config['type']}: {config['relative_path']}")
+        
         return configs
     
     def generate_all_configs(self):
@@ -360,41 +368,80 @@ class ComprehensiveEfficiencyRunner:
         
         # Time-LLM config generation
         venv_python = str(self.base_dir / "venv" / "bin" / "python")
-        time_llm_cmd = [
-            venv_python, 
-            str(self.base_dir / "scripts" / "time_llm" / "config_generator_time_llm_unified.py"),
-            "--mode", "train_inference",
-            "--patients", "570,584",
+        time_llm_script = str(get_scripts_path("time_llm", "config_generator_time_llm_unified.py"))
+        
+        # Generate training configs
+        time_llm_train_cmd = [
+            venv_python, time_llm_script,
+            "--mode", "train",
+            "--patients", self.test_patient,
             "--llm_models", "BERT,GPT2,LLAMA", 
-            "--seeds", "42,123",
-            "--epochs", "1"  # Quick efficiency test
+            "--seeds", self.test_seed,
+            "--epochs", "10",
+            "--dataset", self.dataset
         ]
         
-        print(f"🤖 Running Time-LLM config generation...")
-        result = subprocess.run(time_llm_cmd, capture_output=True, text=True, cwd=self.base_dir)
+        # Generate inference configs
+        time_llm_inference_cmd = [
+            venv_python, time_llm_script,
+            "--mode", "inference",
+            "--patients", self.test_patient,
+            "--llm_models", "BERT,GPT2,LLAMA", 
+            "--seeds", self.test_seed,
+            "--epochs", "0",
+            "--dataset", self.dataset
+        ]
+        
+        print(f"🤖 Running Time-LLM training config generation...")
+        result = subprocess.run(time_llm_train_cmd, capture_output=True, text=True, cwd=self.base_dir)
         if result.returncode != 0:
-            print(f"❌ Time-LLM config generation failed: {result.stderr}")
+            print(f"❌ Time-LLM training config generation failed: {result.stderr}")
             return False
-        else:
-            print("✅ Time-LLM configs generated successfully")
+        
+        print(f"🤖 Running Time-LLM inference config generation...")
+        result = subprocess.run(time_llm_inference_cmd, capture_output=True, text=True, cwd=self.base_dir)
+        if result.returncode != 0:
+            print(f"❌ Time-LLM inference config generation failed: {result.stderr}")
+            return False
+        
+        print("✅ Time-LLM configs generated successfully")
         
         # Chronos config generation  
-        chronos_cmd = [
-            venv_python,
-            str(self.base_dir / "scripts" / "chronos" / "config_generator_chronos.py"),
+        chronos_script = str(get_scripts_path("chronos", "config_generator_chronos.py"))
+        
+        # Generate training configs
+        chronos_train_cmd = [
+            venv_python, chronos_script,
             "--mode", "train",
-            "--patients", "570,584", 
+            "--patients", self.test_patient, 
             "--models", "amazon/chronos-t5-base,amazon/chronos-t5-tiny",
-            "--seeds", "42,123"
+            "--seeds", self.test_seed,
+            "--dataset", self.dataset
         ]
         
-        print(f"⏰ Running Chronos config generation...")
-        result = subprocess.run(chronos_cmd, capture_output=True, text=True, cwd=self.base_dir)
+        # Generate inference configs
+        chronos_inference_cmd = [
+            venv_python, chronos_script,
+            "--mode", "inference",
+            "--patients", self.test_patient, 
+            "--models", "amazon/chronos-t5-base,amazon/chronos-t5-tiny",
+            "--seeds", self.test_seed,
+            "--dataset", self.dataset
+        ]
+        
+        print(f"⏰ Running Chronos training config generation...")
+        result = subprocess.run(chronos_train_cmd, capture_output=True, text=True, cwd=self.base_dir)
         if result.returncode != 0:
-            print(f"❌ Chronos config generation failed: {result.stderr}")
+            print(f"❌ Chronos training config generation failed: {result.stderr}")
             return False
-        else:
-            print("✅ Chronos configs generated successfully")
+            
+        print(f"⏰ Running Chronos inference config generation...")
+        result = subprocess.run(chronos_inference_cmd, capture_output=True, text=True, cwd=self.base_dir)
+        if result.returncode != 0:
+            print(f"❌ Chronos inference config generation failed: {result.stderr}")
+            return False
+            
+        print("✅ Chronos configs generated successfully")
         
         return True
 
