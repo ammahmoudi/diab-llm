@@ -32,3 +32,4 @@ distillation_experiments
 *.pth
 *.pkl
 *.bin
+efficiency_test_results
