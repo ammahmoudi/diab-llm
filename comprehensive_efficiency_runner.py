@@ -21,14 +21,11 @@ The script automatically:
 - Organizes results in structured folders for analysis
 
 Usage:
-    python comprehensive_efficiency_runner.py [--dry-run] [--models model1,model2,...]
+    python comprehensive_efficiency_runner.py [--dry-run]
     
 Examples:
-    python comprehensive_efficiency_runner.py --dry-run                    # Preview all commands
-    python comprehensive_efficiency_runner.py --models time_llm            # Run only Time-LLM models
-    python comprehensive_efficiency_runner.py --models chronos             # Run only Chronos models
-    python comprehensive_efficiency_runner.py --models distillation        # Run only distillation
-    python comprehensive_efficiency_runner.py                              # Run everything
+    python comprehensive_efficiency_runner.py --dry-run          # Preview focused experiments (16)
+    python comprehensive_efficiency_runner.py                    # Run focused experiments
 """
 
 import os
@@ -40,8 +37,8 @@ from pathlib import Path
 from datetime import datetime
 
 # Add parent directory to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), 'scripts'))
-from utilities.seeds import fixed_seeds
+# Fixed seeds for consistency
+FIXED_SEEDS = [831363, 809906, 427368, 238822, 247659]
 
 class ComprehensiveEfficiencyRunner:
     """Comprehensive efficiency testing for all model types."""
@@ -55,7 +52,7 @@ class ComprehensiveEfficiencyRunner:
         
         # Test parameters for efficiency focus
         self.test_patient = "570"  # Single patient for efficiency testing
-        self.test_seed = str(fixed_seeds[0])  # Use first seed: 831363
+        self.test_seed = str(FIXED_SEEDS[0])  # Use first seed: 831363
         self.data_scenario = "standardized"  # Clean data for consistent efficiency measurement
         self.dataset = "ohiot1dm"  # Primary dataset
         
@@ -98,10 +95,18 @@ class ComprehensiveEfficiencyRunner:
         print(f"🎲 Test seed: {self.test_seed}")
         print(f"📈 Data scenario: {self.data_scenario}")
         print(f"💾 Output directory: {self.output_dir}")
+        print(f"🎯 Comprehensive Efficiency Testing Setup")
+        print(f"📁 Base directory: {self.base_dir}")
         print(f"🔍 Dry run: {self.dry_run}")
         
-    def run_command(self, cmd, description, cwd=None):
-        """Run a command with proper error handling and logging."""
+        # Fixed seeds and focused testing parameters
+        self.test_patient = "570"
+        self.test_seed = str(FIXED_SEEDS[0])  # Use first seed: 831363
+        self.data_scenario = "standardized" 
+        self.dataset = "ohiot1dm"
+        
+    def run_command(self, cmd, description, cwd=None, timeout_hours=6):
+        """Run a command with proper error handling and logging for long experiments."""
         if cwd is None:
             cwd = self.base_dir
             
@@ -114,34 +119,61 @@ class ComprehensiveEfficiencyRunner:
         if self.dry_run:
             print("🔍 DRY RUN - Command would be executed here")
             return True
-            
+        
+        # For long experiments, we need to show live output and have longer timeout
+        timeout_seconds = timeout_hours * 3600
+        
         try:
-            # Run command and capture output
-            result = subprocess.run(
-                cmd, 
-                shell=True, 
-                cwd=cwd,
-                capture_output=True, 
-                text=True,
-                timeout=3600  # 1 hour timeout per command
-            )
-            
-            if result.returncode == 0:
-                print(f"✅ SUCCESS: {description}")
-                if result.stdout.strip():
-                    print(f"📝 Output:\n{result.stdout}")
-                return True
+            # Run command with live output (no capture_output for long experiments)
+            if "run_all" in cmd or "distill_pipeline" in cmd:
+                print(f"🏃 Starting long-running experiment (timeout: {timeout_hours}h)...")
+                print(f"📺 Live output will be shown below:")
+                print("-" * 60)
+                
+                # Run without capturing output so we can see what's happening
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    cwd=cwd,
+                    timeout=timeout_seconds,
+                    text=True
+                )
+                
+                print("-" * 60)
+                if result.returncode == 0:
+                    print(f"✅ SUCCESS: {description}")
+                    return True
+                else:
+                    print(f"❌ FAILED: {description}")
+                    print(f"💥 Error code: {result.returncode}")
+                    return False
             else:
-                print(f"❌ FAILED: {description}")
-                print(f"💥 Error code: {result.returncode}")
-                if result.stderr.strip():
-                    print(f"🚨 Error output:\n{result.stderr}")
-                if result.stdout.strip():
-                    print(f"📝 Standard output:\n{result.stdout}")
-                return False
+                # For quick commands (config generation), capture output
+                result = subprocess.run(
+                    cmd, 
+                    shell=True, 
+                    cwd=cwd,
+                    capture_output=True, 
+                    text=True,
+                    timeout=300  # 5 minutes for config generation
+                )
+                
+                if result.returncode == 0:
+                    print(f"✅ SUCCESS: {description}")
+                    if result.stdout.strip():
+                        print(f"📝 Output:\n{result.stdout}")
+                    return True
+                else:
+                    print(f"❌ FAILED: {description}")
+                    print(f"💥 Error code: {result.returncode}")
+                    if result.stderr.strip():
+                        print(f"🚨 Error output:\n{result.stderr}")
+                    if result.stdout.strip():
+                        print(f"📝 Standard output:\n{result.stdout}")
+                    return False
                 
         except subprocess.TimeoutExpired:
-            print(f"⏰ TIMEOUT: {description} exceeded 1 hour limit")
+            print(f"⏰ TIMEOUT: {description} exceeded {timeout_hours} hour limit")
             return False
         except Exception as e:
             print(f"💥 EXCEPTION: {description} failed with: {str(e)}")
@@ -257,17 +289,25 @@ class ComprehensiveEfficiencyRunner:
         results = []
         
         if experiment_type == "time_llm":
-            # Use the Time-LLM experiment runner
+            # Use the Time-LLM experiment runner with specific filters for our efficiency configs
             cmd = [
                 "python", "scripts/time_llm/run_all_time_llm_experiments.py",
-                "--modes", "train,inference",
+                "--modes", "train,inference", 
                 "--datasets", self.dataset,
                 "--models", "BERT,GPT2,LLAMA",
-                "--log_level", "INFO"
+                "--log_level", "INFO",
+                # Force a fresh run by removing any resume file
+                "--resume_file", f"time_llm_efficiency_progress_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             ]
             
             cmd_str = " ".join(cmd)
             print(f"🚀 Time-LLM Command: {cmd_str}")
+            
+            # Important: Remove any existing resume files to force fresh execution
+            resume_files = list(self.base_dir.glob("time_llm_experiments_progress.json"))
+            for resume_file in resume_files:
+                print(f"🗑️ Removing old resume file: {resume_file}")
+                resume_file.unlink(missing_ok=True)
             
             # Wrap with efficiency monitoring
             efficiency_cmd = [
@@ -277,21 +317,29 @@ class ComprehensiveEfficiencyRunner:
             ] + cmd
             
             efficiency_cmd_str = " ".join(efficiency_cmd)
-            description = f"Run Time-LLM experiments with efficiency monitoring"
+            description = f"Run Time-LLM experiments with efficiency monitoring (BERT, GPT2, LLAMA)"
             success = self.run_command(efficiency_cmd_str, description)
             results.append(("time_llm_all_models", success))
             
         elif experiment_type == "chronos":
-            # Use the Chronos experiment runner  
+            # Use the Chronos experiment runner with specific filters for our efficiency configs
             cmd = [
-                "python", "scripts/chronos/run_all_chronos_experiments.py",
+                "python", "scripts/chronos/run_all_chronos_experiments.py", 
                 "--modes", "training,inference",
                 "--datasets", self.dataset,
-                "--log_level", "INFO"
+                "--log_level", "INFO",
+                # Force a fresh run by removing any resume file
+                "--resume_file", f"chronos_efficiency_progress_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             ]
             
             cmd_str = " ".join(cmd)
             print(f"⏰ Chronos Command: {cmd_str}")
+            
+            # Important: Remove any existing resume files to force fresh execution
+            resume_files = list(self.base_dir.glob("chronos_experiments_progress.json"))
+            for resume_file in resume_files:
+                print(f"🗑️ Removing old resume file: {resume_file}")
+                resume_file.unlink(missing_ok=True)
             
             # Wrap with efficiency monitoring
             efficiency_cmd = [
@@ -301,7 +349,7 @@ class ComprehensiveEfficiencyRunner:
             ] + cmd
             
             efficiency_cmd_str = " ".join(efficiency_cmd)
-            description = f"Run Chronos experiments with efficiency monitoring"
+            description = f"Run Chronos experiments with efficiency monitoring (T5-base, T5-tiny)"
             success = self.run_command(efficiency_cmd_str, description)
             results.append(("chronos_all_models", success))
         
@@ -398,14 +446,14 @@ class ComprehensiveEfficiencyRunner:
                 print(f"\n🏃 [DRY RUN] TIME-LLM EXPERIMENTS WOULD BE EXECUTED")
                 print(f"{'='*80}")
                 cmd = "python scripts/time_llm/run_all_time_llm_experiments.py --modes train,inference --datasets ohiot1dm --models BERT,GPT2,LLAMA --log_level INFO"
-                efficiency_cmd = f"python efficiency/real_time_profiler.py --output_file time_llm_efficiency_TIMESTAMP.json -- {cmd}"
+                efficiency_cmd = f"python3 efficiency/real_time_profiler.py --output_file time_llm_efficiency_TIMESTAMP.json -- {cmd}"
                 print(f"🚀 Command: {efficiency_cmd}")
                 
             if "chronos" in model_types:
                 print(f"\n🏃 [DRY RUN] CHRONOS EXPERIMENTS WOULD BE EXECUTED")
                 print(f"{'='*80}")
                 cmd = "python scripts/chronos/run_all_chronos_experiments.py --modes training,inference --datasets ohiot1dm --log_level INFO"
-                efficiency_cmd = f"python efficiency/real_time_profiler.py --output_file chronos_efficiency_TIMESTAMP.json -- {cmd}"
+                efficiency_cmd = f"python3 efficiency/real_time_profiler.py --output_file chronos_efficiency_TIMESTAMP.json -- {cmd}"
                 print(f"⏰ Command: {efficiency_cmd}")
         
         # Phase 3: Run distillation (separate pipeline)
@@ -416,7 +464,7 @@ class ComprehensiveEfficiencyRunner:
                 print(f"\n🏃 [DRY RUN] DISTILLATION EXPERIMENTS WOULD BE EXECUTED")
                 print(f"{'='*80}")
                 cmd = "./distill_pipeline.sh --dataset ohiot1dm --data_scenario standardized --patients 570 --epochs 10 --seed 831363"
-                efficiency_cmd = f"python efficiency/real_time_profiler.py --output_file distillation_efficiency_TIMESTAMP.json -- {cmd}"
+                efficiency_cmd = f"python3 efficiency/real_time_profiler.py --output_file distillation_efficiency_TIMESTAMP.json -- {cmd}"
                 print(f"🧠 Command: {efficiency_cmd}")
         
         # Phase 4: Collect reports
@@ -463,6 +511,147 @@ class ComprehensiveEfficiencyRunner:
         if self.dry_run:
             print(f"\n🔍 This was a DRY RUN - no actual experiments were executed")
             print(f"💡 Remove --dry-run flag to run the actual efficiency tests")
+    
+    def find_focused_configs(self):
+        """Find specific configs for focused efficiency testing."""
+        configs = []
+        
+        # Time-LLM configs (training and inference)
+        time_llm_patterns = [
+            f"experiments/time_llm_training_{self.dataset}/seed_{self.test_seed}_model_*_epochs_10/patient_{self.test_patient}/config.gin",
+            f"experiments/time_llm_inference_{self.dataset}/seed_{self.test_seed}_model_*_epochs_0/patient_{self.test_patient}/config.gin"
+        ]
+        
+        for pattern in time_llm_patterns:
+            matches = list(self.base_dir.glob(pattern))
+            for config_file in matches:
+                if config_file.exists():
+                    configs.append({
+                        'type': 'time_llm',
+                        'path': config_file,
+                        'relative_path': config_file.relative_to(self.base_dir)
+                    })
+        
+        # Chronos configs (training and inference)
+        chronos_patterns = [
+            f"experiments/chronos_training_{self.dataset}/seed_{self.test_seed}_model_*_mode_train_*/patient_{self.test_patient}/config.gin",
+            f"experiments/chronos_inference_{self.dataset}/seed_{self.test_seed}_model_*_mode_inference_*/patient_{self.test_patient}/config.gin"
+        ]
+        
+        for pattern in chronos_patterns:
+            matches = list(self.base_dir.glob(pattern))
+            for config_file in matches:
+                if config_file.exists():
+                    configs.append({
+                        'type': 'chronos',
+                        'path': config_file,
+                        'relative_path': config_file.relative_to(self.base_dir)
+                    })
+        
+        return configs
+    
+    def run_single_experiment(self, config_path, experiment_type):
+        """Run a single experiment with efficiency monitoring."""
+        print(f"\n{'='*60}")
+        print(f"🚀 Running {experiment_type.upper()} Efficiency Experiment")
+        print(f"📄 Config: {config_path.relative_to(self.base_dir)}")
+        print(f"{'='*60}")
+        
+        if self.dry_run:
+            print("🔍 DRY RUN - Would execute experiment here")
+            return True
+        
+        # Create efficiency monitoring wrapper
+        efficiency_file = f"{experiment_type}_efficiency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        # Command to run the experiment
+        cmd = [
+            "python3", "efficiency/real_time_profiler.py",
+            "--output_file", efficiency_file,
+            "--",
+            "./run_main.sh",
+            "--config_path", str(config_path),
+            "--log_level", "INFO",
+            "--remove_checkpoints", "True"
+        ]
+        
+        cmd_str = " ".join(cmd)
+        print(f"⚡ Command: {cmd_str}")
+        print(f"📊 Efficiency output: {efficiency_file}")
+        print(f"🏃 Starting experiment...")
+        
+        try:
+            start_time = time.time()
+            result = subprocess.run(cmd, timeout=7200)  # 2 hour timeout
+            end_time = time.time()
+            duration = end_time - start_time
+            
+            if result.returncode == 0:
+                print(f"✅ SUCCESS: Completed in {duration:.2f}s")
+                print(f"📊 Efficiency data saved to: {efficiency_file}")
+                return True
+            else:
+                print(f"❌ FAILED: Exit code {result.returncode}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print(f"⏰ TIMEOUT: Experiment exceeded 2 hour limit")
+            return False
+        except Exception as e:
+            print(f"💥 ERROR: {str(e)}")
+            return False
+    
+    def run_focused_experiments(self):
+        """Run focused efficiency tests on specific configs."""
+        print(f"\n🎯 STARTING FOCUSED EFFICIENCY TESTING")
+        print(f"{'='*80}")
+        print(f"⏰ Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"📊 Test patient: {self.test_patient}")
+        print(f"🎲 Test seed: {self.test_seed}")
+        print(f"📈 Data scenario: {self.data_scenario}")
+        
+        # Find our specific configs
+        configs = self.find_focused_configs()
+        
+        if not configs:
+            print("❌ No focused test configs found!")
+            print("💡 Make sure you ran config generation first:")
+            print("   python3 comprehensive_efficiency_runner.py --dry-run")
+            return False
+        
+        print(f"\n📋 Found {len(configs)} focused test configs:")
+        for config in configs:
+            print(f"  {config['type']}: {config['relative_path']}")
+        
+        if self.dry_run:
+            print("\n🔍 DRY RUN MODE - No experiments will be executed")
+            return True
+        
+        # Run each experiment
+        results = {'success': [], 'failed': []}
+        for config in configs:
+            success = self.run_single_experiment(config['path'], config['type'])
+            if success:
+                results['success'].append(config['relative_path'])
+            else:
+                results['failed'].append(config['relative_path'])
+        
+        # Summary
+        total = len(configs)
+        success_count = len(results['success'])
+        
+        print(f"\n🎯 FOCUSED EFFICIENCY TESTING COMPLETE")
+        print(f"{'='*80}")
+        print(f"⏰ End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"✅ Successful: {success_count}/{total}")
+        print(f"❌ Failed: {len(results['failed'])}/{total}")
+        
+        if results['failed']:
+            print(f"\n❌ Failed experiments:")
+            for failure in results['failed']:
+                print(f"  {failure}")
+        
+        return success_count == total
 
 def main():
     """Main entry point for the comprehensive efficiency runner."""
@@ -471,40 +660,25 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python comprehensive_efficiency_runner.py --dry-run
-  python comprehensive_efficiency_runner.py --models time_llm
-  python comprehensive_efficiency_runner.py --models chronos,distillation
-  python comprehensive_efficiency_runner.py
+  python comprehensive_efficiency_runner.py --dry-run          # Preview focused experiments (16)
+  python comprehensive_efficiency_runner.py                    # Run focused experiments
         """
     )
     
     parser.add_argument(
         "--dry-run", 
         action="store_true", 
-        help="Preview commands without executing them"
+        help="Preview experiments without executing them"
     )
     
-    parser.add_argument(
-        "--models",
-        default="time_llm,chronos,distillation",
-        help="Comma-separated list of model types to test (time_llm, chronos, distillation)"
-    )
+
     
     args = parser.parse_args()
     
-    # Parse model types
-    if args.models:
-        model_types = [m.strip() for m in args.models.split(",")]
-        valid_types = ["time_llm", "chronos", "distillation"]
-        model_types = [m for m in model_types if m in valid_types]
-        if not model_types:
-            print("❌ No valid model types specified. Valid options: time_llm, chronos, distillation")
-            return 1
-    else:
-        model_types = ["time_llm", "chronos", "distillation"]
-    
-    # Create and run efficiency tester
+    # Always run focused efficiency testing
     runner = ComprehensiveEfficiencyRunner(dry_run=args.dry_run)
+    success = runner.run_focused_experiments()
+    return 0 if success else 1
     results = runner.run_efficiency_tests(model_types=model_types)
     
     # Return success code based on results
