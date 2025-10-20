@@ -354,8 +354,75 @@ class ComprehensiveEfficiencyRunner:
         
         return configs
     
+    def generate_all_configs(self):
+        """Generate all focused experiment configurations using working scripts."""
+        print("🔧 Generating Time-LLM and Chronos configurations...")
+        
+        success = True
+        
+        # Generate Time-LLM configs using the working script
+        time_llm_cmd = [
+            "python3", "scripts/experiment_configs/time_llm_unified_config_generator.py",
+            "--mode", "both",  # Generate both training and inference
+            "--dataset", self.dataset,
+            "--data_scenario", self.data_scenario,
+            "--patients", self.test_patient,
+            "--llm_models", "BERT,GPT2,LLAMA",
+            "--seeds", self.test_seed,
+            "--epochs", "10",
+            "--window_config", "6_6,6_9"
+        ]
+        
+        print("  📝 Generating Time-LLM configs...")
+        if self.dry_run:
+            print(f"    Would run: {' '.join(time_llm_cmd)}")
+        else:
+            try:
+                result = subprocess.run(time_llm_cmd, capture_output=True, text=True, timeout=60)
+                if result.returncode != 0:
+                    print(f"    ❌ Time-LLM config generation failed: {result.stderr}")
+                    success = False
+                else:
+                    print(f"    ✅ Time-LLM configs generated successfully")
+            except subprocess.TimeoutExpired:
+                print(f"    ⏰ Time-LLM config generation timed out")
+                success = False
+            except Exception as e:
+                print(f"    💥 Time-LLM config generation error: {str(e)}")
+                success = False
+        
+        # Generate Chronos configs using the working script
+        chronos_cmd = [
+            "python3", "scripts/experiment_configs/chronos_unified_config_generator.py",
+            "--mode", "both",  # Generate both training and inference
+            "--dataset", self.dataset,
+            "--data_scenario", self.data_scenario,
+            "--patients", self.test_patient,
+            "--chronos_models", "amazon/chronos-t5-base,amazon/chronos-t5-tiny",
+            "--seeds", self.test_seed,
+            "--window_config", "6_9"
+        ]
+        
+        print("  📝 Generating Chronos configs...")
+        if self.dry_run:
+            print(f"    Would run: {' '.join(chronos_cmd)}")
+        else:
+            try:
+                result = subprocess.run(chronos_cmd, capture_output=True, text=True, timeout=60)
+                if result.returncode != 0:
+                    print(f"    ❌ Chronos config generation failed: {result.stderr}")
+                    success = False
+                else:
+                    print(f"    ✅ Chronos configs generated successfully")
+            except subprocess.TimeoutExpired:
+                print(f"    ⏰ Chronos config generation timed out")
+                success = False
+            except Exception as e:
+                print(f"    💥 Chronos config generation error: {str(e)}")
+                success = False
+        
+        return success
 
-    
     def run_single_experiment(self, config_path, experiment_type):
         """Run a single experiment with efficiency monitoring."""
         print(f"\n{'='*60}")
@@ -407,19 +474,24 @@ class ComprehensiveEfficiencyRunner:
         print(f"🎲 Test seed: {self.test_seed}")
         print(f"📈 Data scenario: {self.data_scenario}")
         
-        # Find our specific configs
+        # Always generate fresh configs for each run
+        print("📝 Generating fresh experiment configurations...")
+        
+        # Generate configs using the actual working scripts
+        success = self.generate_all_configs()
+        
+        if not success:
+            print("❌ Failed to generate configs!")
+            return False
+        
+        # Find the generated configs
         configs = self.find_focused_configs()
         
         if not configs:
-            print("❌ No focused test configs found!")
-            print("💡 The focused configs should be generated automatically.")
-            print("💡 Make sure you have configs in the experiments/ directory:")
-            print("   - experiments/time_llm_training_ohiot1dm/")
-            print("   - experiments/time_llm_inference_ohiot1dm/") 
-            print("   - experiments/chronos_training_ohiot1dm/")
-            print("   - experiments/chronos_inference_ohiot1dm/")
-            print("💡 Run the config generators first if needed.")
+            print("❌ No configs found after generation!")
             return False
+        
+        print(f"✅ Generated {len(configs)} experiment configurations")
         
         print(f"\n📋 Found {len(configs)} focused test configs:")
         for config in configs:
