@@ -179,107 +179,7 @@ class ComprehensiveEfficiencyRunner:
             print(f"💥 EXCEPTION: {description} failed with: {str(e)}")
             return False
     
-    def generate_time_llm_configs(self):
-        """Generate Time-LLM configurations for efficiency testing (separate train and inference)."""
-        print(f"\n🤖 GENERATING TIME-LLM EFFICIENCY CONFIGURATIONS")
-        print(f"{'='*80}")
-        
-        results = []
-        config = self.models_config["time_llm"]
-        
-        for llm_model in config["models"]:
-            for mode_name, mode_config in config["modes"].items():
-                # Check if unified config generator supports window_config parameter
-                cmd_parts = [
-                    f"python {config['script']}",
-                    f"--mode {mode_config['mode']}",
-                    f"--dataset {self.dataset}",
-                    f"--data_scenario {self.data_scenario}",
-                    f"--patients {self.test_patient}",
-                    f"--llm_models {llm_model}",
-                    f"--seeds {self.test_seed}",
-                    f"--epochs {mode_config['epochs']}"
-                ]
-                
-                # Note: Time-LLM config generator doesn't support --window_config parameter
-                # The window configuration is handled internally by the Time-LLM models
-                
-                cmd = " ".join(cmd_parts)
-                
-                description = f"Generate Time-LLM {llm_model} {mode_name} efficiency config (6_9 window)"
-                success = self.run_command(cmd, description)
-                results.append((f"time_llm_{llm_model.lower()}_{mode_name}", success))
-            
-        return results
-    
-    def generate_chronos_configs(self):
-        """Generate Chronos configurations for efficiency testing (separate train and inference)."""
-        print(f"\n⏰ GENERATING CHRONOS EFFICIENCY CONFIGURATIONS")
-        print(f"{'='*80}")
-        
-        results = []
-        config = self.models_config["chronos"]
-        
-        for chronos_model in config["models"]:
-            model_name = chronos_model.replace("/", "_").replace("-", "_")
-            
-            for mode_name, mode_config in config["modes"].items():
-                cmd_parts = [
-                    f"python {config['script']}",
-                    f"--mode {mode_config['mode']}",
-                    f"--dataset {self.dataset}",
-                    f"--data_scenario {self.data_scenario}",
-                    f"--patients {self.test_patient}",
-                    f"--models {chronos_model}",
-                    f"--seeds {self.test_seed}"
-                ]
-                
-                # Add window config if specified (for inference mode)
-                if "window_config" in config and mode_config['mode'] == "inference":
-                    cmd_parts.append(f"--window_config {config['window_config']}")
-                
-                cmd = " ".join(cmd_parts)
-                
-                description = f"Generate Chronos {chronos_model} {mode_name} efficiency config (6_9 window)" 
-                success = self.run_command(cmd, description)
-                results.append((f"chronos_{model_name}_{mode_name}", success))
-            
-        return results
-    
-    def run_distillation_efficiency(self):
-        """Run distillation pipeline for efficiency testing."""
-        print(f"\n🧠 RUNNING DISTILLATION EFFICIENCY PIPELINE")
-        print(f"{'='*80}")
-        
-        results = []
-        config = self.models_config["distillation"]
-        
-        # Use the actual distillation pipeline script
-        cmd = [
-            "./distill_pipeline.sh",
-            "--dataset", self.dataset,
-            "--data_scenario", self.data_scenario,
-            "--patients", self.test_patient,
-            "--epochs", str(config["teacher_epochs"]),  # Use teacher epochs
-            "--seed", str(self.test_seed)
-        ]
-        
-        cmd_str = " ".join(cmd)
-        print(f"🧠 Distillation Command: {cmd_str}")
-        
-        # Wrap with efficiency monitoring
-        efficiency_cmd = [
-            "python", "efficiency/real_time_profiler.py",
-            "--output_file", f"distillation_efficiency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            "--"
-        ] + cmd
-        
-        efficiency_cmd_str = " ".join(efficiency_cmd)
-        description = f"Run distillation pipeline (BERT→TinyBERT) with efficiency monitoring"
-        success = self.run_command(efficiency_cmd_str, description)
-        results.append(("distillation_bert_to_tinybert", success))
-        
-        return results
+
     
     def run_generated_experiments(self, experiment_type):
         """Run the generated experiment configurations using proper experiment runners."""
@@ -550,6 +450,82 @@ class ComprehensiveEfficiencyRunner:
         
         return configs
     
+    def generate_time_llm_configs(self):
+        """Generate Time-LLM configurations for efficiency testing."""
+        models = ["BERT", "GPT2", "LLAMA"]
+        windows = ["6_6", "6_9"]  # context_pred combinations
+        
+        for model in models:
+            for window in windows:
+                context, pred = window.split("_")
+                
+                # Training config
+                train_cmd = [
+                    "python3", "scripts/experiment_configs/time_llm_unified_config_generator.py",
+                    "--output_dir", "experiments",
+                    "--dataset", self.dataset,
+                    "--seed", self.test_seed,
+                    "--patient", self.test_patient,
+                    "--model", model,
+                    "--context_length", context,
+                    "--pred_length", pred,
+                    "--epochs", "10",
+                    "--mode", "train"
+                ]
+                
+                # Inference config
+                inference_cmd = [
+                    "python3", "scripts/experiment_configs/time_llm_unified_config_generator.py", 
+                    "--output_dir", "experiments",
+                    "--dataset", self.dataset,
+                    "--seed", self.test_seed,
+                    "--patient", self.test_patient,
+                    "--model", model,
+                    "--context_length", context,
+                    "--pred_length", pred,
+                    "--epochs", "0",
+                    "--mode", "inference"
+                ]
+                
+                if self.dry_run:
+                    print(f"  📝 Would generate: Time-LLM {model} {context}→{pred}")
+                else:
+                    subprocess.run(train_cmd, capture_output=True)
+                    subprocess.run(inference_cmd, capture_output=True)
+    
+    def generate_chronos_configs(self):
+        """Generate Chronos configurations for efficiency testing."""
+        models = ["amazon/chronos-t5-base", "amazon/chronos-t5-tiny"]
+        
+        for model in models:
+            # Training config
+            train_cmd = [
+                "python3", "scripts/experiment_configs/chronos_unified_config_generator.py",
+                "--output_dir", "experiments", 
+                "--dataset", self.dataset,
+                "--seed", self.test_seed,
+                "--patient", self.test_patient,
+                "--model", model,
+                "--mode", "train"
+            ]
+            
+            # Inference config
+            inference_cmd = [
+                "python3", "scripts/experiment_configs/chronos_unified_config_generator.py",
+                "--output_dir", "experiments",
+                "--dataset", self.dataset, 
+                "--seed", self.test_seed,
+                "--patient", self.test_patient,
+                "--model", model,
+                "--mode", "inference"
+            ]
+            
+            if self.dry_run:
+                print(f"  📝 Would generate: Chronos {model.split('/')[-1]}")
+            else:
+                subprocess.run(train_cmd, capture_output=True)
+                subprocess.run(inference_cmd, capture_output=True)
+    
     def run_single_experiment(self, config_path, experiment_type):
         """Run a single experiment with efficiency monitoring."""
         print(f"\n{'='*60}")
@@ -561,23 +537,15 @@ class ComprehensiveEfficiencyRunner:
             print("🔍 DRY RUN - Would execute experiment here")
             return True
         
-        # Create efficiency monitoring wrapper
-        efficiency_file = f"{experiment_type}_efficiency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        # Command to run the experiment
+        # Command to run the experiment directly (no efficiency wrapper)
         cmd = [
-            "python3", "efficiency/real_time_profiler.py",
-            "--output_file", efficiency_file,
-            "--",
-            "./run_main.sh",
+            "python3", "main.py",
             "--config_path", str(config_path),
-            "--log_level", "INFO",
-            "--remove_checkpoints", "True"
+            "--log_level", "INFO"
         ]
         
         cmd_str = " ".join(cmd)
         print(f"⚡ Command: {cmd_str}")
-        print(f"📊 Efficiency output: {efficiency_file}")
         print(f"🏃 Starting experiment...")
         
         try:
@@ -588,7 +556,6 @@ class ComprehensiveEfficiencyRunner:
             
             if result.returncode == 0:
                 print(f"✅ SUCCESS: Completed in {duration:.2f}s")
-                print(f"📊 Efficiency data saved to: {efficiency_file}")
                 return True
             else:
                 print(f"❌ FAILED: Exit code {result.returncode}")
@@ -614,10 +581,24 @@ class ComprehensiveEfficiencyRunner:
         configs = self.find_focused_configs()
         
         if not configs:
-            print("❌ No focused test configs found!")
-            print("💡 Make sure you ran config generation first:")
-            print("   python3 comprehensive_efficiency_runner.py --dry-run")
-            return False
+            print("📝 No configs found - generating them now...")
+            
+            # Generate Time-LLM configs
+            print("� Generating Time-LLM configurations...")
+            self.generate_time_llm_configs()
+            
+            # Generate Chronos configs  
+            print("🔧 Generating Chronos configurations...")
+            self.generate_chronos_configs()
+            
+            # Try to find configs again
+            configs = self.find_focused_configs()
+            
+            if not configs:
+                print("❌ Failed to generate configs!")
+                return False
+            
+            print(f"✅ Generated {len(configs)} experiment configurations")
         
         print(f"\n📋 Found {len(configs)} focused test configs:")
         for config in configs:
