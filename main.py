@@ -14,9 +14,9 @@ from utils.logger import setup_logging
 import logging
 import pickle
 import shutil
-from efficiency.efficiency_calculator import auto_calculate_efficiency
-from efficiency.real_time_profiler import RealTimeProfiler
-from efficiency.combine_reports import combine_performance_reports
+from efficiency_toolkit.core.efficiency_calculator import auto_calculate_efficiency
+from efficiency_toolkit.core.real_time_profiler import RealTimeProfiler
+from efficiency_toolkit.analysis.combine_reports import combine_performance_reports
 
 
 FLAGS = flags.FLAGS
