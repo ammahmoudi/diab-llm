@@ -98,7 +98,7 @@ class ComprehensiveEfficiencyRunner:
             },
             "distillation_inference": {
                 "script": "main.py",
-                "checkpoint_path": "distillation_experiments/pipeline_runs/*/patient_*/phase_3_distillation/*/logs/*/student_distilled.pth",
+                "checkpoint_path": "efficiency_experiments/distillation_experiments/pipeline_runs/*/patient_*/phase_3_distillation/*/logs/*/student_distilled.pth",
                 "model": "prajjwal1/bert-tiny",
                 "modes": {
                     "inference": {"epochs": 0, "mode": "inference"}
@@ -355,8 +355,8 @@ class ComprehensiveEfficiencyRunner:
         # Time-LLM configs (training and inference)
         if 'time_llm' in model_types:
             time_llm_patterns = [
-                f"experiments/time_llm_training_{self.dataset}/seed_{self.test_seed}_model_*_epochs_10/patient_{self.test_patient}/config.gin",
-                f"experiments/time_llm_inference_{self.dataset}/seed_{self.test_seed}_model_*_epochs_0/patient_{self.test_patient}/config.gin"
+                f"efficiency_experiments/experiments/time_llm_training_{self.dataset}/seed_{self.test_seed}_model_*_epochs_10/patient_{self.test_patient}/config.gin",
+                f"efficiency_experiments/experiments/time_llm_inference_{self.dataset}/seed_{self.test_seed}_model_*_epochs_0/patient_{self.test_patient}/config.gin"
             ]
             
             for pattern in time_llm_patterns:
@@ -372,8 +372,8 @@ class ComprehensiveEfficiencyRunner:
         # Chronos configs (training and inference)
         if 'chronos' in model_types:
             chronos_patterns = [
-                f"experiments/chronos_training_{self.dataset}/seed_{self.test_seed}_model_*_mode_train_*/patient_{self.test_patient}/config.gin",
-                f"experiments/chronos_inference_{self.dataset}/seed_{self.test_seed}_model_*_mode_inference_*/patient_{self.test_patient}/config.gin"
+                f"efficiency_experiments/experiments/chronos_training_{self.dataset}/seed_{self.test_seed}_model_*_mode_train_*/patient_{self.test_patient}/config.gin",
+                f"efficiency_experiments/experiments/chronos_inference_{self.dataset}/seed_{self.test_seed}_model_*_mode_inference_*/patient_{self.test_patient}/config.gin"
             ]
             
             for pattern in chronos_patterns:
@@ -389,7 +389,7 @@ class ComprehensiveEfficiencyRunner:
         # Distillation configs
         if 'distillation' in model_types:
             distillation_patterns = [
-                f"experiments/distillation_{self.dataset}/seed_{self.test_seed}_teacher_*_student_*/patient_{self.test_patient}/config.gin"
+                f"efficiency_experiments/experiments/distillation_{self.dataset}/seed_{self.test_seed}_teacher_*_student_*/patient_{self.test_patient}/config.gin"
             ]
             
             for pattern in distillation_patterns:
@@ -405,7 +405,7 @@ class ComprehensiveEfficiencyRunner:
         # Distillation inference configs  
         if 'distillation_inference' in model_types:
             distillation_inf_patterns = [
-                f"experiments/distillation_inference_{self.dataset}/seed_{self.test_seed}_model_tinybert/patient_{self.test_patient}/config.gin"
+                f"efficiency_experiments/experiments/distillation_inference_{self.dataset}/seed_{self.test_seed}_model_tinybert/patient_{self.test_patient}/config.gin"
             ]
             
             for pattern in distillation_inf_patterns:
@@ -519,7 +519,7 @@ class ComprehensiveEfficiencyRunner:
             
             if distill_config_template.exists():
                 # Copy the existing config to experiments directory for execution
-                distill_experiment_dir = self.base_dir / "experiments" / "distillation_ohiot1dm" / f"seed_{self.test_seed}_teacher_bert_student_tinybert"
+                distill_experiment_dir = self.base_dir / "efficiency_experiments" / "experiments" / "distillation_ohiot1dm" / f"seed_{self.test_seed}_teacher_bert_student_tinybert"
                 distill_experiment_dir.mkdir(parents=True, exist_ok=True)
                 
                 patient_dir = distill_experiment_dir / f"patient_{self.test_patient}"
@@ -557,7 +557,7 @@ DistillationTrainer.enable_efficiency_monitoring = True
 DistillationTrainer.log_interval = 10
 """
                 
-                distill_experiment_dir = self.base_dir / "experiments" / "distillation_ohiot1dm" / f"seed_{self.test_seed}_teacher_bert_student_tinybert"
+                distill_experiment_dir = self.base_dir / "efficiency_experiments" / "experiments" / "distillation_ohiot1dm" / f"seed_{self.test_seed}_teacher_bert_student_tinybert"
                 distill_experiment_dir.mkdir(parents=True, exist_ok=True)
                 
                 patient_dir = distill_experiment_dir / f"patient_{self.test_patient}"
@@ -575,7 +575,7 @@ DistillationTrainer.log_interval = 10
             
             # Find the distilled model checkpoint
             import glob
-            checkpoint_pattern = str(self.base_dir / "distillation_experiments" / "pipeline_runs" / "*" / f"patient_{self.test_patient}" / "phase_3_distillation" / "*" / "logs" / "*" / "student_distilled.pth")
+            checkpoint_pattern = str(self.base_dir / "efficiency_experiments" / "distillation_experiments" / "pipeline_runs" / "*" / f"patient_{self.test_patient}" / "phase_3_distillation" / "*" / "logs" / "*" / "student_distilled.pth")
             checkpoints = glob.glob(checkpoint_pattern)
             
             if checkpoints:
@@ -583,7 +583,7 @@ DistillationTrainer.log_interval = 10
                 print(f"📁 Found distilled checkpoint: {checkpoint_path}")
                 
                 # Create experiment directory
-                distill_inf_experiment_dir = self.base_dir / "experiments" / "distillation_inference_ohiot1dm" / f"seed_{self.test_seed}_model_tinybert"
+                distill_inf_experiment_dir = self.base_dir / "efficiency_experiments" / "experiments" / "distillation_inference_ohiot1dm" / f"seed_{self.test_seed}_model_tinybert"
                 distill_inf_experiment_dir.mkdir(parents=True, exist_ok=True)
                 
                 patient_dir = distill_inf_experiment_dir / f"patient_{self.test_patient}"
@@ -649,7 +649,7 @@ run.llm_settings = \\
      'train_batch_size': 32,
      'train_epochs': 0}}
 run.log_dir = \\
-    './experiments/distillation_inference_{self.dataset}/seed_{self.test_seed}_model_tinybert/patient_{self.test_patient}/logs'
+    './efficiency_experiments/experiments/distillation_inference_{self.dataset}/seed_{self.test_seed}_model_tinybert/patient_{self.test_patient}/logs'
 """
                 
                 target_config = patient_dir / "config.gin"
@@ -719,11 +719,11 @@ run.log_dir = \\
         }
         
         # Find comprehensive performance reports
-        base_pattern = "experiments/**/comprehensive_performance_report*.json"
+        base_pattern = "efficiency_experiments/experiments/**/comprehensive_performance_report*.json"
         report_files = glob.glob(str(self.base_dir / base_pattern), recursive=True)
         
         # Also find distillation results
-        distillation_pattern = "distillation_experiments/**/comprehensive_performance_report*.json"
+        distillation_pattern = "efficiency_experiments/distillation_experiments/**/comprehensive_performance_report*.json"
         distillation_files = glob.glob(str(self.base_dir / distillation_pattern), recursive=True)
         report_files.extend(distillation_files)
         
