@@ -123,6 +123,25 @@ def get_data_file_path(mode, patient_id, data_scenario="standardized", dataset="
         return f"{base_path}/{patient_id}-ws-testing.csv"
 
 
+def get_model_batch_sizes(llm_model):
+    """Get appropriate batch sizes based on the LLM model type."""
+    # LLAMA models require significantly more memory, use very small batch sizes
+    if llm_model == "LLAMA":
+        return {
+            "train_batch_size": 2,      # Further reduced from 8 to 2 for LLAMA
+            "prediction_batch_size": 4  # Further reduced from 16 to 4 for LLAMA
+        }
+    elif llm_model == "GPT2":
+        return {
+            "train_batch_size": 8,      # Further reduced from 16 to 8 for GPT2
+            "prediction_batch_size": 16  # Reduced from 32 to 16 for GPT2
+        }
+    else:  # BERT and other models
+        return {
+            "train_batch_size": 32,     # Default batch size for BERT  
+            "prediction_batch_size": 64  # Default batch size for BERT
+        }
+
 def generate_config_content(mode, seed, llm_config, length_set, patient_id, train_epochs=10,
                           data_scenario="standardized", dataset="ohiot1dm", train_data_scenario=None):
     """Generate the configuration content based on parameters."""
@@ -135,6 +154,9 @@ def generate_config_content(mode, seed, llm_config, length_set, patient_id, trai
     
     # Get prompt file path
     prompt_path = f"./data/{dataset}/{SCENARIO_MAP.get(data_scenario, 'raw_standardized')}/t1dm_prompt.txt"
+    
+    # Get model-specific batch sizes
+    batch_sizes = get_model_batch_sizes(llm_config["llm_model"])
     
     log_folder_placeholder = "LOGS_PLACEHOLDER"  # Will be replaced with actual log folder
     
@@ -184,7 +206,7 @@ run.llm_settings = \\
      'num_workers': 1,
      'patch_len': {length_set["patch_len"]},
      'patience': 10,
-     'prediction_batch_size': 64,
+     'prediction_batch_size': {batch_sizes["prediction_batch_size"]},
      'prediction_length': {length_set["prediction_length"]},
      'prompt_domain': 0,
      'seed': {seed},
@@ -193,7 +215,7 @@ run.llm_settings = \\
      'task_name': 'long_term_forecast',
      'timeenc': 0,
      'torch_dtype': 'bfloat16',
-     'train_batch_size': 32,
+     'train_batch_size': {batch_sizes["train_batch_size"]},
      'train_epochs': {train_epochs}}}
 run.log_dir = \\
     '{log_folder_placeholder}'
