@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Simple wrapper script to run the true values replacement
-# Usage: ./run_replace_true_values.sh [dry-run]
+# Wrapper script to run the true values replacement
+# Usage: ./run_replace_true_values.sh [options]
+# Options:
+#   --dry-run           Run in dry run mode (no files modified)
+#   --auto_confirm      Skip interactive confirmation
+#   --experiments_dir   Specify experiments directory
 
 set -e
 
@@ -9,8 +13,51 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 VENV_DIR="$ROOT_DIR/venv"
 
+# Parse command line arguments
+DRY_RUN=false
+AUTO_CONFIRM=false
+EXPERIMENTS_DIR=""
+PYTHON_ARGS=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)
+            DRY_RUN=true
+            PYTHON_ARGS="$PYTHON_ARGS --dry-run"
+            shift
+            ;;
+        --auto_confirm)
+            AUTO_CONFIRM=true
+            shift
+            ;;
+        --experiments-dir|--experiments_dir)
+            EXPERIMENTS_DIR="$2"
+            PYTHON_ARGS="$PYTHON_ARGS --experiments-root $2"
+            shift 2
+            ;;
+        --experiments-root)
+            EXPERIMENTS_DIR="$2"
+            PYTHON_ARGS="$PYTHON_ARGS --experiments-root $2"
+            shift 2
+            ;;
+        dry-run)
+            # Support legacy usage
+            DRY_RUN=true
+            PYTHON_ARGS="$PYTHON_ARGS --dry-run"
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
 echo "Running true values replacement script..."
 echo "Root directory: $ROOT_DIR"
+if [ -n "$EXPERIMENTS_DIR" ]; then
+    echo "Experiments directory: $EXPERIMENTS_DIR"
+fi
 echo ""
 
 # Check if virtual environment exists, create if not
@@ -33,15 +80,18 @@ pip install pandas numpy > /dev/null 2>&1 || {
 
 cd "$ROOT_DIR"
 
-if [ "$1" = "dry-run" ]; then
+if [ "$DRY_RUN" = true ]; then
     echo "Running in DRY RUN mode - no files will be modified"
-    python "$SCRIPT_DIR/replace_true_values_with_raw.py" --dry-run
+    python "$SCRIPT_DIR/replace_true_values_with_raw.py" $PYTHON_ARGS
+elif [ "$AUTO_CONFIRM" = true ]; then
+    echo "Running in LIVE mode with auto-confirmation - files will be modified"
+    python "$SCRIPT_DIR/replace_true_values_with_raw.py" $PYTHON_ARGS
 else
     echo "Running in LIVE mode - files will be modified"
     read -p "Are you sure you want to proceed? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        python "$SCRIPT_DIR/replace_true_values_with_raw.py"
+        python "$SCRIPT_DIR/replace_true_values_with_raw.py" $PYTHON_ARGS
     else
         echo "Operation cancelled."
         exit 1

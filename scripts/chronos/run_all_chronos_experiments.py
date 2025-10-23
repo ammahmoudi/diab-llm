@@ -211,6 +211,45 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=None
                     
                     if replacement_result.returncode == 0:
                         print(f"   ✅ True values successfully replaced with raw data")
+                        
+                        # Calculate corrected metrics after successful replacement
+                        print(f"   🔢 Calculating corrected metrics...")
+                        try:
+                            # Run corrected metrics calculation script
+                            utils_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'utils')
+                            calc_script = os.path.join(utils_dir, 'calculate_corrected_metrics.py')
+                            
+                            calc_cmd = ['python', calc_script, '--experiment_dir', experiment_base_dir]
+                            calc_result = subprocess.run(
+                                calc_cmd, 
+                                capture_output=True, 
+                                text=True, 
+                                timeout=300  # 5 minute timeout
+                            )
+                            
+                            if calc_result.returncode == 0:
+                                print(f"   ✅ Corrected metrics calculated and logged")
+                                
+                                # Extract corrected metrics to CSV
+                                print(f"   📊 Extracting corrected metrics to CSV...")
+                                extract_script = os.path.join(utils_dir, 'extract_corrected_metrics_from_logs.py')
+                                extract_cmd = ['python', extract_script]
+                                
+                                extract_result = subprocess.run(
+                                    extract_cmd, 
+                                    capture_output=True, 
+                                    text=True, 
+                                    timeout=120  # 2 minute timeout
+                                )
+                                
+                                if extract_result.returncode == 0:
+                                    print(f"   ✅ Corrected metrics extracted to CSV files")
+                                else:
+                                    print(f"   ⚠️  Corrected metrics extraction failed: {extract_result.stderr}")
+                            else:
+                                print(f"   ⚠️  Corrected metrics calculation failed: {calc_result.stderr}")
+                        except Exception as e:
+                            print(f"   ⚠️  Corrected metrics processing error: {e}")
                     else:
                         print(f"   ⚠️  True value replacement failed: {replacement_result.stderr}")
                 else:
@@ -245,6 +284,8 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=None
         if resume_file:
             mark_experiment_failed(config_path, resume_file, error_msg)
         return False, f"Exception: {config_path} - {error_msg}"
+
+
 
 def extract_metrics_for_experiment(experiment_dir, fix_results=False, fix_threshold=3.0):
     """Extract metrics for a completed experiment, optionally with outlier correction."""
