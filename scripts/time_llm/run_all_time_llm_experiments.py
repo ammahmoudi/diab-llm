@@ -199,6 +199,43 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=True
                 except Exception as e:
                     print(f"   ⚠️  Metrics extraction failed: {e}")
                 
+                # Replace true values with raw data for non-normal scenarios
+                try:
+                    # Detect data scenario from experiment name or config path
+                    scenario_keywords = ['missing_periodic', 'missing_random', 'noisy', 'denoised']
+                    is_non_normal_scenario = any(keyword in experiment_name.lower() or keyword in config_path.lower() 
+                                               for keyword in scenario_keywords)
+                    
+                    if is_non_normal_scenario:
+                        print(f"   🔄 Non-normal data scenario detected, replacing true values with raw data...")
+                        
+                        # Run the replacement script
+                        replacement_script = os.path.join(os.path.dirname(__file__), '..', 'run_replace_true_values.sh')
+                        experiment_base_dir = os.path.dirname(os.path.dirname(config_path))
+                        
+                        replacement_cmd = [
+                            'bash', replacement_script,
+                            '--experiments-root', experiment_base_dir,
+                            '--auto_confirm'  # Skip interactive confirmation
+                        ]
+                        
+                        replacement_result = subprocess.run(
+                            replacement_cmd, 
+                            capture_output=True, 
+                            text=True, 
+                            timeout=300  # 5 minute timeout
+                        )
+                        
+                        if replacement_result.returncode == 0:
+                            print(f"   ✅ True values successfully replaced with raw data")
+                        else:
+                            print(f"   ⚠️  True value replacement failed: {replacement_result.stderr}")
+                    else:
+                        print(f"   ℹ️  Normal scenario detected, skipping true value replacement")
+                        
+                except Exception as e:
+                    print(f"   ⚠️  True value replacement error: {e}")
+                
                 return True, f"Success ({duration:.2f}s): {config_path}"
             else:
                 # Check if it's a port conflict and retry with new port
