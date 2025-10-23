@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import re
 import csv
 import logging
@@ -8,6 +9,12 @@ import ast
 import math
 from pathlib import Path
 import glob
+
+# Add project root to path for path utilities
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.append(project_root)
+from utils.path_utils import get_project_root
 
 # Configure logging
 logging.basicConfig(
@@ -73,7 +80,7 @@ def parse_experiment_path(experiment_path):
         'patient': patient or 'unknown'
     }
 
-def extract_corrected_metrics_from_logs(base_dir, output_dir):
+def extract_corrected_metrics_from_logs(base_dir):
     """Extract corrected metrics from log files and save to separate CSV files per experiment."""
     
     logging.info("Starting corrected metrics extraction from log files.")
@@ -98,16 +105,13 @@ def extract_corrected_metrics_from_logs(base_dir, output_dir):
         'timestamp', 'rmse', 'mae', 'mape', 'total_points', 'log_file_path'
     ]
     
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-    
     results_per_experiment = {}
     created_files = []
     
     # Process each experiment directory
     for experiment_dir in experiment_dirs:
         experiment_path = os.path.join(base_dir, experiment_dir)
-        output_csv = os.path.join(output_dir, f"{experiment_dir}_corrected_metrics.csv")
+        output_csv = os.path.join(experiment_path, f"{experiment_dir}_corrected_metrics.csv")
         
         logging.info(f"Processing experiment: {experiment_dir}")
         
@@ -206,17 +210,16 @@ def extract_corrected_metrics_from_logs(base_dir, output_dir):
 def main():
     """Main function to extract corrected metrics from experiments."""
     
-    experiments_dir = '/home/amma/LLM-TIME/experiments'
-    output_dir = '/home/amma/LLM-TIME/corrected_metrics_by_experiment'
+    experiments_dir = str(get_project_root() / "experiments")
     
     if not os.path.exists(experiments_dir):
         logging.error(f"Experiments directory not found: {experiments_dir}")
         return
     
     print("Extracting corrected metrics from log files...")
-    print("Generating separate CSV files per experiment type...")
+    print("Generating CSV files in each experiment folder...")
     
-    created_files, results_per_experiment = extract_corrected_metrics_from_logs(experiments_dir, output_dir)
+    created_files, results_per_experiment = extract_corrected_metrics_from_logs(experiments_dir)
     
     if created_files:
         print(f"\n📁 Created {len(created_files)} CSV files:")
@@ -269,8 +272,8 @@ def main():
         except Exception as e:
             print(f"Error generating summary: {e}")
         
-        print(f"\n✅ Extraction complete! CSV files saved to: {output_dir}")
-        print(f"📂 Output directory: {output_dir}")
+        print(f"\n✅ Extraction complete! CSV files saved in their respective experiment folders")
+        print(f"📂 Experiments directory: {experiments_dir}")
     else:
         print("❌ No corrected metrics found to extract.")
 

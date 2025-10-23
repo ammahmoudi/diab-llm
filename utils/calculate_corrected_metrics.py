@@ -9,9 +9,12 @@ import csv
 from datetime import datetime
 import glob
 
-# Add the parent directory to Python path to import metrics
-sys.path.append('/home/amma/LLM-TIME')
+# Add the parent directory to Python path to import metrics  
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.append(project_root)
 from metrics import calculate_rmse, calculate_mae, calculate_mape
+from utils.path_utils import get_project_root
 
 def process_raw_corrected_csv(csv_path):
     """Process a single raw corrected CSV file and calculate metrics."""
@@ -147,10 +150,13 @@ def parse_experiment_path(experiment_path):
         'patient': patient or 'unknown'
     }
 
-def process_all_experiments():
+def process_all_experiments(experiments_root=None):
     """Process all experiments with raw corrected CSV files."""
     
-    experiments_dir = '/home/amma/LLM-TIME/experiments'
+    if experiments_root is None:
+        experiments_dir = str(get_project_root() / "experiments")
+    else:
+        experiments_dir = experiments_root
     
     # Find all raw corrected CSV files
     chronos_files = glob.glob(os.path.join(experiments_dir, '*chronos*', '*', '*', 'logs', '*', 'raw_corrected_final_results.csv'))
@@ -243,10 +249,14 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Calculate corrected metrics for experiments')
     parser.add_argument('--experiment_dir', type=str, help='Specific experiment directory to process')
-    parser.add_argument('--experiments_root', type=str, default='/home/amma/LLM-TIME/experiments',
-                       help='Root experiments directory (default: /home/amma/LLM-TIME/experiments)')
+    parser.add_argument('--experiments_root', type=str, default=None,
+                       help='Root experiments directory (default: auto-detect)')
     
     args = parser.parse_args()
+    
+    # Set default experiments root if not provided
+    if not args.experiments_root:
+        args.experiments_root = str(get_project_root() / "experiments")
     
     if args.experiment_dir:
         # Process single experiment directory
@@ -256,5 +266,6 @@ if __name__ == "__main__":
     else:
         # Process all experiments
         print("Starting corrected metrics calculation for all experiments...")
-        processed = process_all_experiments()
-        print(f"\nProcessing complete! Calculated corrected metrics for {processed} experiments.")
+        print(f"Experiments root: {args.experiments_root}")
+        processed = process_all_experiments(args.experiments_root)
+        print(f"\nProcessing complete! Calculated corrected metrics for {processed} total files.")
