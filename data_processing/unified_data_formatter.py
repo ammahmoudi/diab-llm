@@ -105,7 +105,7 @@ def get_available_scenarios(dataset):
     base_path = get_data_path(dataset)
     
     available_scenarios = []
-    potential_scenarios = ["raw", "missing_periodic", "missing_random", "noisy", "denoised"]
+    potential_scenarios = ["raw", "raw_standardized", "missing_periodic", "missing_random", "noisy", "denoised"]
     
     for scenario in potential_scenarios:
         scenario_path = os.path.join(base_path, scenario)
@@ -117,8 +117,8 @@ def get_available_scenarios(dataset):
 
 def get_available_files(dataset, scenario):
     """Get available CSV files for a dataset/scenario combination"""
-    # Handle ohiot1dm raw scenario - use raw_standardized folder
-    if dataset == "ohiot1dm" and scenario == "raw":
+    # Handle raw_standardized scenario or ohiot1dm raw scenario - use raw_standardized folder
+    if scenario == "raw_standardized" or (dataset == "ohiot1dm" and scenario == "raw"):
         base_path = get_data_path(dataset, "raw_standardized")
     else:
         base_path = get_data_path(dataset, scenario)
@@ -203,10 +203,14 @@ def format_dataset_scenario_window(dataset, scenario, window_config):
     logger.info(f"Formatting {dataset}/{scenario} with window {window_config} ({input_len}, {pred_len})")
     
     # Create output directory
-    output_base = get_data_path(dataset, f"{scenario}_formatted")
-    if scenario == "raw":
+    if scenario == "raw_standardized":
+        # For raw_standardized data, create raw_formatted directory
+        output_base = get_data_path(dataset, "raw_formatted")
+    elif scenario == "raw":
         # For raw data, don't add the _formatted suffix to match existing structure
         output_base = get_data_path(dataset, "raw_formatted")
+    else:
+        output_base = get_data_path(dataset, f"{scenario}_formatted")
     
     window_dir = f"{input_len}_{pred_len}"
     output_dir = os.path.join(output_base, window_dir)
@@ -260,7 +264,7 @@ def main():
                        choices=["ohiot1dm", "d1namo", "all"],
                        help="Dataset to process")
     parser.add_argument("--scenario", default="all",
-                       choices=["raw", "missing_periodic", "missing_random", "noisy", "denoised", "all"],
+                       choices=["raw", "raw_standardized", "missing_periodic", "missing_random", "noisy", "denoised", "all"],
                        help="Data scenario to process")
     parser.add_argument("--windows", default="all",
                        choices=["6,6", "6,9", "all"],
