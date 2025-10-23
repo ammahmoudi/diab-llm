@@ -42,7 +42,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(str(Path(__file__).parents[2]))  # Add LLM-TIME root to path
 from utils.path_utils import get_project_root, get_scripts_path
 
 # Fixed seeds for consistency
@@ -731,7 +731,12 @@ run.log_dir = \\
             try:
                 # Parse experiment type from path
                 path_parts = Path(report_file).parts
-                experiment_dir = path_parts[-7] if len(path_parts) > 7 else "unknown"  # e.g., time_llm_training_ohiot1dm
+                # Find experiment directory by looking for directories containing model type names
+                experiment_dir = "unknown"
+                for part in path_parts:
+                    if any(exp_type in part for exp_type in ['time_llm_inference', 'time_llm_training', 'chronos_inference', 'chronos_training', 'distillation_inference', 'distillation']):
+                        experiment_dir = part
+                        break
                 
                 # Determine experiment category
                 if 'time_llm_training' in experiment_dir:
@@ -853,35 +858,42 @@ run.log_dir = \\
             
             return metadata
         
-        # Original logic for regular experiments
-        if len(path_parts) > 2:
-            experiment_folder = path_parts[-6] if len(path_parts) > 6 else path_parts[2]  # e.g., seed_831363_model_BERT_...
-        else:
+        # Find the experiment folder containing seed and model info
+        experiment_folder = None
+        for part in path_parts:
+            if 'seed_' in part and 'model_' in part:
+                experiment_folder = part
+                break
+        
+        if not experiment_folder:
             return metadata
         
         # Extract seed
         if 'seed_' in experiment_folder:
             try:
-                seed_part = [p for p in experiment_folder.split('_') if p.startswith('seed')][0]
-                metadata['seed'] = seed_part.replace('seed_', '')
-            except (IndexError, ValueError):
+                parts = experiment_folder.split('_')
+                seed_idx = next(i for i, p in enumerate(parts) if p == 'seed') + 1
+                if seed_idx < len(parts):
+                    metadata['seed'] = parts[seed_idx]
+            except (StopIteration, ValueError, IndexError):
                 metadata['seed'] = 'unknown'
         
-        # Extract model name
+        # Extract model name with improved logic
         if 'model_' in experiment_folder:
             try:
                 parts = experiment_folder.split('_')
                 model_idx = next(i for i, p in enumerate(parts) if p == 'model') + 1
                 if model_idx < len(parts):
                     model_name = parts[model_idx]
-                    # Handle different model naming conventions
-                    if 'amazon-chronos' in model_name or 'chronos' in experiment_folder:
-                        if 'base' in experiment_folder:
-                            metadata['model'] = 'chronos-t5-base'
-                        elif 'tiny' in experiment_folder:
-                            metadata['model'] = 'chronos-t5-tiny'
-                        else:
-                            metadata['model'] = 'chronos-unknown'
+                    
+                    # Handle Chronos models
+                    if 'amazon-chronos-t5-base' in experiment_folder:
+                        metadata['model'] = 'chronos-t5-base'
+                    elif 'amazon-chronos-t5-tiny' in experiment_folder:
+                        metadata['model'] = 'chronos-t5-tiny'
+                    # Handle Time-LLM models
+                    elif model_name in ['BERT', 'GPT2', 'LLAMA']:
+                        metadata['model'] = model_name
                     elif 'TinyBERT' in model_name or 'tiny' in model_name.lower():
                         metadata['model'] = 'TinyBERT'
                     else:

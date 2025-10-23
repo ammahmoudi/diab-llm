@@ -1,37 +1,36 @@
 """
-LLM-TIME Efficiency Analysis Toolkit
+Efficiency Toolkit for LLM Analysis
 
-A comprehensive toolkit for analyzing the efficiency of Time-LLM and Chronos models.
-Includes training efficiency, inference performance, memory usage analysis, and more.
-
-Main Components:
-- Core: Essential efficiency calculation and profiling tools
-- Analysis: Legacy analysis scripts and notebooks
-- Scripts: Shell scripts for automation
-- Results: Generated analysis results and reports
-
-Usage:
-    from efficiency_toolkit.core.comprehensive_efficiency_runner import ComprehensiveEfficiencyRunner
-    
-    runner = ComprehensiveEfficiencyRunner()
-    runner.run_all_experiments()
-    runner.analyze_all_experiments()
+This module provides comprehensive tools for analyzing LLM efficiency experiments,
+including log parsing, distillation analysis, resource monitoring, and performance metrics.
 """
+
+from .log_analyzer import LogAnalyzer, DistillationLogAnalyzer
+from .distillation_analyzer import DistillationEfficiencyAnalyzer
+from .resource_monitor import ResourceMonitor
 
 __version__ = "1.0.0"
 __author__ = "LLM-TIME Team"
 
-# Make main classes easily accessible
+# Core imports
+__all__ = [
+    'LogAnalyzer',
+    'DistillationLogAnalyzer', 
+    'DistillationEfficiencyAnalyzer',
+    'ResourceMonitor'
+]
+
+# Try to import additional components if available
 try:
     from .core.comprehensive_efficiency_runner import ComprehensiveEfficiencyRunner
     from .core.efficiency_calculator import EfficiencyCalculator
     from .core.real_time_profiler import RealTimeProfiler
     
-    __all__ = [
+    __all__.extend([
         'ComprehensiveEfficiencyRunner',
         'EfficiencyCalculator', 
         'RealTimeProfiler'
-    ]
+    ])
 except ImportError:
     # Allow imports to fail gracefully during setup
-    __all__ = []
+    pass
