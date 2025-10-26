@@ -35,3 +35,4 @@ distillation_experiments
 efficiency_test_results
 # Efficiency analysis results
 efficiency_toolkit/results/efficiency_analysis_results/
+notebooks/outputs/*

@@ -44,8 +44,55 @@ def calculate_inference_summary(data):
     for model_name in data['model_name'].unique():
         model_data = data[data['model_name'] == model_name]
         
-        # Get the best record for each metric (prioritize real measurements)
-        timing_records = model_data.dropna(subset=['avg_inference_time_ms'])
+                # Priority strategy for timing records:
+        # 1) For Time-LLM models: prefer real_performance_reports (have accurate inference_timing.average_latency_ms)
+        # 2) For Chronos models: prefer efficiency_reports (real_performance_reports contain aggregates)
+        # Use threshold < 1000ms to ensure we get per-inference timings, not batch/aggregate
+        timing_records = pd.DataFrame()
+        
+        # Try real_performance_reports first if they have clean per-inference timings (< 1s)
+        if 'report_type' in model_data.columns:
+            real_perf = model_data[model_data['report_type'] == 'real_performance_reports']
+            if not real_perf.dropna(subset=['avg_inference_time_ms']).empty:
+                # Use stricter threshold < 1000ms to catch true per-inference measurements
+                clean_real_perf = real_perf[real_perf['avg_inference_time_ms'] < 1000]
+                if not clean_real_perf.empty:
+                    timing_records = clean_real_perf
+        
+        # Fallback: efficiency_reports (often have clean per-inference timings, especially for Chronos)
+        if timing_records.empty and 'report_type' in model_data.columns:
+            efficiency = model_data[model_data['report_type'] == 'efficiency_reports']
+            clean_efficiency = efficiency[(efficiency['avg_inference_time_ms'].notna()) & (efficiency['avg_inference_time_ms'] < 1000)]
+            if not clean_efficiency.empty:
+                timing_records = clean_efficiency
+        
+        # Fallback: comprehensive_reports
+        if timing_records.empty and 'report_type' in model_data.columns:
+            comprehensive = model_data[model_data['report_type'] == 'comprehensive_reports']
+            clean_comprehensive = comprehensive[(comprehensive['avg_inference_time_ms'].notna()) & (comprehensive['avg_inference_time_ms'] < 1000)]
+            if not clean_comprehensive.empty:
+                timing_records = clean_comprehensive
+        
+        # Fallback: real_performance_reports with slightly larger threshold (< 10s) for slower models
+        if timing_records.empty and 'report_type' in model_data.columns:
+            real_perf_relaxed = model_data[model_data['report_type'] == 'real_performance_reports']
+            clean_relaxed = real_perf_relaxed[(real_perf_relaxed['avg_inference_time_ms'].notna()) & (real_perf_relaxed['avg_inference_time_ms'] < 10000)]
+            if not clean_relaxed.empty:
+                timing_records = clean_relaxed
+        
+        # Fallback: inference-mode records with reasonable timing values
+        if timing_records.empty and 'mode' in model_data.columns:
+            inf_mode = model_data[model_data['mode'] == 'inference']
+            clean_inf = inf_mode[(inf_mode['avg_inference_time_ms'].notna()) & (inf_mode['avg_inference_time_ms'] < 10000)]
+            if not clean_inf.empty:
+                timing_records = clean_inf
+        
+        # Last resort: any record with timing (but filter out obvious aggregates > 10s)
+        if timing_records.empty:
+            all_with_timing = model_data.dropna(subset=['avg_inference_time_ms'])
+            timing_records = all_with_timing[all_with_timing['avg_inference_time_ms'] < 10000]
+            if timing_records.empty:
+                timing_records = all_with_timing  # Accept even large values if nothing else
         memory_records = model_data.dropna(subset=['inference_peak_ram_mb'])
         power_records = model_data.dropna(subset=['inference_avg_power_w'])
         
@@ -60,43 +107,94 @@ def calculate_inference_summary(data):
         
         # Timing metrics
         if not timing_records.empty:
+            # Use median to reduce sensitivity to outliers across mixed measurement contexts
+            median_time = timing_records['avg_inference_time_ms'].median()
             metric_record.update({
-                'avg_inference_time_ms': timing_records['avg_inference_time_ms'].mean(),
-                'min_inference_time_ms': timing_records['avg_inference_time_ms'].min(),
-                'max_inference_time_ms': timing_records['avg_inference_time_ms'].max(),
-                'std_inference_time_ms': timing_records['avg_inference_time_ms'].std(),
+                'avg_inference_time_ms': float(median_time),
+                'min_inference_time_ms': float(timing_records['avg_inference_time_ms'].min()),
+                'max_inference_time_ms': float(timing_records['avg_inference_time_ms'].max()),
+                'std_inference_time_ms': float(timing_records['avg_inference_time_ms'].std()) if timing_records['avg_inference_time_ms'].std() is not None else None,
+                'latency_source': 'measured'
             })
-            
-            # Calculate throughput
+
+            # Calculate throughput from the chosen latency (consistent with displayed CPU latency)
             avg_time = metric_record['avg_inference_time_ms']
             metric_record['throughput_predictions_per_sec'] = 1000.0 / avg_time if avg_time > 0 else 0
+        else:
+            # No measured timings available: fall back to estimated CPU latency if present
+            est_cpu = model_data.get('estimated_cpu_latency_ms') if 'estimated_cpu_latency_ms' in model_data else None
+            est_vals = model_data['estimated_cpu_latency_ms'].dropna() if ('estimated_cpu_latency_ms' in model_data and not model_data['estimated_cpu_latency_ms'].dropna().empty) else None
+            if est_vals is not None and len(est_vals) > 0:
+                est_value = float(est_vals.mean())
+                metric_record.update({
+                    'avg_inference_time_ms': est_value,
+                    'min_inference_time_ms': est_value,
+                    'max_inference_time_ms': est_value,
+                    'std_inference_time_ms': None,
+                    'latency_source': 'estimated'
+                })
+                metric_record['throughput_predictions_per_sec'] = 1000.0 / est_value if est_value > 0 else 0
         
-        # Memory metrics
+        # Memory metrics - prioritize real_performance_report records
         if not memory_records.empty:
+            # Prefer real_performance_reports for process_peak_ram_mb (most accurate)
+            if 'report_type' in memory_records.columns:
+                real_perf_mem = memory_records[memory_records['report_type'] == 'real_performance_reports']
+                if not real_perf_mem.empty:
+                    memory_records = real_perf_mem
+            
             metric_record.update({
-                'inference_peak_ram_mb': memory_records['inference_peak_ram_mb'].mean(),
+                'inference_peak_ram_mb': memory_records['inference_peak_ram_mb'].median(),
                 'min_ram_mb': memory_records['inference_peak_ram_mb'].min(),
                 'max_ram_mb': memory_records['inference_peak_ram_mb'].max(),
             })
         
-        # Power metrics
+        # Power metrics - prioritize real_performance_report nvidia_ml_metrics
         if not power_records.empty:
+            # Prefer real_performance_reports for nvidia_ml_metrics.average_power_usage_watts
+            if 'report_type' in power_records.columns:
+                real_perf_power = power_records[power_records['report_type'] == 'real_performance_reports']
+                if not real_perf_power.empty:
+                    power_records = real_perf_power
+            
             metric_record.update({
-                'inference_avg_power_w': power_records['inference_avg_power_w'].mean(),
+                'inference_avg_power_w': power_records['inference_avg_power_w'].median(),
                 'min_power_w': power_records['inference_avg_power_w'].min(),
                 'max_power_w': power_records['inference_avg_power_w'].max(),
             })
         
-        # GPU/VRAM metrics (addressing reviewer requirements for comprehensive inference metrics)
-        gpu_vram_metrics = ['inference_peak_gpu_mb', 'current_vram_usage_mb', 'gpu_memory_reserved_mb', 
+        # GPU/VRAM metrics (prioritize PyTorch for model-specific, NVIDIA ML for hardware-level)
+        gpu_vram_metrics = ['inference_peak_gpu_mb', 'current_vram_usage_mb', 'gpu_avg_allocated_mb', 'gpu_reserved_mb',
                            'estimated_cpu_latency_ms', 'estimated_gpu_latency_ms', 'peak_power_usage_watts',
-                           'peak_gpu_utilization_percent', 'average_gpu_utilization_percent']
+                           'peak_gpu_utilization_percent', 'average_gpu_utilization_percent',
+                           'nvidia_system_vram_mb', 'nvidia_avg_system_vram_mb']  # Keep system-wide for comparison
         
         for gpu_metric in gpu_vram_metrics:
             if gpu_metric in model_data.columns:
                 gpu_records = model_data.dropna(subset=[gpu_metric])
                 if not gpu_records.empty:
-                    metric_record[gpu_metric] = gpu_records[gpu_metric].mean()
+                    # PRIORITY: real_performance_reports > comprehensive_reports > efficiency_reports
+                    if gpu_metric in ['current_vram_usage_mb', 'inference_peak_gpu_mb', 'gpu_avg_allocated_mb']:
+                        # Prioritize real_performance_reports (gpu_memory_usage.peak_allocated_mb - most accurate)
+                        if 'report_type' in gpu_records.columns:
+                            real_perf_gpu = gpu_records[gpu_records['report_type'] == 'real_performance_reports']
+                            if not real_perf_gpu.empty:
+                                metric_record[gpu_metric] = real_perf_gpu[gpu_metric].median()
+                                continue
+                            # Fallback: comprehensive_reports (PyTorch)
+                            pytorch_records = gpu_records[gpu_records['report_type'] == 'comprehensive_reports']
+                            if not pytorch_records.empty:
+                                metric_record[gpu_metric] = pytorch_records[gpu_metric].median()
+                                continue
+                        # Last resort: use all records
+                        metric_record[gpu_metric] = gpu_records[gpu_metric].median()
+                    else:
+                        # For other metrics, prefer real_performance_reports then use median
+                        if 'report_type' in gpu_records.columns:
+                            real_perf = gpu_records[gpu_records['report_type'] == 'real_performance_reports']
+                            if not real_perf.empty:
+                                gpu_records = real_perf
+                        metric_record[gpu_metric] = gpu_records[gpu_metric].median()
         
         # Model characteristics (use first available)
         first_record = model_data.iloc[0]

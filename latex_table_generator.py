@@ -60,108 +60,105 @@ def create_comprehensive_standardized_table(inference_data: pd.DataFrame, traini
     clean_summary = clean_summary.sort_values(['sort_order', 'model_name']).drop('sort_order', axis=1)
     
     # Start LaTeX table with comprehensive metrics addressing reviewer concerns
-    latex = r"""\documentclass{article}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{xcolor}
-\usepackage{multirow}
-\usepackage{rotating}
-
-\begin{document}
-
-\begin{table*}[htbp]
-    \centering
-    \caption{Comprehensive Model Performance: Standardized Inference Metrics for Edge Deployment Assessment}
-    \label{tab:comprehensive_standardized_metrics}
-    \tiny
-    \begin{tabular}{@{}l|cc|cc|cc|c|c@{}}
-        \toprule
-        & \multicolumn{2}{c|}{\textbf{Latency (ms)}} & \multicolumn{2}{c|}{\textbf{Memory (MB)}} & \multicolumn{2}{c|}{\textbf{Performance}} & \textbf{Model} & \textbf{Edge} \\
-        \textbf{Model} & \textbf{CPU} & \textbf{GPU} & \textbf{RAM} & \textbf{VRAM} & \textbf{Power (W)} & \textbf{Thru. (p/s)} & \textbf{Size (MB)} & \textbf{Ready} \\
-        \midrule
-"""
+    header_lines = [
+        r"\documentclass{article}",
+        r"\usepackage{booktabs}",
+        r"\usepackage{array}",
+        r"\usepackage{xcolor}",
+        r"\usepackage{multirow}",
+        r"\usepackage{rotating}",
+        "",
+        r"\begin{document}",
+        "",
+        r"\begin{table*}[htbp]",
+        r"    \centering",
+        r"    \color{green}",
+        r"    \caption{Inference Performance Metrics on OhioT1DM (30-min Horizon)}",
+        r"    \label{tab:comprehensive_standardized_metrics}",
+        r"    \small",
+        r"    \begin{tabular}{@{}l|c|cc|cc|c@{}}",
+        r"        \toprule",
+        r"        & \textbf{Latency} & \multicolumn{2}{c|}{\textbf{Memory (MB)}} & \multicolumn{2}{c|}{\textbf{Performance}} & \textbf{Model} \\",
+        r"        \textbf{Model} & \textbf{E2E (ms)} & \textbf{RAM} & \textbf{VRAM} & \textbf{Power (W)} & \textbf{Thru. (p/s)} & \textbf{Size (MB)} \\",
+        r"        \midrule",
+        "",
+    ]
+    latex = '\n'.join(header_lines)
     
     # Add data rows with full standardized model names
+    rows = []
     for _, row in clean_summary.iterrows():
         model_name = str(row['model_name'])
-        
+
         # Use full standardized model name (no truncation)
         display_name = model_name.replace('_', '\\_')
-        
-        # CPU vs GPU Latency (addressing reviewer requirement for standardized inference metrics)
-        cpu_latency = f"{row['estimated_cpu_latency_ms']:.1f}" if 'estimated_cpu_latency_ms' in row and pd.notna(row['estimated_cpu_latency_ms']) else f"{row['avg_inference_time_ms']:.1f}" if pd.notna(row['avg_inference_time_ms']) else "\\textcolor{gray}{--}"
-        
-        gpu_latency = f"{row['estimated_gpu_latency_ms']:.1f}" if 'estimated_gpu_latency_ms' in row and pd.notna(row['estimated_gpu_latency_ms']) else "\\textcolor{gray}{--}"
-        
-        # RAM vs VRAM (addressing reviewer requirement for memory measurements)
+
+        # End-to-End Latency: use measured average_latency_ms from inference_timing
+        # This is loaded into avg_inference_time_ms from real_performance_report.inference_timing.average_latency_ms
+        e2e_latency_value = None
+        if 'avg_inference_time_ms' in row and pd.notna(row['avg_inference_time_ms']):
+            e2e_latency_value = float(row['avg_inference_time_ms'])
+
+        e2e_latency = f"{e2e_latency_value:.1f}" if e2e_latency_value is not None else "\\textcolor{gray}{--}"
+
+        # RAM: prioritize process_peak_ram_mb (from real_performance_report memory_usage section)
+        # This is loaded into inference_peak_ram_mb by enhanced_data_loader
         peak_ram = f"{row['inference_peak_ram_mb']:.0f}" if pd.notna(row['inference_peak_ram_mb']) else "\\textcolor{gray}{--}"
-        
+
+        # VRAM: prioritize peak_allocated_mb from gpu_memory_usage (PyTorch model-specific, NOT system-wide NVIDIA)
+        # This is loaded into inference_peak_gpu_mb by enhanced_data_loader from real_performance_report
         vram_usage = "\\textcolor{gray}{--}"
-        if 'current_vram_usage_mb' in row and pd.notna(row['current_vram_usage_mb']):
-            vram_usage = f"{row['current_vram_usage_mb']:.0f}"
-        elif 'inference_peak_gpu_mb' in row and pd.notna(row['inference_peak_gpu_mb']):
-            vram_usage = f"{row['inference_peak_gpu_mb']:.0f}"
-        
-        # Power measurements (addressing reviewer requirement for energy measurements)
+        if 'inference_peak_gpu_mb' in row and pd.notna(row['inference_peak_gpu_mb']):
+            vram_usage = f"{row['inference_peak_gpu_mb']:.0f}"  # PyTorch peak allocated (model-specific)
+        elif 'current_vram_usage_mb' in row and pd.notna(row['current_vram_usage_mb']):
+            vram_usage = f"{row['current_vram_usage_mb']:.0f}"  # Alternative field
+
+        # Power: prioritize nvidia_ml_metrics average_power_usage_watts and peak_power_usage_watts
+        # These are loaded into inference_avg_power_w and peak_power_usage_watts by enhanced_data_loader
         power_val = "\\textcolor{gray}{--}"
-        if 'peak_power_usage_watts' in row and pd.notna(row['peak_power_usage_watts']):
-            power_val = f"{row['peak_power_usage_watts']:.1f}"
-        elif 'inference_avg_power_w' in row and pd.notna(row['inference_avg_power_w']):
-            power_val = f"{row['inference_avg_power_w']:.1f}"
-        
-        # Throughput with scientific notation for very small values
-        throughput_val = row['throughput_predictions_per_sec']
-        if pd.notna(throughput_val):
+        avg_power = row.get('inference_avg_power_w') if 'inference_avg_power_w' in row else None
+        peak_power = row.get('peak_power_usage_watts') if 'peak_power_usage_watts' in row else None
+
+        if pd.notna(avg_power) and pd.notna(peak_power):
+            # Show average (primary) and peak (secondary)
+            power_val = f"{avg_power:.2f} ({peak_power:.2f})"
+        elif pd.notna(avg_power):
+            power_val = f"{avg_power:.2f}"
+        elif pd.notna(peak_power):
+            power_val = f"{peak_power:.2f}"
+
+        # Throughput: compute from the End-to-End latency to ensure consistency
+        throughput_val = None
+        if e2e_latency_value is not None and e2e_latency_value > 0:
+            throughput_val = 1000.0 / e2e_latency_value
+        else:
+            # Last-resort: use any precomputed throughput value if present
+            precomp = row.get('throughput_predictions_per_sec') if 'throughput_predictions_per_sec' in row else None
+            if pd.notna(precomp):
+                throughput_val = float(precomp)
+
+        if throughput_val is not None and pd.notna(throughput_val):
             if throughput_val < 0.01:
                 throughput = f"{throughput_val:.1e}"
             else:
                 throughput = f"{throughput_val:.2f}"
         else:
             throughput = "\\textcolor{gray}{--}"
-        
-        # Model size on disk (addressing reviewer requirement)
+
+        # Model size: prioritize model_size_mb (loaded from model_file_metrics.model_size_on_disk_mb)
         model_size = f"{row['model_size_mb']:.0f}" if pd.notna(row['model_size_mb']) else "\\textcolor{gray}{--}"
-        
-        # Comprehensive edge deployment assessment (addressing reviewer requirement for edge feasibility)
-        edge_ready = "\\textcolor{gray}{--}"
-        
-        if (pd.notna(row.get('estimated_cpu_latency_ms', row.get('avg_inference_time_ms'))) and 
-            pd.notna(row['inference_peak_ram_mb']) and 
-            pd.notna(row['model_size_mb'])):
-            
-            # Concrete edge deployment criteria based on actual measurements
-            cpu_lat = row.get('estimated_cpu_latency_ms', row.get('avg_inference_time_ms', float('inf')))
-            latency_ok = cpu_lat < 1000  # < 1 second for edge deployment
-            memory_ok = row['inference_peak_ram_mb'] < 2000   # < 2GB RAM for edge devices
-            size_ok = row['model_size_mb'] < 500              # < 500MB model size for edge
-            
-            # Additional criteria for comprehensive assessment
-            power_ok = True
-            if 'peak_power_usage_watts' in row and pd.notna(row['peak_power_usage_watts']):
-                power_ok = row['peak_power_usage_watts'] < 50  # < 50W for edge devices
-            
-            edge_criteria_met = sum([latency_ok, memory_ok, size_ok, power_ok])
-            
-            if edge_criteria_met >= 4:
-                edge_ready = "\\textcolor{green}{\\textbf{Yes}}"
-            elif edge_criteria_met >= 3:
-                edge_ready = "\\textcolor{orange}{Partial}"
-            else:
-                edge_ready = "\\textcolor{red}{No}"
-        
-        latex += f"        {display_name} & {cpu_latency} & {gpu_latency} & {peak_ram} & {vram_usage} & {power_val} & {throughput} & {model_size} & {edge_ready} \\\\\n"
+
+        # Build row with End-to-End latency (single column)
+        row_str = f"        {display_name} & {e2e_latency} & {peak_ram} & {vram_usage} & {power_val} & {throughput} & {model_size} \\\\"
+        rows.append(row_str)
+
+    # Join rows with actual newlines and append to latex
+    latex += '\n'.join(rows) + '\n'
     
-    # Close table with comprehensive notes addressing reviewer requirements
+    # Close table (no extra notes included — matches requested format)
     latex += r"""        \bottomrule
     \end{tabular}
-    \begin{minipage}{\textwidth}
-        \footnotesize
-        \textbf{Notes:} All metrics represent standardized inference measurements on consistent hardware. 
-        CPU/GPU latency measured per prediction. RAM/VRAM peak usage during inference. 
-        Power measured at peak utilization. Edge readiness: \textcolor{green}{Yes} = all criteria met, 
-        \textcolor{orange}{Partial} = 3/4 criteria, \textcolor{red}{No} = <3 criteria. 
-        Criteria: CPU latency <1s, RAM <2GB, Model size <500MB, Power <50W.
-    \end{minipage}
+
 \end{table*}
 
 \end{document}"""
@@ -182,6 +179,8 @@ def save_latex_table(latex_content: str, filename: str, output_dir: Optional[Pat
     file_path = output_dir / filename
     
     with open(file_path, 'w', encoding='utf-8') as f:
+        # Write LaTeX content directly. Avoid automatic token replacements which can
+        # introduce double backslashes (e.g. turning "\toprule" into "\\toprule").
         f.write(latex_content)
     
     return file_path
