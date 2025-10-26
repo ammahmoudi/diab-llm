@@ -7,13 +7,13 @@ A comprehensive toolkit for analyzing the efficiency of Time-LLM and Chronos mod
 ### From Project Root
 ```bash
 # Run all efficiency experiments and analyze results
-python efficiency_runner.py
+python efficiency_toolkit/scripts/efficiency_runner.py
 
 # Analyze existing results only
-python efficiency_runner.py --analyze-only
+python efficiency_toolkit/scripts/efficiency_runner.py --analyze-only
 
 # Run experiments with analysis
-python efficiency_runner.py --analyze
+python efficiency_toolkit/scripts/efficiency_runner.py --analyze
 ```
 
 ### Direct Usage
@@ -98,19 +98,19 @@ distillation_results = analysis_results['by_model_type']['distillation']
 ### Command Line Options
 ```bash
 # Show help
-python efficiency_runner.py --help
+python efficiency_toolkit/scripts/efficiency_runner.py --help
 
 # Run with specific test patient
-python efficiency_runner.py --patient 570
+python efficiency_toolkit/scripts/efficiency_runner.py --patient 570
 
 # Custom output directory
-python efficiency_runner.py --output-dir /custom/path
+python efficiency_toolkit/scripts/efficiency_runner.py --output-dir /custom/path
 
 # Dry run to see what would execute
-python efficiency_runner.py --dry-run
+python efficiency_toolkit/scripts/efficiency_runner.py --dry-run
 
 # Verbose output
-python efficiency_runner.py --verbose
+python efficiency_toolkit/scripts/efficiency_runner.py --verbose
 ```
 
 ## 📈 Analysis Capabilities
@@ -157,7 +157,7 @@ python efficiency_runner.py --verbose
 
 2. **Run Quick Analysis**
    ```bash
-   python efficiency_runner.py --analyze-only
+   python efficiency_toolkit/scripts/efficiency_runner.py --analyze-only
    ```
 
 3. **View Results**

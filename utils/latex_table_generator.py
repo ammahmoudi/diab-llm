@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Optional
-from analysis_utils import standardize_model_names, calculate_inference_summary
+from utils.analysis_utils import standardize_model_names, calculate_inference_summary
 
 
 def create_comprehensive_standardized_table(inference_data: pd.DataFrame, training_data: Optional[pd.DataFrame] = None) -> str:

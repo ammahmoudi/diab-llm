@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import json
 import warnings
-from analysis_utils import standardize_model_names
+from utils.analysis_utils import standardize_model_names
 warnings.filterwarnings('ignore')
 
 class TrainingAnalyzer:
@@ -371,8 +371,8 @@ def analyze_all_phases(project_root: Path) -> Tuple[pd.DataFrame, pd.DataFrame, 
     # Import inference analysis
     import sys
     sys.path.append(str(project_root))
-    from enhanced_data_loader import EnhancedEfficiencyDataLoader
-    from analysis_utils import calculate_inference_metrics
+    from utils.enhanced_data_loader import EnhancedEfficiencyDataLoader
+    from utils.analysis_utils import calculate_inference_metrics
     
     # Inference analysis
     loader = EnhancedEfficiencyDataLoader(project_root / 'efficiency_experiments')

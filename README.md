@@ -1,4 +1,3 @@
-
 # BG Data Prediction Using LLMs
 
 This project aims to make predictions using Large Language Models (LLMs) with a dataset for time-series and inference tasks. Follow the instructions below to set up the environment and run the scripts to generate and execute configurations.
@@ -33,7 +32,7 @@ python scripts/data_formatting/quick_process.py all
 python ./scripts/run_configs_time_llm_inference.py
 
 # 4B. OR run knowledge distillation pipeline (recommended)
-bash distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
+bash scripts/distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
   --teacher-epochs 1 --student-epochs 1 --distill-epochs 1 --dry-run
 ```
 
@@ -85,16 +84,16 @@ Automatically find the best teacher-student pairs for your use case:
 
 ```bash
 # Quick test (3 pairs, ~30 minutes)
-./test_distillation_pairs.sh quick
+./scripts/test_distillation_pairs.sh quick
 
 # Strategic test (8 pairs, ~2 hours) - RECOMMENDED
-./test_distillation_pairs.sh balanced
+./scripts/test_distillation_pairs.sh balanced
 
 # Test single best pair (~20 minutes)
-./test_distillation_pairs.sh best
+./scripts/test_distillation_pairs.sh best
 
 # Test ultra-tiny models (~45 minutes)
-./test_distillation_pairs.sh tiny
+./scripts/test_distillation_pairs.sh tiny
 ```
 
 **📊 Automatic Analysis**: Results include performance comparison, rankings, and specific recommendations for your use case.
@@ -105,7 +104,7 @@ Automatically find the best teacher-student pairs for your use case:
 
 **Single Patient**:
 ```bash
-bash distill_pipeline.sh \
+bash scripts/distill_pipeline.sh \
   --teacher bert-base-uncased \
   --student prajjwal1/bert-tiny \
   --patients 570 \
@@ -118,7 +117,7 @@ bash distill_pipeline.sh \
 
 **Multiple Patients**:
 ```bash
-bash distill_pipeline.sh \
+bash scripts/distill_pipeline.sh \
   --teacher bert-base-uncased \
   --student prajjwal1/bert-tiny \
   --patients 570,584 \
@@ -285,6 +284,9 @@ Before running the configuration scripts, ensure the following folders are avail
 The project now includes comprehensive Chronos model support with GPU acceleration and cross-scenario inference:
 
 ```bash
+# Or use the convenience wrapper
+python scripts/run_chronos.py
+
 # Generate training configs
 python scripts/chronos/config_generator_chronos.py --mode train --patients 570,584 --data_scenario standardized
 
@@ -566,21 +568,3 @@ chmod +x run_time_llm_bert_cross_scenario.sh
 # Fix Python path issues
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 ```
-- **Consolidated Results**: Comprehensive CSV files combining all experiment metrics and configurations
-
-### 🗃️ Advanced Data Processing
-- **Unified Data Pipeline**: Single command to process all datasets and scenarios
-- **Multiple Window Configurations**: Support for 6_6 and 6_9 time series windows
-- **Arrow Format Support**: Efficient training data format with 10x faster loading
-- **Dynamic Path Resolution**: Works from any installation location without configuration
-
-### 🧠 Model Improvements
-- **Chronos Integration**: Full support for Amazon's Chronos foundation models with GPU acceleration
-- **Time-LLM Unified System**: Comprehensive support for GPT2, LLAMA, and BERT models
-- **Cross-Model Evaluation**: Compare performance across different LLM architectures
-- **LoRA Fine-tuning**: Parameter-efficient fine-tuning capabilities
-- **Multiple Model Sizes**: Support for tiny, base, and large model variants
-- **Checkpoint Management**: Automatic checkpoint saving, loading, and cleanup
-- **Dual Data Formats**: Standard time-series (Time-LLM) and windowed (Chronos) formats
-
----

@@ -6,8 +6,8 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path.cwd()))
 
-from enhanced_data_loader import EnhancedEfficiencyDataLoader
-from latex_table_generator import generate_all_tables
+from utils.enhanced_data_loader import EnhancedEfficiencyDataLoader
+from utils.latex_table_generator import generate_all_tables
 import pandas as pd
 
 print("📊 Loading production inference data...")

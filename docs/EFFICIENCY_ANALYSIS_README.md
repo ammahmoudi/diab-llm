@@ -90,9 +90,11 @@ Old notebooks now show redirect messages to guide users to the new unified noteb
 
 ```python
 # Import the analysis modules
-from enhanced_data_loader import EnhancedDataLoader
-from analysis_utils import create_comprehensive_performance_comparison
-from training_analysis import TrainingAnalyzer
+```python
+from utils.enhanced_data_loader import EnhancedDataLoader
+from utils.analysis_utils import create_comprehensive_performance_comparison
+from utils.training_analysis import TrainingAnalyzer
+```
 
 # Load and analyze data
 loader = EnhancedDataLoader(base_path)
