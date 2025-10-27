@@ -5,17 +5,26 @@ Test script to validate all fairness analyzers
 
 import subprocess
 import sys
+from pathlib import Path
 
-analyzers = [
-    ("Gender", "gender_fairness_analyzer.py"),
-    ("Age", "age_fairness_analyzer.py"),
-    ("Pump Model", "pump_model_fairness_analyzer.py"),
-    ("Sensor Band", "sensor_fairness_analyzer.py"),
-    ("Cohort", "cohort_fairness_analyzer.py"),
-    ("Legendary", "legendary_fairness_analyzer.py"),
-]
+# Add project root to path
+current_dir = Path(__file__).resolve().parent
+fairness_dir = current_dir.parent
+project_root = fairness_dir.parent
+sys.path.insert(0, str(project_root))
 
-python_cmd = "/workspace/LLM-TIME/venv/bin/python"
+analyzers = {
+    "Gender": "fairness/analyzers/gender_fairness_analyzer.py",
+    "Age": "fairness/analyzers/age_fairness_analyzer.py",
+    "Pump Model": "fairness/analyzers/pump_model_fairness_analyzer.py",
+    "Sensor Band": "fairness/analyzers/sensor_fairness_analyzer.py",
+    "Cohort": "fairness/analyzers/cohort_fairness_analyzer.py",
+    "Legendary": "fairness/analyzers/legendary_distillation_analyzer.py"
+}
+
+# Dynamically get python executable from venv
+venv_python = project_root / "venv" / "bin" / "python"
+python_cmd = str(venv_python) if venv_python.exists() else sys.executable
 
 print("=" * 80)
 print("TESTING ALL FAIRNESS ANALYZERS")
@@ -23,7 +32,7 @@ print("=" * 80)
 
 results = {}
 
-for name, script in analyzers:
+for name, script in analyzers.items():
     print(f"\n🧪 Testing {name} Analyzer...")
     print("-" * 80)
     

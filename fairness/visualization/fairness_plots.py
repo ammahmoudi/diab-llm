@@ -14,18 +14,28 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import json
+import sys
 from pathlib import Path
+
+# Add project root to path dynamically
+current_dir = Path(__file__).resolve().parent
+project_root = current_dir.parent.parent
+sys.path.insert(0, str(project_root))
+
+from utils.path_utils import get_project_root
 
 
 class FairnessVisualizer:
     """Create visualizations for fairness analysis."""
     
-    def __init__(self, output_dir: str = "/workspace/LLM-TIME/fairness/visualizations"):
+    def __init__(self, output_dir: Optional[str] = None):
         """Initialize the fairness visualizer.
         
         Args:
             output_dir: Directory to save visualization outputs
         """
+        if output_dir is None:
+            output_dir = str(get_project_root() / "fairness" / "visualizations")
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         

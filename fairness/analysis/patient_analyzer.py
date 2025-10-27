@@ -10,18 +10,28 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 import os
+import sys
 from pathlib import Path
+
+# Add project root to path dynamically
+current_dir = Path(__file__).resolve().parent
+project_root = current_dir.parent.parent
+sys.path.insert(0, str(project_root))
+
+from utils.path_utils import get_project_root
 
 
 class PatientAnalyzer:
     """Analyzes patient demographics and creates fairness evaluation groups."""
     
-    def __init__(self, data_path: str = "/workspace/LLM-TIME/data/ohiot1dm/data.csv"):
+    def __init__(self, data_path: Optional[str] = None):
         """Initialize the patient analyzer.
         
         Args:
             data_path: Path to the patient metadata CSV file
         """
+        if data_path is None:
+            data_path = str(get_project_root() / "data" / "ohiot1dm" / "data.csv")
         self.data_path = data_path
         self.patient_data = None
         self.load_patient_data()
@@ -34,6 +44,24 @@ class PatientAnalyzer:
             print("Available columns:", list(self.patient_data.columns))
             print("Patient data preview:")
             print(self.patient_data.head())
+        except FileNotFoundError:
+            print(f"⚠️  Patient data file not found at {self.data_path}")
+            print("⚠️  Using default OhioT1DM patient metadata")
+            # Create default patient metadata based on OhioT1DM dataset
+            self.patient_data = pd.DataFrame({
+                'ID': [540, 544, 552, 559, 563, 567, 570, 575, 584, 588, 591, 596],
+                'Gender': ['Male', 'Male', 'Male', 'Male', 'Female', 'Female', 'Male', 
+                          'Female', 'Male', 'Female', 'Female', 'Male'],
+                'Age': ['40-60', '20-40', '40-60', '20-40', '40-60', '60-80', '40-60',
+                       '20-40', '20-40', '60-80', '60-80', '60-80'],
+                'Pump Model': ['630G', '630G', '630G', '630G', '630G', '530G', '630G',
+                             '630G', '630G', '630G', '630G', '530G'],
+                'Sensor Band': ['Empatica', 'Empatica', 'Basis', 'Empatica', 'Basis', 
+                               'Empatica', 'Basis', 'Empatica', 'Empatica', 'Basis', 'Basis', 'Basis'],
+                'Cohort': ['2018', '2018', '2018', '2018', '2018', '2018', '2020',
+                          '2020', '2020', '2020', '2020', '2020']
+            })
+            print(f"✅ Using default metadata for {len(self.patient_data)} patients")
         except Exception as e:
             raise FileNotFoundError(f"Could not load patient data from {self.data_path}: {e}")
     

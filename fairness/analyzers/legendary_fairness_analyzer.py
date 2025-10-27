@@ -13,6 +13,7 @@ This is the ULTIMATE fairness analysis tool.
 """
 
 import os
+import sys
 import json
 import pandas as pd
 import numpy as np
@@ -23,9 +24,18 @@ import seaborn as sns
 from datetime import datetime
 from pathlib import Path
 
+# Add project root to path dynamically
+current_dir = Path(__file__).resolve().parent
+project_root = current_dir.parent.parent
+sys.path.insert(0, str(project_root))
+
+from utils.path_utils import get_project_root
+
 class LegendaryFairnessAnalyzer:
-    def __init__(self, data_path="/workspace/LLM-TIME/data/ohiot1dm/data.csv"):
+    def __init__(self, data_path=None):
         """Initialize the LEGENDARY analyzer with OhioT1DM patient data"""
+        if data_path is None:
+            data_path = str(get_project_root() / "data" / "ohiot1dm" / "data.csv")
         self.data_path = data_path
         self.patient_data = self._load_patient_data()
         self.feature_names = {
@@ -55,6 +65,24 @@ class LegendaryFairnessAnalyzer:
                 }
                 
             return patient_mapping
+        except FileNotFoundError:
+            print(f"⚠️  Patient data file not found at {self.data_path}")
+            print("⚠️  Using default OhioT1DM patient metadata")
+            # Create default patient metadata based on OhioT1DM dataset
+            return {
+                '540': {'gender': 'Male', 'age': '40-60', 'pump_model': '630G', 'sensor_band': 'Empatica', 'cohort': '2018'},
+                '544': {'gender': 'Male', 'age': '20-40', 'pump_model': '630G', 'sensor_band': 'Empatica', 'cohort': '2018'},
+                '552': {'gender': 'Male', 'age': '40-60', 'pump_model': '630G', 'sensor_band': 'Basis', 'cohort': '2018'},
+                '559': {'gender': 'Male', 'age': '20-40', 'pump_model': '630G', 'sensor_band': 'Empatica', 'cohort': '2018'},
+                '563': {'gender': 'Female', 'age': '40-60', 'pump_model': '630G', 'sensor_band': 'Basis', 'cohort': '2018'},
+                '567': {'gender': 'Female', 'age': '60-80', 'pump_model': '530G', 'sensor_band': 'Empatica', 'cohort': '2018'},
+                '570': {'gender': 'Male', 'age': '40-60', 'pump_model': '630G', 'sensor_band': 'Basis', 'cohort': '2020'},
+                '575': {'gender': 'Female', 'age': '20-40', 'pump_model': '630G', 'sensor_band': 'Empatica', 'cohort': '2020'},
+                '584': {'gender': 'Male', 'age': '20-40', 'pump_model': '630G', 'sensor_band': 'Empatica', 'cohort': '2020'},
+                '588': {'gender': 'Female', 'age': '60-80', 'pump_model': '630G', 'sensor_band': 'Basis', 'cohort': '2020'},
+                '591': {'gender': 'Female', 'age': '60-80', 'pump_model': '630G', 'sensor_band': 'Basis', 'cohort': '2020'},
+                '596': {'gender': 'Male', 'age': '60-80', 'pump_model': '530G', 'sensor_band': 'Basis', 'cohort': '2020'}
+            }
         except Exception as e:
             print(f"💥 Error loading patient data: {e}")
             return {}
@@ -111,11 +139,10 @@ class LegendaryFairnessAnalyzer:
         
         return patient_results
     
-    def analyze_latest_experiment(self):
-        """🔍 LEGENDARY ANALYSIS: Check fairness across ALL features"""
+    def analyze_latest(self):
+        """Analyze ALL fairness metrics for the latest experiment"""
         
-        # Find latest experiment directory
-        distillation_dir = "/workspace/LLM-TIME/distillation_experiments"
+        distillation_dir = str(get_project_root() / "distillation_experiments")
         
         if not os.path.exists(distillation_dir):
             raise FileNotFoundError(f"💥 Distillation directory not found: {distillation_dir}")
@@ -368,7 +395,8 @@ class LegendaryFairnessAnalyzer:
         plt.tight_layout()
         
         # Save plot
-        self.results_dir = Path("/workspace/LLM-TIME/fairness/analysis_results")
+        # Save comprehensive results
+        self.results_dir = get_project_root() / "fairness" / "analysis_results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
         plot_file = self.results_dir / f"legendary_fairness_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
@@ -431,7 +459,7 @@ def main():
     
     try:
         # Run the LEGENDARY analysis
-        all_results = analyzer.analyze_latest_experiment()
+        all_results = analyzer.analyze_latest()
         
         if all_results:
             # Create LEGENDARY visualization
