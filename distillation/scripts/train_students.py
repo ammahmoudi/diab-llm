@@ -145,10 +145,18 @@ class StudentTrainer:
         model_config = self.student_models[model_name]
         
         # Build data paths using flexible parameters
-        data_dir = f"{self.data_path}/raw_standardized"
-        train_file = f"{data_dir}/{dataset}-ws-training.csv"
-        test_file = f"{data_dir}/{dataset}-ws-testing.csv"
-        prompt_file = f"{data_dir}/t1dm_prompt.txt"
+        # Check if using all_patients combined data
+        if dataset == "all_patients":
+            data_dir = f"{self.data_path}/all_patients_combined"
+            train_file = f"{data_dir}/all_patients_training.csv"
+            test_file = f"{data_dir}/all_patients_testing.csv"
+            prompt_file = f"{self.data_path}/raw_standardized/t1dm_prompt.txt"
+        else:
+            data_dir = f"{self.data_path}/raw_standardized"
+            train_file = f"{data_dir}/{dataset}-ws-training.csv"
+            test_file = f"{data_dir}/{dataset}-ws-testing.csv"
+            prompt_file = f"{data_dir}/t1dm_prompt.txt"
+        
         log_dir = f"{self.results_dir}/{model_name}_{dataset}_{epochs}epochs/logs"
         
         config_content = f'''run.log_dir = "{log_dir}"
@@ -411,6 +419,7 @@ def main():
                                            "tinybert", "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium"], 
                        required=True, help="Student model to train")
     parser.add_argument("--patients", default="570", help="Patient IDs (comma-separated or single)")
+    parser.add_argument("--all-patients", action="store_true", help="Train on ALL patients combined data (overrides --patients)")
     parser.add_argument("--dataset", default="ohiot1dm", help="Dataset name (ohiot1dm, d1namo)")
     parser.add_argument("--seed", type=int, default=238822, help="Random seed for reproducibility")
     parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
@@ -433,10 +442,17 @@ def main():
         seed=args.seed
     )
     
+    # If --all-patients flag is set, use "all_patients" as the patient ID
+    if args.all_patients:
+        print("🌍 Training on ALL PATIENTS COMBINED")
+        patient_id = "all_patients"
+    else:
+        patient_id = args.patients
+    
     # Train the specified model
     config_path = trainer.train_model(
         args.model, 
-        args.patients, 
+        patient_id, 
         args.epochs, 
         args.lr, 
         args.batch_size,

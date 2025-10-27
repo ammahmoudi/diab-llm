@@ -341,10 +341,17 @@ class DistillationTrainer:
         print(f"Found teacher checkpoint: {teacher_checkpoint}")
         
         # Build data paths using flexible parameters
-        data_dir = f"{self.data_path}/raw_standardized"
-        train_file = f"{data_dir}/{dataset}-ws-training.csv"
-        test_file = f"{data_dir}/{dataset}-ws-testing.csv"
-        prompt_file = f"{data_dir}/t1dm_prompt.txt"
+        # Check if using all_patients combined data
+        if dataset == "all_patients":
+            data_dir = f"{self.data_path}/all_patients_combined"
+            train_file = f"{data_dir}/all_patients_training.csv"
+            test_file = f"{data_dir}/all_patients_testing.csv"
+            prompt_file = f"{self.data_path}/raw_standardized/t1dm_prompt.txt"
+        else:
+            data_dir = f"{self.data_path}/raw_standardized"
+            train_file = f"{data_dir}/{dataset}-ws-training.csv"
+            test_file = f"{data_dir}/{dataset}-ws-testing.csv"
+            prompt_file = f"{data_dir}/t1dm_prompt.txt"
         
         config = self.base_config.copy()
         student_config = self.student_models[student_model]
@@ -672,6 +679,7 @@ def main():
                                              "tinybert", "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium"],
                        help="Student model to distill to")
     parser.add_argument("--patients", default="584", help="Patient IDs (comma-separated or single)")
+    parser.add_argument("--all-patients", action="store_true", help="Train on ALL patients combined data (overrides --patients)")
     parser.add_argument("--dataset", default="ohiot1dm", help="Dataset name (ohiot1dm, d1namo)")
     parser.add_argument("--seed", type=int, default=238822, help="Random seed for reproducibility")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
@@ -716,8 +724,15 @@ def main():
         distiller.list_distilled_models()
         return
     
+    # If --all-patients flag is set, use "all_patients" as the patient ID
+    if args.all_patients:
+        print("🌍 Distilling on ALL PATIENTS COMBINED")
+        patient_id = "all_patients"
+    else:
+        patient_id = args.patients
+    
     if args.all:
-        results = distiller.distill_all_combinations(args.patients, args.dry_run)
+        results = distiller.distill_all_combinations(patient_id, args.dry_run)
         if results:
             # Check if any distillation succeeded
             success_count = sum(1 for result in results.values() if result.get("status") == "success")
@@ -731,7 +746,7 @@ def main():
             print(f"\n❌ Knowledge distillation failed!")
             return 1
     elif args.teacher and args.student:
-        config_path = distiller.distill_model(args.teacher, args.student, args.patients, args.dry_run)
+        config_path = distiller.distill_model(args.teacher, args.student, patient_id, args.dry_run)
         if config_path:
             print(f"\n✅ Knowledge distillation completed successfully!")
             print(f"📁 Config: {config_path}")

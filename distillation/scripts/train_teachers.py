@@ -270,10 +270,18 @@ class TeacherTrainer:
         # Build data paths using flexible parameters
         # Remove leading ./ from data_path if present to avoid double slashes
         clean_data_path = self.data_path.lstrip('./')
-        data_dir = f"{clean_data_path}/raw_standardized"
-        train_file = f"{data_dir}/{dataset}-ws-training.csv"
-        test_file = f"{data_dir}/{dataset}-ws-testing.csv"
-        prompt_file = f"{data_dir}/t1dm_prompt.txt"
+        
+        # Check if using all_patients combined data
+        if dataset == "all_patients":
+            data_dir = f"{clean_data_path}/all_patients_combined"
+            train_file = f"{data_dir}/all_patients_training.csv"
+            test_file = f"{data_dir}/all_patients_testing.csv"
+            prompt_file = f"{clean_data_path}/raw_standardized/t1dm_prompt.txt"
+        else:
+            data_dir = f"{clean_data_path}/raw_standardized"
+            train_file = f"{data_dir}/{dataset}-ws-training.csv"
+            test_file = f"{data_dir}/{dataset}-ws-testing.csv"
+            prompt_file = f"{data_dir}/t1dm_prompt.txt"
         
         config = self.base_config.copy()
         model_config = self.teacher_models[normalized_name]
@@ -538,6 +546,7 @@ def main():
                                            "tinybert", "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium", "all"], 
                        default="all", help="Model to train")
     parser.add_argument("--patients", default="584", help="Patient IDs (comma-separated or single)")
+    parser.add_argument("--all-patients", action="store_true", help="Train on ALL patients combined data (overrides --patients)")
     parser.add_argument("--dataset", default="ohiot1dm", help="Dataset name (ohiot1dm, d1namo)")
     parser.add_argument("--seed", type=int, default=238822, help="Random seed for reproducibility")
     parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs")
@@ -563,10 +572,17 @@ def main():
         trainer.list_available_checkpoints()
         return
     
-    if args.model == "all":
-        result = trainer.train_all_teachers(args.patients, args.epochs, args.dry_run)
+    # If --all-patients flag is set, use "all_patients" as the patient ID
+    if args.all_patients:
+        print("🌍 Training on ALL PATIENTS COMBINED")
+        patient_id = "all_patients"
     else:
-        result = trainer.train_model(args.model, args.patients, args.epochs, args.dry_run)
+        patient_id = args.patients
+    
+    if args.model == "all":
+        result = trainer.train_all_teachers(patient_id, args.epochs, args.dry_run)
+    else:
+        result = trainer.train_model(args.model, patient_id, args.epochs, args.dry_run)
     
     # Exit with appropriate code
     if result is None:
