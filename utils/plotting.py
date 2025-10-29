@@ -109,8 +109,14 @@ def plot_predictions_plotly(data, steps=None, save_path=None, name=None):
         steps_str = "all" if steps is None else "_".join(map(str, steps))
         filename_base = f"{name or 'ground_truth_vs_predictions'}_steps_{steps_str}"
 
-        fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
-        fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save PNG image: {e}")
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save SVG image: {e}")
         fig.write_html(os.path.join(save_path, f"{filename_base}.html"))
 
     else:
@@ -211,8 +217,14 @@ def plot_avg_predictions_plotly(data, save_path=None, name=None):
         os.makedirs(save_path, exist_ok=True)  # Ensure the directory exists
         filename_base = f"{name or 'ground_truth_vs_avg_predictions'}"
 
-        fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
-        fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save PNG image: {e}")
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save SVG image: {e}")
         fig.write_html(os.path.join(save_path, f"{filename_base}.html"))
 
     else:
@@ -449,8 +461,14 @@ def plot_clarke_error_grid_plotly(data, steps=None, save_path=None):
         steps_str = "all" if steps is None else "_".join(map(str, steps))
         filename_base = f"clarke_error_grid_steps_{steps_str}"
 
-        fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
-        fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save PNG image: {e}")
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save SVG image: {e}")
         fig.write_html(os.path.join(save_path, f"{filename_base}.html"))
 
     else:
@@ -633,8 +651,14 @@ def plot_surveillance_error_grid(data, steps=None, save_path=None):
         steps_str = "all" if steps is None else "_".join(map(str, steps))
         filename_base = f"surveillance_error_grid_steps_{steps_str}"
 
-        fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
-        fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.png"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save PNG image: {e}")
+        try:
+            fig.write_image(os.path.join(save_path, f"{filename_base}.svg"))
+        except Exception as e:
+            print(f"⚠️  Warning: Could not save SVG image: {e}")
         fig.write_html(os.path.join(save_path, f"{filename_base}.html"))
 
     else:

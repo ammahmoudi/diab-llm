@@ -155,7 +155,7 @@ def run_single_experiment(config_info, log_level="INFO", remove_checkpoints=True
     master_port = random.randint(20000, 30000)
     
     command = [
-        "./run_main.sh",
+        "./scripts/run_main.sh",
         "--config_path", config_path,
         "--log_level", log_level,
         "--remove_checkpoints", str(remove_checkpoints).title(),

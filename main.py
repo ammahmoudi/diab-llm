@@ -90,6 +90,11 @@ def run(
     # Set up logging
     log_dir = setup_logging(log_dir, log_level=log_level)
     logging.info("Logging initialized at directory: {}".format(log_dir))
+    
+    # Set default values for missing keys in llm_settings (for inference-only configs)
+    if "train_batch_size" not in llm_settings:
+        llm_settings["train_batch_size"] = llm_settings.get("prediction_batch_size", 32)
+    
     # Set fixed random seed for reproducibility
     if "seed" in llm_settings:
         fix_seed = llm_settings["seed"]
@@ -461,17 +466,25 @@ def run(
             }
         )
 
-        # Load datasets
-        train_data, train_loader = data_loader.load_from_csv(
-            data_settings["path_to_train_data"],
-            batch_size=llm_settings["train_batch_size"],
-            split="train",
-        )
-        val_data, val_loader = data_loader.load_from_csv(
-            data_settings["path_to_train_data"],
-            batch_size=llm_settings["train_batch_size"],
-            split="val",
-        )
+        # Load datasets (skip train/val if in inference mode and path is empty)
+        if llm_settings["mode"] == "inference" and not data_settings.get("path_to_train_data"):
+            # Inference-only mode: skip train/val data
+            train_data, train_loader = None, None
+            val_data, val_loader = None, None
+        else:
+            # Load train and val data
+            train_data, train_loader = data_loader.load_from_csv(
+                data_settings["path_to_train_data"],
+                batch_size=llm_settings["train_batch_size"],
+                split="train",
+            )
+            val_data, val_loader = data_loader.load_from_csv(
+                data_settings["path_to_train_data"],
+                batch_size=llm_settings["train_batch_size"],
+                split="val",
+            )
+        
+        # Always load test data
         test_data, test_loader = data_loader.load_from_csv(
             data_settings["path_to_test_data"],
             batch_size=llm_settings["prediction_batch_size"],

@@ -75,17 +75,17 @@ def get_llm_config(llm_model):
     
     llm_configs = {
         # Large teacher models
-        "BERT": {"llm_model": "BERT", "llm_dim": 768},
-        "GPT2": {"llm_model": "GPT2", "llm_dim": 768},
-        "LLAMA": {"llm_model": "LLAMA", "llm_dim": 4096},
-        "DistilBERT": {"llm_model": "DistilBERT", "llm_dim": 768},
+        "BERT": {"llm_model": "BERT", "llm_dim": 768, "llm_layers": 12},
+        "GPT2": {"llm_model": "GPT2", "llm_dim": 768, "llm_layers": 12},
+        "LLAMA": {"llm_model": "LLAMA", "llm_dim": 4096, "llm_layers": 32},
+        "DistilBERT": {"llm_model": "DistilBERT", "llm_dim": 768, "llm_layers": 6},
         # Small student models
-        "TinyBERT": {"llm_model": "TinyBERT", "llm_dim": 312},
-        "BERT-tiny": {"llm_model": "BERT-tiny", "llm_dim": 128},
-        "MiniLM": {"llm_model": "MiniLM", "llm_dim": 384},
-        "MobileBERT": {"llm_model": "MobileBERT", "llm_dim": 512},
-        "ALBERT": {"llm_model": "ALBERT", "llm_dim": 768},
-        "OPT-125M": {"llm_model": "OPT-125M", "llm_dim": 768},
+        "TinyBERT": {"llm_model": "TinyBERT", "llm_dim": 312, "llm_layers": 4},
+        "BERT-tiny": {"llm_model": "BERT-tiny", "llm_dim": 128, "llm_layers": 2},
+        "MiniLM": {"llm_model": "MiniLM", "llm_dim": 384, "llm_layers": 12},
+        "MobileBERT": {"llm_model": "MobileBERT", "llm_dim": 512, "llm_layers": 24},
+        "ALBERT": {"llm_model": "ALBERT", "llm_dim": 768, "llm_layers": 12},
+        "OPT-125M": {"llm_model": "OPT-125M", "llm_dim": 768, "llm_layers": 12},
     }
     # Ensure we always have a valid short name
     final_short_name = short_name if short_name else "BERT"
@@ -143,13 +143,19 @@ def get_model_batch_sizes(llm_model):
         }
 
 def generate_config_content(mode, seed, llm_config, length_set, patient_id, train_epochs=10,
-                          data_scenario="standardized", dataset="ohiot1dm", train_data_scenario=None):
+                          data_scenario="standardized", dataset="ohiot1dm", train_data_scenario=None,
+                          checkpoint_path=None, torch_dtype="bfloat16"):
     """Generate the configuration content based on parameters."""
     
     # Use train_data_scenario for training data, data_scenario for test data
     actual_train_scenario = train_data_scenario if train_data_scenario else data_scenario
     
-    train_data_path = get_data_file_path(mode, patient_id, actual_train_scenario, dataset, is_train_data=True)
+    # For per_patient_inference mode, use empty training data path
+    if mode == "per_patient_inference":
+        train_data_path = ""
+    else:
+        train_data_path = get_data_file_path(mode, patient_id, actual_train_scenario, dataset, is_train_data=True)
+    
     test_data_path = get_data_file_path(mode, patient_id, data_scenario, dataset, is_train_data=False)
     
     # Get prompt file path
@@ -159,6 +165,12 @@ def generate_config_content(mode, seed, llm_config, length_set, patient_id, trai
     batch_sizes = get_model_batch_sizes(llm_config["llm_model"])
     
     log_folder_placeholder = "LOGS_PLACEHOLDER"  # Will be replaced with actual log folder
+    
+    # Set mode string
+    if mode == "per_patient_inference":
+        mode_str = "inference"
+    else:
+        mode_str = "training+inference"
     
     config_content = f'''# Parameters for run:
 # ==============================================================================
@@ -194,11 +206,11 @@ run.llm_settings = \\
      'features': 'S',
      'learning_rate': 0.001,
      'llm_dim': {llm_config["llm_dim"]},
-     'llm_layers': 32,
+     'llm_layers': {llm_config["llm_layers"]},
      'llm_model': '{llm_config["llm_model"]}',
      'lradj': 'COS',
      'method': 'time_llm',
-     'mode': 'training+inference',
+     'mode': '{mode_str}',
      'model_comment': 'time_llm_{llm_config["llm_model"]}_{llm_config["llm_dim"]}_{length_set["sequence_length"]}_{length_set["context_length"]}_{length_set["prediction_length"]}_{length_set["patch_len"]}',
      'model_id': 'test',
      'moving_avg': 25,
@@ -214,9 +226,17 @@ run.llm_settings = \\
      'stride': 8,
      'task_name': 'long_term_forecast',
      'timeenc': 0,
-     'torch_dtype': 'bfloat16',
+     'torch_dtype': '{torch_dtype}',
      'train_batch_size': {batch_sizes["train_batch_size"]},
-     'train_epochs': {train_epochs}}}
+     'train_epochs': {train_epochs}'''
+    
+    # Add checkpoint restoration for per_patient_inference mode
+    if mode == "per_patient_inference" and checkpoint_path:
+        config_content += f''',
+     'restore_from_checkpoint': True,
+     'restore_checkpoint_path': '{checkpoint_path}' '''
+    
+    config_content += f'''}}
 run.log_dir = \\
     '{log_folder_placeholder}'
 '''
@@ -227,8 +247,8 @@ run.log_dir = \\
 def main():
     parser = argparse.ArgumentParser(description="Unified Time-LLM Configuration Generator")
     parser.add_argument("--mode", required=True, 
-                       choices=["train", "inference", "train_inference"],
-                       help="Operation mode")
+                       choices=["train", "inference", "train_inference", "per_patient_inference"],
+                       help="Operation mode (per_patient_inference: inference on individual patients using all-patients checkpoint)")
     parser.add_argument("--patients", default="570,584", 
                        help="Comma-separated patient IDs")
     parser.add_argument("--llm_models", default="GPT2,LLAMA",
@@ -248,6 +268,15 @@ def main():
     parser.add_argument("--train_data_scenario", default=None,
                        choices=["standardized", "noisy", "denoised", "missing_periodic", "missing_random"],
                        help="Training data scenario (for cross-scenario evaluation). If not specified, uses --data_scenario")
+    parser.add_argument("--checkpoint-path", default=None,
+                       help="Path to checkpoint for per_patient_inference mode (required for per_patient_inference)")
+    parser.add_argument("--checkpoint-dir", default=None,
+                       help="Directory to search for checkpoint (alternative to --checkpoint-path)")
+    parser.add_argument("--pred-lengths", default=None,
+                       help="Comma-separated prediction lengths to use (e.g., '6,9'). If not specified, uses all available: 6,9")
+    parser.add_argument("--torch-dtype", default="bfloat16",
+                       choices=["float32", "bfloat16", "float16"],
+                       help="Torch dtype for model (default: bfloat16). Use float32 for loading checkpoints trained with float32")
     
     args = parser.parse_args()
     
@@ -265,6 +294,11 @@ def main():
         train_epochs = args.epochs
     else:
         train_epochs = 0 if args.mode == "inference" else 10
+    
+    # Validation for per_patient_inference
+    if args.mode == "per_patient_inference":
+        if not args.checkpoint_path and not args.checkpoint_dir:
+            raise ValueError("--checkpoint-path or --checkpoint-dir required for per_patient_inference mode")
     
     # Handle cross-scenario evaluation
     train_scenario = args.train_data_scenario if args.train_data_scenario else args.data_scenario
@@ -284,6 +318,9 @@ def main():
         elif args.mode == "inference":
             scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
             dir_name = "time_llm_inference"
+        elif args.mode == "per_patient_inference":
+            scenario_suffix = "" if args.data_scenario == "standardized" else f"_{args.data_scenario}"
+            dir_name = "time_llm_per_patient_inference"
         elif args.mode == "train_inference":
             if args.train_data_scenario:
                 # Cross-scenario case
@@ -297,7 +334,15 @@ def main():
     
     # Get length sets
     length_sets = get_length_sets(args.mode)
-    torch_dtypes = ["bfloat16"]
+    
+    # Filter by prediction lengths if specified
+    if args.pred_lengths:
+        pred_lengths_filter = [int(p.strip()) for p in args.pred_lengths.split(",")]
+        length_sets = [ls for ls in length_sets if ls["prediction_length"] in pred_lengths_filter]
+        if not length_sets:
+            raise ValueError(f"No length sets match prediction lengths: {pred_lengths_filter}")
+    
+    torch_dtypes = [args.torch_dtype]  # Use the user-specified torch_dtype
     model_ids = ["test"]
     
     print(f"🚀 Starting {args.mode} config generation...")
@@ -313,6 +358,12 @@ def main():
     print(f"🎲 Seeds: {seeds}")
     print(f"📈 Epochs: {train_epochs}")
     
+    if args.mode == "per_patient_inference":
+        if args.checkpoint_path:
+            print(f"📦 Checkpoint: {args.checkpoint_path}")
+        elif args.checkpoint_dir:
+            print(f"📂 Checkpoint directory: {args.checkpoint_dir}")
+    
     # Generate configurations
     config_count = 0
     for seed, llm_model_name, length_set, torch_dtype, model_id in product(seeds, llm_models, length_sets, torch_dtypes, model_ids):
@@ -327,6 +378,23 @@ def main():
         folder_name = f"seed_{seed}_model_{llm_config['llm_model']}_dim_{llm_config['llm_dim']}_seq_{seq_len}_context_{context_len}_pred_{pred_len}_patch_{patch_len}_epochs_{train_epochs}"
         experiment_folder = os.path.join(base_output_dir, folder_name)
         
+        # Resolve checkpoint path for per_patient_inference mode
+        checkpoint_path = None
+        if args.mode == "per_patient_inference":
+            if args.checkpoint_path:
+                checkpoint_path = args.checkpoint_path
+            elif args.checkpoint_dir:
+                # Search for checkpoint in the directory matching this experiment's parameters
+                search_pattern = f"*seed_{seed}*model_{llm_config['llm_model']}*dim_{llm_config['llm_dim']}*seq_{seq_len}*context_{context_len}*pred_{pred_len}*patch_{patch_len}*/checkpoint.pth"
+                import glob
+                matches = glob.glob(os.path.join(args.checkpoint_dir, "**", search_pattern), recursive=True)
+                if matches:
+                    checkpoint_path = matches[0]
+                    print(f"Found checkpoint: {checkpoint_path}")
+                else:
+                    print(f"Warning: No checkpoint found matching pattern: {search_pattern}")
+                    continue
+        
         for patient_id in patients:
             patient_folder = os.path.join(experiment_folder, f"patient_{patient_id}")
             log_folder = os.path.join(patient_folder, "logs")
@@ -338,7 +406,8 @@ def main():
             # Generate config content
             config_content = generate_config_content(
                 args.mode, seed, llm_config, length_set, patient_id, train_epochs,
-                data_scenario=args.data_scenario, dataset=args.dataset, train_data_scenario=args.train_data_scenario
+                data_scenario=args.data_scenario, dataset=args.dataset, train_data_scenario=args.train_data_scenario,
+                checkpoint_path=checkpoint_path, torch_dtype=torch_dtype
             )
             
             # Replace log folder placeholder with actual path

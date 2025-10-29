@@ -2,6 +2,21 @@
 
 # Usage: ./run_main.sh --config_path <path_to_config> --log_level <log_level> --remove_checkpoints <True/False>
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the workspace root (parent of scripts directory)
+WORKSPACE_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Change to workspace root to ensure main.py is accessible
+cd "$WORKSPACE_ROOT" || exit 1
+
+# Activate virtual environment if it exists
+if [ -d "$WORKSPACE_ROOT/venv" ]; then
+    source "$WORKSPACE_ROOT/venv/bin/activate"
+elif [ -d "$WORKSPACE_ROOT/.venv" ]; then
+    source "$WORKSPACE_ROOT/.venv/bin/activate"
+fi
+
 # Default values for arguments
 CONFIG_PATH="./configs/config_time_llm.gin"
 LOG_LEVEL="INFO"

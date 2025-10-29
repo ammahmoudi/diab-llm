@@ -30,7 +30,7 @@ from utils.path_utils import get_project_root
 class PerPatientInferenceRunner:
     """Run inference on individual patients using all-patients checkpoint."""
     
-    def __init__(self, checkpoint_dir, model_name, dataset_name="ohiot1dm", output_dir=None):
+    def __init__(self, checkpoint_dir, model_name, dataset_name="ohiot1dm", output_dir=None, llm_model=None, llm_layers=None, llm_dim=None):
         """Initialize the inference runner.
         
         Args:
@@ -38,11 +38,22 @@ class PerPatientInferenceRunner:
             model_name: Name of the model (bert, tinybert, etc.)
             dataset_name: Dataset name (ohiot1dm, d1namo)
             output_dir: Directory to save per-patient inference results
+            llm_model: LLM model type (BERT, TinyBERT, etc.) - auto-detected if None
+            llm_layers: Number of LLM layers - auto-detected if None
+            llm_dim: LLM dimension - auto-detected if None
         """
         self.checkpoint_dir = Path(checkpoint_dir)
         self.model_name = model_name
         self.dataset_name = dataset_name
         self.data_path = f"./data/{dataset_name}"
+        
+        # Auto-detect model config from model_name if not provided
+        if llm_model is None:
+            self.llm_model, self.llm_layers, self.llm_dim = self._detect_model_config(model_name)
+        else:
+            self.llm_model = llm_model
+            self.llm_layers = llm_layers
+            self.llm_dim = llm_dim
         
         if output_dir:
             self.output_dir = Path(output_dir)
@@ -54,7 +65,36 @@ class PerPatientInferenceRunner:
         print(f"📊 Per-Patient Inference Runner")
         print(f"   Checkpoint: {self.checkpoint_dir}")
         print(f"   Model: {model_name}")
+        print(f"   LLM: {self.llm_model} (layers={self.llm_layers}, dim={self.llm_dim})")
         print(f"   Output: {self.output_dir}")
+    
+    def _detect_model_config(self, model_name):
+        """Detect model configuration from model name."""
+        # Model configurations (sync with train_students.py)
+        model_configs = {
+            "tinybert": ("TinyBERT", 4, 312),
+            "distilbert": ("DistilBERT", 6, 768),
+            "bert-tiny": ("BERT-tiny", 2, 128),
+            "bert-mini": ("BERT", 4, 256),
+            "bert-small": ("BERT", 4, 512),
+            "bert-medium": ("BERT", 8, 512),
+            "minilm": ("MiniLM", 6, 384),
+            "mobilebert": ("MobileBERT", 24, 512),
+            "albert": ("ALBERT", 12, 768),
+            "bert": ("BERT", 12, 768),
+            "bert-base-uncased": ("BERT", 12, 768),
+            "opt-125m": ("OPT-125M", 12, 768),
+        }
+        
+        # Try to extract model key from model_name
+        # Handle names like "teacher_bert", "student_baseline_prajjwal1/bert-tiny"
+        for key in model_configs:
+            if key in model_name.lower():
+                return model_configs[key]
+        
+        # Default to BERT if not found
+        print(f"⚠️  Warning: Could not detect model config for '{model_name}', defaulting to BERT")
+        return ("BERT", 12, 768)
     
     def find_checkpoint(self):
         """Find the trained model checkpoint."""
@@ -119,9 +159,13 @@ run.llm_settings = {{
     'task_name': 'long_term_forecast',
     'mode': 'inference',
     'method': 'time_llm',
+    'llm_model': '{self.llm_model}',
+    'llm_layers': {self.llm_layers},
+    'llm_dim': {self.llm_dim},
     'num_workers': 1,
     'torch_dtype': 'float32',
     'model_id': '{self.model_name}_patient_{patient_id}',
+    'model_comment': '{self.model_name}_patient_{patient_id}_inference',
     'sequence_length': 6,
     'context_length': 6,
     'prediction_length': 9,

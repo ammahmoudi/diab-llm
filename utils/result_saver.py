@@ -18,7 +18,7 @@ def generate_run_title(data_settings, llm_settings):
     return f"patient{dataset_name}_{method}_{model}_{mode}"
 
 def save_results_and_generate_plots(
-    output_dir, predictions, targets, inputs, grouped_x_timestamps=None, grouped_y_timestamps=None, name=None
+    output_dir, predictions, targets, inputs, grouped_x_timestamps=None, grouped_y_timestamps=None, name=None, enable_plots=False
 ):
     """
     Save prediction results, reformat them, and generate plots.
@@ -30,6 +30,7 @@ def save_results_and_generate_plots(
     :param grouped_x_timestamps: (Optional) List of grouped x timestamps as strings.
     :param grouped_y_timestamps: (Optional) List of grouped y timestamps as strings.
     :param name: (Optional) A name to use in the plot and file names.
+    :param enable_plots: (Optional) If False, skip plot generation to save time and space. Default: False
     """
     # Debug: log the shapes of the inputs
     logging.debug(f"Shape of predictions: {predictions.shape}")
@@ -86,16 +87,20 @@ def save_results_and_generate_plots(
     reformated_results_df = reformat_results(save_path, output_csv_path=reformatted_path)
     logging.info(f"Reformatted results saved to {reformatted_path}")
 
-    # Generate and save plots
-    plots_dir = os.path.join(output_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=True)
-    plot_predictions_path = os.path.join(plots_dir, f"{file_name_prefix}_predictions")
-    plot_avg_predictions_path = os.path.join(plots_dir, f"{file_name_prefix}_avg_predictions")
+    # Generate and save plots (only if enabled)
+    if enable_plots:
+        plots_dir = os.path.join(output_dir, "plots")
+        os.makedirs(plots_dir, exist_ok=True)
+        plot_predictions_path = os.path.join(plots_dir, f"{file_name_prefix}_predictions")
+        plot_avg_predictions_path = os.path.join(plots_dir, f"{file_name_prefix}_avg_predictions")
 
-    plot_predictions_plotly(reformated_results_df, save_path=plot_predictions_path,name=name)
-    plot_avg_predictions_plotly(reformated_results_df, save_path=plot_avg_predictions_path,name=name)
+        plot_predictions_plotly(reformated_results_df, save_path=plot_predictions_path,name=name)
+        plot_avg_predictions_plotly(reformated_results_df, save_path=plot_avg_predictions_path,name=name)
 
-    logging.info(f"Plots saved to {plots_dir}")
+        logging.info(f"Plots saved to {plots_dir}")
+    else:
+        logging.info("Plot generation disabled (enable_plots=False)")
+
 
 
 

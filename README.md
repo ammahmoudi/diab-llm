@@ -22,16 +22,21 @@ git submodule update --init --recursive
 # 1. Setup environment
 python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 
-# 2. Install Chronos for advanced time series forecasting (optional but recommended)
+# 2. Install system dependencies for plotting (required for image generation)
+sudo apt update && sudo apt-get install -y libnss3 libatk-bridge2.0-0 libcups2 \
+  libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 \
+  libpango-1.0-0 libcairo2 libasound2
+
+# 3. Install Chronos for advanced time series forecasting (optional but recommended)
 cd models/chronos && pip install --editable ".[training]" && cd ../..
 
-# 3. Process your data (if needed)
+# 4. Process your data (if needed)
 python scripts/data_formatting/quick_process.py all
 
-# 4A. Run basic experiments
+# 5A. Run basic experiments
 python ./scripts/run_configs_time_llm_inference.py
 
-# 4B. OR run knowledge distillation pipeline (recommended)
+# 5B. OR run knowledge distillation pipeline (recommended)
 bash scripts/distill_pipeline.sh --teacher bert --student tinybert --dataset 570 \
   --teacher-epochs 1 --student-epochs 1 --distill-epochs 1 --dry-run
 ```
