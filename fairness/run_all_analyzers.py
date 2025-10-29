@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to validate all fairness analyzers
+Script to run all fairness analyzers
 """
 
 import subprocess
@@ -9,8 +9,7 @@ from pathlib import Path
 
 # Add project root to path
 current_dir = Path(__file__).resolve().parent
-fairness_dir = current_dir.parent
-project_root = fairness_dir.parent
+project_root = current_dir.parent
 sys.path.insert(0, str(project_root))
 
 analyzers = {
@@ -27,13 +26,13 @@ venv_python = project_root / "venv" / "bin" / "python"
 python_cmd = str(venv_python) if venv_python.exists() else sys.executable
 
 print("=" * 80)
-print("TESTING ALL FAIRNESS ANALYZERS")
+print("RUNNING ALL FAIRNESS ANALYZERS")
 print("=" * 80)
 
 results = {}
 
 for name, script in analyzers.items():
-    print(f"\n🧪 Testing {name} Analyzer...")
+    print(f"\n🔍 Running {name} Analyzer...")
     print("-" * 80)
     
     try:
@@ -59,7 +58,7 @@ for name, script in analyzers.items():
         results[name] = "ERROR"
 
 print("\n" + "=" * 80)
-print("TEST SUMMARY")
+print("EXECUTION SUMMARY")
 print("=" * 80)
 
 for name, status in results.items():

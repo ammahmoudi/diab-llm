@@ -44,10 +44,11 @@ python fairness/analyzers/cohort_fairness_analyzer.py
 python fairness/analyzers/legendary_distillation_analyzer.py
 ```
 
-### Test All Analyzers
+### Run All Analyzers
 
 ```bash
-python fairness/tests/test_all_analyzers.py
+# Run all 6 analyzers in sequence
+python fairness/run_all_analyzers.py
 ```
 
 ## Available Analyzers
@@ -195,6 +196,7 @@ total_loss = prediction_loss + 0.1 * fairness_loss(predictions, demographics)
 ```
 fairness/
 ├── README.md                          # This file
+├── run_all_analyzers.py              # Script to run all analyzers
 ├── analyzers/                         # Fairness analyzers
 │   ├── base_analyzer.py              # Base class for all analyzers
 │   ├── gender_fairness_analyzer.py   # Gender analysis
@@ -211,10 +213,7 @@ fairness/
 │   └── fairness_losses.py            # Loss implementations
 ├── visualization/                     # Plotting utilities
 │   └── fairness_plots.py             # Chart generation
-├── analysis/                          # Patient-level analysis
-│   └── patient_analyzer.py           # Individual patient analysis
-├── tests/                             # Tests and examples
-│   ├── test_all_analyzers.py         # Test suite
+├── tests/                             # Examples
 │   └── example_analyzer.py           # Example implementation
 └── analysis_results/                  # Output directory
     ├── *_report_*.json               # JSON reports
@@ -224,9 +223,13 @@ fairness/
 
 ## Requirements
 
+All required packages are included in the main project requirements file:
+
 ```bash
-pip install pandas numpy matplotlib seaborn
+pip install -r requirements.txt
 ```
+
+Key dependencies: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scikit-learn`
 
 ## Advanced Usage
 
@@ -294,6 +297,11 @@ def interpret_fairness_ratio(self, ratio: float) -> str:
 
 ## Recent Updates
 
+### October 29, 2025
+- ✅ Moved `test_all_analyzers.py` to `run_all_analyzers.py` in main fairness directory
+- ✅ Consolidated requirements into main project requirements.txt
+- ✅ Cleaned up folder structure (tests folder now only contains examples)
+
 ### October 27, 2025
 - ✅ Removed all emojis for clean, professional output
 - ✅ Converted all reports from TXT to JSON format
@@ -305,7 +313,7 @@ def interpret_fairness_ratio(self, ratio: float) -> str:
 ## Support
 
 For issues or questions, please refer to:
-- Test suite: `fairness/tests/test_all_analyzers.py`
+- Run all analyzers: `fairness/run_all_analyzers.py`
 - Example analyzer: `fairness/tests/example_analyzer.py`
 - Base implementation: `fairness/analyzers/base_analyzer.py`
 

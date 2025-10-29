@@ -21,6 +21,7 @@ autogluon.timeseries
 # chronos-forecasting[training] @ git+https://github.com/amazon-science/chronos-forecasting.git@main
 peft
 seaborn
+scikit-learn>=1.0.0
 
 # System Dependencies (Ubuntu/Debian):
 # For plotting functionality with Kaleido/Chrome, install these system packages:
