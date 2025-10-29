@@ -37,15 +37,20 @@ class BaseFairnessAnalyzer(ABC):
     - Report generation
     """
     
-    def __init__(self, feature_name: str, data_path: Optional[str] = None):
+    def __init__(self, feature_name: str, data_path: Optional[str] = None, 
+                 experiment_type: str = "per_patient"):
         """
         Initialize the analyzer.
         
         Args:
             feature_name: Name of the demographic feature (e.g., 'Gender', 'Age')
             data_path: Optional path to patient data CSV
+            experiment_type: Type of experiment to analyze:
+                           - "per_patient": Per-patient distillation (default)
+                           - "all_patients": All-patients training with per-patient inference
         """
         self.feature_name = feature_name
+        self.experiment_type = experiment_type
         
         if data_path is None:
             data_path = str(get_project_root() / "data" / "ohiot1dm" / "data.csv")
@@ -82,7 +87,7 @@ class BaseFairnessAnalyzer(ABC):
     
     def find_latest_experiment(self) -> str:
         """
-        Find the latest experiment directory.
+        Find the latest experiment directory based on experiment_type.
         
         Returns:
             Path to the latest experiment directory
@@ -92,24 +97,111 @@ class BaseFairnessAnalyzer(ABC):
         if not distillation_dir.exists():
             raise FileNotFoundError(f"💥 Distillation directory not found: {distillation_dir}")
         
+        # Choose subdirectory based on experiment type
+        if self.experiment_type == "all_patients":
+            search_dir = distillation_dir / "all_patients_pipeline"
+            if not search_dir.exists():
+                raise FileNotFoundError(f"💥 All patients directory not found: {search_dir}")
+        else:
+            search_dir = distillation_dir
+        
         # Find all pipeline directories
         experiment_dirs = [
-            d for d in distillation_dir.iterdir()
+            d for d in search_dir.iterdir()
             if d.is_dir() and d.name.startswith('pipeline_')
         ]
         
         if not experiment_dirs:
-            raise FileNotFoundError("💥 No pipeline experiment directories found")
+            raise FileNotFoundError(f"💥 No pipeline experiment directories found in {search_dir}")
         
         # Sort and get latest
         latest_experiment = sorted(experiment_dirs)[-1]
         
-        print(f"🔍 Analyzing experiment: {latest_experiment.name}")
+        exp_type_label = "all-patients" if self.experiment_type == "all_patients" else "per-patient"
+        print(f"🔍 Analyzing {exp_type_label} experiment: {latest_experiment.name}")
         return str(latest_experiment)
     
     def load_patient_results(self, experiment_path: Path) -> Dict:
         """
         Load patient results from experiment directory structure.
+        Handles both per-patient and all-patients experiment types.
+        
+        Args:
+            experiment_path: Path to experiment directory
+            
+        Returns:
+            Dictionary mapping patient_id to performance metrics
+        """
+        if self.experiment_type == "all_patients":
+            return self._load_all_patients_results(experiment_path)
+        else:
+            return self._load_per_patient_results(experiment_path)
+    
+    def _load_all_patients_results(self, experiment_path: Path) -> Dict:
+        """
+        Load results from all-patients experiment (multi-phase from CSVs).
+        Single model trained on all patients, inference on each patient.
+        
+        Args:
+            experiment_path: Path to experiment directory
+            
+        Returns:
+            Dictionary mapping patient_id to multi-phase results
+        """
+        experiment_path = Path(experiment_path)
+        patient_results = {}
+        
+        print(f"📊 Loading all-patients multi-phase results...")
+        
+        # Define phase mappings
+        phases = {
+            'teacher': 'phase_1_teacher',
+            'student_baseline': 'phase_2_student',
+            'distilled': 'phase_3_distillation'
+        }
+        
+        # Load results from each phase
+        for phase_key, phase_dir in phases.items():
+            phase_path = experiment_path / phase_dir / "per_patient_inference"
+            
+            if not phase_path.exists():
+                print(f"⚠️  Phase directory not found: {phase_path}")
+                continue
+            
+            # Find experiment_results.csv
+            csv_files = list(phase_path.rglob("experiment_results.csv"))
+            
+            if not csv_files:
+                print(f"⚠️  No experiment_results.csv found in {phase_path}")
+                continue
+            
+            csv_path = csv_files[0]
+            
+            try:
+                df = pd.read_csv(csv_path)
+                
+                for _, row in df.iterrows():
+                    patient_id = str(row['patient_id'])
+                    
+                    if patient_id not in patient_results:
+                        patient_results[patient_id] = {}
+                    
+                    patient_results[patient_id][phase_key] = {
+                        'rmse': float(row['rmse']),
+                        'mae': float(row['mae']),
+                        'mape': float(row['mape']) if 'mape' in row else 0.0
+                    }
+                
+                print(f"✅ Loaded {phase_key} results for {len(df)} patients")
+                
+            except Exception as e:
+                print(f"❌ Error loading {phase_key} results from {csv_path}: {e}")
+        
+        return patient_results
+    
+    def _load_per_patient_results(self, experiment_path: Path) -> Dict:
+        """
+        Load results from per-patient distillation experiment (multi-phase).
         NOW LOADS ALL 3 PHASES: Teacher, Student, Distilled
         
         Args:
@@ -171,14 +263,14 @@ class BaseFairnessAnalyzer(ABC):
     
     def calculate_group_statistics(self, groups: Dict) -> Dict:
         """
-        Calculate statistics for each group across all phases.
-        NOW CALCULATES FOR: Teacher, Student, Distilled
+        Calculate statistics for each group.
+        Handles both per-patient (multi-phase) and all-patients (single-phase) data.
         
         Args:
             groups: Dictionary mapping feature values to patient results
             
         Returns:
-            Dictionary with statistics for each group and phase
+            Dictionary with statistics for each group
         """
         statistics = {}
         
@@ -191,8 +283,12 @@ class BaseFairnessAnalyzer(ABC):
                 'patient_ids': [p['patient_id'] for p in patients]
             }
             
-            # Calculate stats for each phase
-            for phase in ['teacher', 'student_baseline', 'distilled']:
+            # Determine which phases are available
+            # Both experiment types now support all three phases
+            phases = ['teacher', 'student_baseline', 'distilled']
+            
+            # Calculate stats for each available phase
+            for phase in phases:
                 phase_patients = [p for p in patients if phase in p]
                 
                 if phase_patients:
@@ -289,11 +385,10 @@ class BaseFairnessAnalyzer(ABC):
             filename_prefix: Prefix for filename
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_file = self.results_dir / f"{filename_prefix}_report_{timestamp}.txt"
-        
+        mode_label = getattr(self, 'experiment_type', 'per_patient')
+        report_file = self.results_dir / f"{filename_prefix}_report_{mode_label}_{timestamp}.txt"
         with open(report_file, 'w') as f:
             f.write(report_text)
-        
         print(f"\nFull report saved to: {report_file}")
     
     def save_json_report(self, report_data: Dict, filename_prefix: str):
@@ -305,11 +400,13 @@ class BaseFairnessAnalyzer(ABC):
             filename_prefix: Prefix for filename
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        report_file = self.results_dir / f"{filename_prefix}_report_{timestamp}.json"
-        
+        mode_label = getattr(self, 'experiment_type', 'per_patient')
+        report_file = self.results_dir / f"{filename_prefix}_report_{mode_label}_{timestamp}.json"
+        # Add mode to report metadata
+        if isinstance(report_data, dict):
+            report_data['experiment_mode'] = mode_label
         with open(report_file, 'w') as f:
             json.dump(report_data, f, indent=2)
-        
         print(f"\nFull report saved to: {report_file}")
         return report_file
     
@@ -325,7 +422,7 @@ class BaseFairnessAnalyzer(ABC):
         """
         pass
     
-    def visualize(self, statistics: Dict, fairness_ratio: float, impact: Dict = None):
+    def visualize(self, statistics: Dict, fairness_ratio: float, impact: Optional[Dict] = None):
         """
         Create comprehensive 4-panel visualization showing distillation impact.
         
@@ -343,7 +440,8 @@ class BaseFairnessAnalyzer(ABC):
         
         # Create comprehensive visualization
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle(f'{self.feature_name} Fairness Analysis - Distillation Impact', 
+        mode_label = 'All-Patients' if getattr(self, 'experiment_type', 'per_patient') == 'all_patients' else 'Per-Patient'
+        fig.suptitle(f'{self.feature_name} Fairness Analysis ({mode_label} Mode) - Distillation Impact', 
                      fontsize=16, fontweight='bold')
         
         groups = list(statistics.keys())
@@ -476,8 +574,8 @@ class BaseFairnessAnalyzer(ABC):
         
         # Save plot
         timestamp = self.generate_timestamp()
-        plot_file = self.results_dir / f"{self.feature_name.lower().replace(' ', '_')}_fairness_analysis_{timestamp}.png"
+        mode_label = getattr(self, 'experiment_type', 'per_patient')
+        plot_file = self.results_dir / f"{self.feature_name.lower().replace(' ', '_')}_fairness_analysis_{mode_label}_{timestamp}.png"
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         plt.close()
-        
         print(f"📊 Visualization saved to: {plot_file}")

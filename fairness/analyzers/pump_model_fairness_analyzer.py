@@ -29,8 +29,8 @@ from fairness.utils.analyzer_utils import (
 class PumpModelFairnessAnalyzer(BaseFairnessAnalyzer):
     """Analyze fairness across pump models."""
     
-    def __init__(self, data_path=None):
-        super().__init__(feature_name="Pump", data_path=data_path)
+    def __init__(self, data_path=None, experiment_type='per_patient'):
+        super().__init__(feature_name="Pump", data_path=data_path, experiment_type=experiment_type)
         print(f"📊 Loaded pump data for {len(self.patient_data)} patients")
     
     def _load_patient_data(self) -> Dict:
@@ -59,12 +59,13 @@ class PumpModelFairnessAnalyzer(BaseFairnessAnalyzer):
     
     def analyze_latest(self):
         """Analyze pump model fairness for the latest experiment WITH DISTILLATION IMPACT."""
-        print("\n🔍 Starting Pump Fairness Analysis (Multi-Phase)")
-        print("=" * 50)
+        exp_type_label = "All-Patients Model" if self.experiment_type == "all_patients" else "Per-Patient Models"
+        print(f"\n🔍 Starting Pump Fairness Analysis ({exp_type_label} - Multi-Phase)")
+        print("=" * 70)
         
         # Find and load latest experiment
         experiment_path = self.find_latest_experiment()
-        patient_results = self.load_patient_results(experiment_path)
+        patient_results = self.load_patient_results(Path(experiment_path))
         
         # Group by pump
         groups = self.group_by_feature(patient_results)
@@ -73,7 +74,7 @@ class PumpModelFairnessAnalyzer(BaseFairnessAnalyzer):
         statistics = self.calculate_group_statistics(groups)
         
         # Print results for all phases
-        print(f"\n📊 Pump Distribution (Multi-Phase Results):")
+        print(f"\n📊 Pump Distribution ({exp_type_label} - Multi-Phase Results):")
         from fairness.utils.analyzer_utils import print_multi_phase_summary
         for pump_model, stats in statistics.items():
             print_multi_phase_summary(pump_model, stats)
@@ -173,7 +174,14 @@ class PumpModelFairnessAnalyzer(BaseFairnessAnalyzer):
 
 def main():
     """Run pump model fairness analysis."""
-    analyzer = PumpModelFairnessAnalyzer()
+    import argparse
+    parser = argparse.ArgumentParser(description='Analyze pump model fairness')
+    parser.add_argument('--experiment-type', type=str, default='per_patient',
+                       choices=['per_patient', 'all_patients'],
+                       help='Type of experiment to analyze')
+    args = parser.parse_args()
+    
+    analyzer = PumpModelFairnessAnalyzer(experiment_type=args.experiment_type)
     analyzer.analyze_latest()
 
 

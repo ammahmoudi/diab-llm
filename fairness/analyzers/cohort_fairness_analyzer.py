@@ -29,8 +29,8 @@ from fairness.utils.analyzer_utils import (
 class CohortFairnessAnalyzer(BaseFairnessAnalyzer):
     """Analyze fairness across cohorts."""
     
-    def __init__(self, data_path=None):
-        super().__init__(feature_name="Cohort", data_path=data_path)
+    def __init__(self, data_path=None, experiment_type='per_patient'):
+        super().__init__(feature_name="Cohort", data_path=data_path, experiment_type=experiment_type)
         print(f"📊 Loaded cohort data for {len(self.patient_data)} patients")
     
     def _load_patient_data(self) -> Dict:
@@ -59,12 +59,13 @@ class CohortFairnessAnalyzer(BaseFairnessAnalyzer):
     
     def analyze_latest(self):
         """Analyze cohort fairness for the latest experiment WITH DISTILLATION IMPACT."""
-        print("\n🔍 Starting Cohort Fairness Analysis (Multi-Phase)")
-        print("=" * 50)
+        exp_type_label = "All-Patients Model" if self.experiment_type == "all_patients" else "Per-Patient Models"
+        print(f"\n🔍 Starting Cohort Fairness Analysis ({exp_type_label} - Multi-Phase)")
+        print("=" * 70)
         
         # Find and load latest experiment
         experiment_path = self.find_latest_experiment()
-        patient_results = self.load_patient_results(experiment_path)
+        patient_results = self.load_patient_results(Path(experiment_path))
         
         # Group by cohort
         groups = self.group_by_feature(patient_results)
@@ -73,7 +74,7 @@ class CohortFairnessAnalyzer(BaseFairnessAnalyzer):
         statistics = self.calculate_group_statistics(groups)
         
         # Print results for all phases
-        print(f"\n📊 Cohort Distribution (Multi-Phase Results):")
+        print(f"\n📊 Cohort Distribution ({exp_type_label} - Multi-Phase Results):")
         from fairness.utils.analyzer_utils import print_multi_phase_summary
         for cohort, stats in statistics.items():
             print_multi_phase_summary(cohort, stats)
@@ -173,7 +174,14 @@ class CohortFairnessAnalyzer(BaseFairnessAnalyzer):
 
 def main():
     """Run cohort fairness analysis."""
-    analyzer = CohortFairnessAnalyzer()
+    import argparse
+    parser = argparse.ArgumentParser(description='Analyze cohort fairness')
+    parser.add_argument('--experiment-type', type=str, default='per_patient',
+                       choices=['per_patient', 'all_patients'],
+                       help='Type of experiment to analyze')
+    args = parser.parse_args()
+    
+    analyzer = CohortFairnessAnalyzer(experiment_type=args.experiment_type)
     analyzer.analyze_latest()
 
 

@@ -16,39 +16,54 @@ This framework provides tools to analyze fairness across multiple demographic di
 - ✅ **Embedded Tables**: Summary tables in visualizations (Legendary)
 - ✅ **CSV Export**: Spreadsheet-ready per-group summaries
 
+## Experiment Types
+
+The analyzers support two types of experiments:
+
+### 1. Per-Patient Experiments (default)
+- **Structure**: Each patient has separate training, student, and distillation phases
+- **Location**: `distillation_experiments/pipeline_*/`
+- **Phases analyzed**: Teacher, Student Baseline, Distilled
+- **Usage**: Default mode
+
+### 2. All-Patients Experiments
+- **Structure**: Single model trained on all patients, with per-patient inference
+- **Location**: `distillation_experiments/all_patients_pipeline/`
+- **Phases analyzed**: Teacher, Student Baseline, Distilled
+- **Usage**: Add `--experiment-type all_patients` flag
+
 ## Quick Start
 
 ### Run Individual Analyzer
 
 ```bash
-# Analyze gender fairness
+# Per-patient experiments (default)
 python fairness/analyzers/gender_fairness_analyzer.py
-
-# Analyze age group fairness
 python fairness/analyzers/age_fairness_analyzer.py
 
-# Analyze pump model fairness
-python fairness/analyzers/pump_model_fairness_analyzer.py
-
-# Analyze sensor band fairness
-python fairness/analyzers/sensor_fairness_analyzer.py
-
-# Analyze cohort fairness
-python fairness/analyzers/cohort_fairness_analyzer.py
+# All-patients experiments
+python fairness/analyzers/gender_fairness_analyzer.py --experiment-type all_patients
+python fairness/analyzers/age_fairness_analyzer.py --experiment-type all_patients
 ```
 
 ### Run Comprehensive Analysis (Recommended)
 
 ```bash
-# Analyze ALL features at once with embedded summary table
+# Per-patient mode (default)
 python fairness/analyzers/legendary_distillation_analyzer.py
+
+# All-patients mode
+python fairness/analyzers/legendary_distillation_analyzer.py --experiment-type all_patients
 ```
 
 ### Run All Analyzers
 
 ```bash
-# Run all 6 analyzers in sequence
+# Per-patient mode (default)
 python fairness/run_all_analyzers.py
+
+# All-patients mode
+python fairness/run_all_analyzers.py --experiment-type all_patients
 ```
 
 ## Available Analyzers
@@ -90,14 +105,63 @@ python fairness/run_all_analyzers.py
 
 All results are saved in `fairness/analysis_results/`
 
-### Individual Analyzers Generate:
-1. `{feature}_fairness_report_{timestamp}.json` - Structured data report
-2. `{feature}_fairness_analysis_{timestamp}.png` - 4-panel visualization
+Output filenames include the experiment mode (`per_patient` or `all_patients`) to distinguish results.
 
-### Legendary Analyzer Generates:
-1. `legendary_distillation_report_{timestamp}.json` - Comprehensive JSON report
-2. `legendary_distillation_analysis_{timestamp}.png` - Multi-panel visualization with embedded table
-3. `legendary_summary_table_{timestamp}.csv` - Per-group summary table
+### Individual Analyzers Generate
+
+1. `{feature}_fairness_report_{mode}_{timestamp}.json` - Structured data report
+2. `{feature}_fairness_analysis_{mode}_{timestamp}.png` - 4-panel visualization
+
+### Legendary Analyzer Generates
+
+1. `legendary_distillation_report_{mode}_{timestamp}.json` - Comprehensive JSON report
+2. `legendary_distillation_analysis_{mode}_{timestamp}.png` - Multi-panel visualization with embedded table
+3. `legendary_summary_table_{mode}_{timestamp}.csv` - Per-group summary table
+
+## Directory Structure
+
+### Per-Patient Experiments
+
+```
+distillation_experiments/
+  pipeline_YYYY-MM-DD_HH-MM-SS/
+    patient_XXX/
+      phase_1_teacher/
+        teacher_training_summary.json
+      phase_2_student/
+        student_baseline_summary.json
+      phase_3_distillation/
+        distillation_summary.json
+```
+
+### All-Patients Experiments
+
+```
+distillation_experiments/
+  all_patients_pipeline/
+    pipeline_YYYY-MM-DD_HH-MM-SS/
+      phase_1_teacher/
+        per_patient_inference/
+          time_llm_per_patient_inference_ohiot1dm/
+            experiment_results.csv  (teacher results for each patient)
+      phase_2_student/
+        per_patient_inference/
+          time_llm_per_patient_inference_ohiot1dm/
+            experiment_results.csv  (student results for each patient)
+      phase_3_distillation/
+        per_patient_inference/
+          time_llm_per_patient_inference_ohiot1dm/
+            experiment_results.csv  (distilled results for each patient)
+```
+
+The `experiment_results.csv` files should contain:
+
+```csv
+seed,model,dtype,mode,context_length,pred_length,patient_id,log_datetime,rmse,mae,mape
+42,BERT-tiny,,,,,540,2025-10-28_17-33-39,27.301605,18.921614,0.13372737
+42,BERT-tiny,,,,,544,2025-10-28_17-33-52,21.467813,14.709017,0.09639849
+...
+```
 
 ### JSON Report Structure
 

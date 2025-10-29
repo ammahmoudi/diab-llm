@@ -36,8 +36,9 @@ from fairness.utils.analyzer_utils import (
 class LegendaryDistillationAnalyzer(BaseFairnessAnalyzer):
     """Analyze distillation impact across ALL demographic features."""
     
-    def __init__(self, data_path=None):
-        super().__init__(feature_name="ALL FEATURES", data_path=data_path)
+    def __init__(self, data_path=None, experiment_type="per_patient"):
+        super().__init__(feature_name="ALL FEATURES", data_path=data_path, 
+                        experiment_type=experiment_type)
         self.features = {
             'Gender': self._load_gender_data(),
             'Age Group': self._load_age_data(),
@@ -317,7 +318,8 @@ class LegendaryDistillationAnalyzer(BaseFairnessAnalyzer):
         fig = plt.figure(figsize=(20, 18))
         gs = fig.add_gridspec(4, 3, hspace=0.5, wspace=0.4, top=0.94, height_ratios=[1, 1, 1, 1.2])
         
-        fig.suptitle('COMPREHENSIVE DISTILLATION IMPACT ANALYSIS', 
+        mode_label = 'All-Patients' if getattr(self, 'experiment_type', 'per_patient') == 'all_patients' else 'Per-Patient'
+        fig.suptitle(f'COMPREHENSIVE DISTILLATION IMPACT ANALYSIS ({mode_label} Mode)', 
                      fontsize=20, fontweight='bold', y=0.98)
         
         # Plot 1: Overall fairness changes by feature (top row, full width)
@@ -505,7 +507,8 @@ class LegendaryDistillationAnalyzer(BaseFairnessAnalyzer):
         
         # Save
         timestamp = self.generate_timestamp()
-        plot_file = self.results_dir / f"legendary_distillation_analysis_{timestamp}.png"
+        mode_label = getattr(self, 'experiment_type', 'per_patient')
+        plot_file = self.results_dir / f"legendary_distillation_analysis_{mode_label}_{timestamp}.png"
         plt.savefig(plot_file, dpi=300, bbox_inches='tight')
         plt.close()
         
@@ -518,7 +521,8 @@ class LegendaryDistillationAnalyzer(BaseFairnessAnalyzer):
         """Save summary table with performance and fairness impact for each group."""
         import csv
         
-        table_file = self.results_dir / f"legendary_summary_table_{timestamp}.csv"
+        mode_label = getattr(self, 'experiment_type', 'per_patient')
+        table_file = self.results_dir / f"legendary_summary_table_{mode_label}_{timestamp}.csv"
         
         with open(table_file, 'w', newline='') as f:
             writer = csv.writer(f)
@@ -568,7 +572,15 @@ class LegendaryDistillationAnalyzer(BaseFairnessAnalyzer):
 
 def main():
     """Run legendary distillation impact analysis."""
-    analyzer = LegendaryDistillationAnalyzer()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Legendary Distillation Impact Analyzer')
+    parser.add_argument('--experiment-type', type=str, default='per_patient',
+                       choices=['per_patient', 'all_patients'],
+                       help='Type of experiment to analyze (default: per_patient)')
+    args = parser.parse_args()
+    
+    analyzer = LegendaryDistillationAnalyzer(experiment_type=args.experiment_type)
     analyzer.analyze_latest()
 
 
