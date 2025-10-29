@@ -78,22 +78,17 @@ python quick_process.py ohiot1dm --dry-run
 
 ## Data Processing Steps Explained
 
-### Step 1: Standardization
-- Converts various data formats to standard format: `item_id`, `timestamp`, `target`
-- Handles different column naming conventions
-- Creates `*_standardized` directories
-- Uses: `data_processing/unified_data_standardizer.py`
+#### 1. Standardization
+Converts raw CSV files to standardized format (item_id, timestamp, target).
+- Script: `core/standardize_data.py`
 
-### Step 2: Formatting  
-- Creates time series windows for training
-- Generates both 6_6 (input=6, pred=6) and 6_9 (input=6, pred=9) configurations
-- Creates `*_formatted/{window_config}/` directories with training/testing files
-- Uses: `data_processing/unified_data_formatter.py`
+#### 2. Formatting  
+Creates windowed datasets (6_6 and 6_9 configurations).
+- Script: `core/format_data.py`
 
-### Step 3: Arrow Conversion
-- Converts standardized CSV files to Arrow format for efficient loading
-- Creates `.arrow` files in the same directories as source files
-- Uses: `data_processing/unified_arrow_converter.py`
+#### 3. Arrow Conversion
+Converts to GluonTS Arrow format for efficient training.
+- Script: `core/convert_to_arrow.py`
 
 ## Directory Structure After Processing
 

@@ -11,14 +11,14 @@ This guide explains how to use the unified Chronos configuration system for gene
 cd /home/amma/LLM-TIME/scripts/chronos
 
 # Basic usage - generate training configs
-python config_generator_chronos.py --mode train
+python config_generator.py --mode train
 
 # Basic usage - generate inference configs
-python config_generator_chronos.py --mode inference
+python config_generator.py --mode inference
 
 # Advanced usage - with data scenarios
-python config_generator_chronos.py --mode train --data_scenario noisy
-python config_generator_chronos.py --mode train --data_scenario missing_periodic
+python config_generator.py --mode train --data_scenario noisy
+python config_generator.py --mode train --data_scenario missing_periodic
 ```
 
 ### Method 2: Using the Shell Script with Examples
@@ -47,13 +47,13 @@ chmod +x chronos_config_examples.sh
 
 ```bash
 # Train on default patients (570,584) with default models
-python config_generator_chronos.py --mode train
+python config_generator.py --mode train
 
 # Train specific patient with specific model
-python config_generator_chronos.py --mode train --patients 570 --models amazon/chronos-t5-tiny
+python config_generator.py --mode train --patients 570 --models amazon/chronos-t5-tiny
 
 # Train multiple patients with custom seeds
-python config_generator_chronos.py --mode train --patients 540,570,584 --seeds 831363,809906
+python config_generator.py --mode train --patients 540,570,584 --seeds 831363,809906
 ```
 
 ### 2. **Inference Mode** (`--mode inference`)
@@ -63,10 +63,10 @@ python config_generator_chronos.py --mode train --patients 540,570,584 --seeds 8
 
 ```bash
 # Inference with default settings
-python config_generator_chronos.py --mode inference
+python config_generator.py --mode inference
 
 # Inference with specific model
-python config_generator_chronos.py --mode inference --models amazon/chronos-t5-base --patients 570
+python config_generator.py --mode inference --models amazon/chronos-t5-base --patients 570
 ```
 
 ### 3. **Trained Inference Mode** (`--mode trained_inference`)
@@ -77,7 +77,7 @@ python config_generator_chronos.py --mode inference --models amazon/chronos-t5-b
 
 ```bash
 # Use trained checkpoints for inference
-python config_generator_chronos.py --mode trained_inference --patients 570 --models amazon/chronos-t5-tiny
+python config_generator.py --mode trained_inference --patients 570 --models amazon/chronos-t5-tiny
 ```
 
 ### 4. **LoRA Inference Mode** (`--mode lora_inference`)
@@ -88,7 +88,7 @@ python config_generator_chronos.py --mode trained_inference --patients 570 --mod
 
 ```bash
 # Use trained LoRA adapters for inference
-python config_generator_chronos.py --mode lora_inference --patients 570 --models amazon/chronos-t5-tiny
+python config_generator.py --mode lora_inference --patients 570 --models amazon/chronos-t5-tiny
 ```
 
 ## Understanding the Parameters
@@ -165,7 +165,7 @@ python config_generator_chronos.py --mode lora_inference --patients 570 --models
 ### Step 1: Generate Training Configs
 ```bash
 # Generate training configs for your patients
-python config_generator_chronos.py --mode train --patients 570,584 --models amazon/chronos-t5-tiny
+python config_generator.py --mode train --patients 570,584 --models amazon/chronos-t5-tiny
 ```
 
 ### Step 2: Run Training (outside this script)
@@ -177,7 +177,7 @@ python config_generator_chronos.py --mode train --patients 570,584 --models amaz
 ### Step 3: Generate Inference Configs Using Trained Models
 ```bash
 # Generate inference configs that use your trained checkpoints
-python config_generator_chronos.py --mode trained_inference --patients 570,584 --models amazon/chronos-t5-tiny
+python config_generator.py --mode trained_inference --patients 570,584 --models amazon/chronos-t5-tiny
 ```
 
 ## Output Structure
@@ -218,7 +218,7 @@ The `chronos_config_examples.sh` script contains many examples. Run it to see th
 ### Research Experiment Setup
 ```bash
 # Generate configs for multiple patients and models for comparison
-python config_generator_chronos.py --mode train \
+python config_generator.py --mode train \
   --patients 540,544,552,570,584 \
   --models amazon/chronos-t5-tiny,amazon/chronos-t5-base \
   --seeds 831363,809906,123456
@@ -227,23 +227,23 @@ python config_generator_chronos.py --mode train \
 ### Dataset Comparison Study
 ```bash
 # Train same model on different datasets (ohiot1dm is default)
-python config_generator_chronos.py --mode train --patients 570,584  # uses ohiot1dm by default
-python config_generator_chronos.py --mode train --dataset d1namo --patients 570,584 
-python config_generator_chronos.py --mode train --dataset ohiot1dm --patients 570,584  # explicit
+python config_generator.py --mode train --patients 570,584  # uses ohiot1dm by default
+python config_generator.py --mode train --dataset d1namo --patients 570,584 
+python config_generator.py --mode train --dataset ohiot1dm --patients 570,584  # explicit
 ```
 
 ### Robustness Testing
 ```bash  
 # Test model on noisy data across datasets
-python config_generator_chronos.py --mode train --dataset d1namo --data_scenario noisy --patients 570
-python config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario noisy --patients 570
+python config_generator.py --mode train --dataset d1namo --data_scenario noisy --patients 570
+python config_generator.py --mode train --dataset ohiot1dm --data_scenario noisy --patients 570
 ```
 
 ### Missing Data Experiments
 ```bash
 # Compare periodic vs random missing patterns on D1NAMO
-python config_generator_chronos.py --mode train --dataset d1namo --data_scenario missing_periodic --patients 570,584
-python config_generator_chronos.py --mode train --dataset d1namo --data_scenario missing_random --patients 570,584
+python config_generator.py --mode train --dataset d1namo --data_scenario missing_periodic --patients 570,584
+python config_generator.py --mode train --dataset d1namo --data_scenario missing_random --patients 570,584
 ```
 
 ### Cross-Scenario Robustness Testing
@@ -251,16 +251,16 @@ This is a powerful feature for evaluating model robustness - train on one data c
 
 ```bash
 # Train on clean data, test robustness on missing values
-python config_generator_chronos.py --mode trained_inference --data_scenario missing_periodic --train_data_scenario standardized --patients 570
+python config_generator.py --mode trained_inference --data_scenario missing_periodic --train_data_scenario standardized --patients 570
 
 # Train on clean data, test robustness on noisy data  
-python config_generator_chronos.py --mode trained_inference --data_scenario noisy --train_data_scenario standardized --patients 570
+python config_generator.py --mode trained_inference --data_scenario noisy --train_data_scenario standardized --patients 570
 
 # Train on noisy data, test on denoised data (denoising effectiveness)
-python config_generator_chronos.py --mode trained_inference --data_scenario denoised --train_data_scenario noisy --patients 570
+python config_generator.py --mode trained_inference --data_scenario denoised --train_data_scenario noisy --patients 570
 
 # Cross-dataset robustness: train on D1NAMO clean, test on OhioT1DM missing data
-python config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --train_data_scenario standardized --patients 570
+python config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --train_data_scenario standardized --patients 570
 ```
 
 **Directory Structure for Cross-Scenario:**
@@ -271,13 +271,13 @@ python config_generator_chronos.py --mode trained_inference --dataset ohiot1dm -
 ### Quick Single Patient Test
 ```bash
 # Test with one patient and one model
-python config_generator_chronos.py --mode train --patients 570 --models amazon/chronos-t5-tiny --seeds 831363
+python config_generator.py --mode train --patients 570 --models amazon/chronos-t5-tiny --seeds 831363
 ```
 
 ### Production Inference Setup
 ```bash
 # Generate inference configs using your best trained model
-python config_generator_chronos.py --mode trained_inference --dataset d1namo --patients 570,584 --models amazon/chronos-t5-base
+python config_generator.py --mode trained_inference --dataset d1namo --patients 570,584 --models amazon/chronos-t5-base
 ```
 
 ## Troubleshooting
@@ -300,7 +300,7 @@ chmod +x chronos_config_examples.sh
 
 ```bash
 # Show all available options
-python config_generator_chronos.py --help
+python config_generator.py --help
 
 # Show examples
 ./chronos_config_examples.sh help

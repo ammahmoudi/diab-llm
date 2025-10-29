@@ -68,7 +68,7 @@ class ComprehensiveEfficiencyRunner:
         # Model configurations - Using separate modes for cleaner efficiency measurement
         self.models_config = {
             "time_llm": {
-                "script": "scripts/time_llm/config_generator_time_llm_unified.py",
+                "script": "scripts/time_llm/config_generator.py",
                 "models": ["BERT", "GPT2", "LLAMA"],
                 "modes": {
                     "train": {"epochs": 10, "mode": "train"},
@@ -77,7 +77,7 @@ class ComprehensiveEfficiencyRunner:
                 "window_config": "6_9"  # 6 context, 9 prediction
             },
             "chronos": {
-                "script": "scripts/chronos/config_generator_chronos.py", 
+                "script": "scripts/chronos/config_generator.py", 
                 "models": ["amazon/chronos-t5-base", "amazon/chronos-t5-tiny"],
                 "modes": {
                     "train": {"mode": "train"},
@@ -220,7 +220,7 @@ class ComprehensiveEfficiencyRunner:
         if experiment_type == "time_llm":
             # Use the Time-LLM experiment runner with specific filters for our efficiency configs
             cmd = [
-                "python", "scripts/time_llm/run_all_time_llm_experiments.py",
+                "python", "scripts/time_llm/run_experiments.py",
                 "--modes", "train,inference", 
                 "--datasets", self.dataset,
                 "--models", "BERT,GPT2,LLAMA",
@@ -253,7 +253,7 @@ class ComprehensiveEfficiencyRunner:
         elif experiment_type == "chronos":
             # Use the Chronos experiment runner with specific filters for our efficiency configs
             cmd = [
-                "python", "scripts/chronos/run_all_chronos_experiments.py", 
+                "python", "scripts/chronos/run_experiments.py", 
                 "--modes", "training,inference",
                 "--datasets", self.dataset,
                 "--log_level", "INFO",
@@ -434,7 +434,7 @@ class ComprehensiveEfficiencyRunner:
         # Time-LLM config generation
         if 'time_llm' in model_types:
             venv_python = str(self.base_dir / "venv" / "bin" / "python")
-            time_llm_script = str(get_scripts_path("time_llm", "config_generator_time_llm_unified.py"))
+            time_llm_script = str(get_scripts_path("time_llm", "config_generator.py"))
         
             # Generate training configs
             time_llm_train_cmd = [
@@ -474,7 +474,7 @@ class ComprehensiveEfficiencyRunner:
         
         # Chronos config generation  
         if 'chronos' in model_types:
-            chronos_script = str(get_scripts_path("chronos", "config_generator_chronos.py"))
+            chronos_script = str(get_scripts_path("chronos", "config_generator.py"))
             
             # Generate training configs
             chronos_train_cmd = [

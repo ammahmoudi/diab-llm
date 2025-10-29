@@ -81,8 +81,8 @@ def test_updated_files():
     # Test key files exist
     key_files = [
         (project_root / "utils" / "path_utils.py", "Path utilities module"),
-        (project_root / "scripts" / "chronos" / "config_generator_chronos.py", "Chronos config generator"),
-        (project_root / "data_processing" / "unified_data_standardizer.py", "Data standardizer"),
+        (project_root / "scripts" / "chronos" / "config_generator.py", "Chronos config generator"),
+        (project_root / "data_processing" / "standardizer.py", "Data standardizer"),
         (project_root / "distillation" / "scripts" / "train_teachers.py", "Teacher trainer"),
     ]
     
@@ -105,7 +105,7 @@ def test_import_updated_modules():
     try:
         total_tests += 1
         sys.path.append(str(get_scripts_path("chronos")))
-        import config_generator_chronos
+        import config_generator
         print("✅ Chronos config generator imports successfully")
         success_count += 1
     except Exception as e:
@@ -114,8 +114,8 @@ def test_import_updated_modules():
     # Test data standardizer import
     try:
         total_tests += 1
-        sys.path.append(str(get_project_root() / "data_processing"))
-        import unified_data_standardizer
+        sys.path.append(str(get_project_root() / "scripts" / "data_formatting"))
+        import standardize_data
         print("✅ Data standardizer imports successfully")
         success_count += 1
     except Exception as e:

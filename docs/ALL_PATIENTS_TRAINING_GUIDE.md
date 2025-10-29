@@ -715,8 +715,8 @@ After running experiments:
 ## 📚 Related Scripts
 
 - `data_processing/combine_all_patients.py` - Create combined datasets
-- `scripts/time_llm/run_all_time_llm_experiments.py` - Per-patient TIME-LLM
-- `scripts/chronos/run_all_chronos_experiments.py` - Per-patient Chronos
+- `scripts/time_llm/run_experiments.py` - Per-patient TIME-LLM
+- `scripts/chronos/run_experiments.py` - Per-patient Chronos
 - `fairness/analyzers/` - Fairness analysis tools
 
 ---

@@ -17,19 +17,19 @@ This guide provides all commands needed to generate Chronos training and inferen
 
 ```bash
 # 1. Generate training configs for standardized data
-python scripts/chronos/config_generator_chronos.py --mode train --patients 570,584 --data_scenario standardized
+python scripts/chronos/config_generator.py --mode train --patients 570,584 --data_scenario standardized
 
 # 2. Run training (automatically uses GPU)
-python scripts/chronos/run_all_chronos_experiments.py --modes training --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --modes training --datasets ohiot1dm
 
 # 3. Generate cross-scenario inference configs (train standardized → test noisy)
-python scripts/chronos/config_generator_chronos.py --mode trained_inference \
+python scripts/chronos/config_generator.py --mode trained_inference \
     --dataset ohiot1dm --data_scenario noisy --patients 570,584 \
     --models amazon/chronos-t5-base --seeds 831363 \
     --train_scenario standardized --window_config 6_6
 
 # 4. Run inference
-python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --modes trained_inference --datasets ohiot1dm
 ```
 
 ---
@@ -38,34 +38,34 @@ python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference 
 
 ### Train on Standardized Raw
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
+python scripts/chronos/config_generator.py --mode train --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
 ```
 
 ### Train on Missing Periodic
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
+python scripts/chronos/config_generator.py --mode train --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
 ```
 
 ### Train on Missing Random
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
+python scripts/chronos/config_generator.py --mode train --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
 ```
 
 ### Train on Noisy
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
+python scripts/chronos/config_generator.py --mode train --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
 ```
 
 ### Train on Denoised
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode train --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
+python scripts/chronos/config_generator.py --mode train --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363
 ```
 
 ---
 
 ## 2. Run Training Experiments
 ```bash
-python scripts/chronos/run_all_chronos_experiments.py --modes training --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --modes training --datasets ohiot1dm
 ```
 
 ---
@@ -80,19 +80,19 @@ python scripts/chronos/run_all_chronos_experiments.py --modes training --dataset
 ### ✅ Verified Working Example: Train on Standardized, Test on Noisy
 ```bash
 # 1. First train on standardized data
-python scripts/chronos/config_generator_chronos.py --mode train \
+python scripts/chronos/config_generator.py --mode train \
     --patients 540 --data_scenario standardized --models amazon/chronos-t5-base --seeds 831363
 
-python scripts/chronos/run_all_chronos_experiments.py --modes training --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --modes training --datasets ohiot1dm
 
 # 2. Then generate cross-scenario inference configs  
-python scripts/chronos/config_generator_chronos.py --mode trained_inference \
+python scripts/chronos/config_generator.py --mode trained_inference \
     --dataset ohiot1dm --data_scenario noisy --patients 540 \
     --models amazon/chronos-t5-base --seeds 831363 \
     --train_scenario standardized --window_config 6_6
 
 # 3. Run inference (successfully tested)
-python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --modes trained_inference --datasets ohiot1dm
 ```
 
 **Results**: Successfully processed 2,885 samples with shape (2885, 6), achieving RMSE: 195.52, MAE: 46.91
@@ -102,118 +102,118 @@ python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference 
 ### Trained on Raw (standardized), Tested on:
 #### Raw
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
 ```
 #### Denoised
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
 ```
 #### Noisy
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
 ```
 #### Missing Periodic
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
 ```
 #### Missing Random
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario standardized
 ```
 
 ### Trained on Noisy, Tested on:
 #### Noisy
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
 ```
 #### Raw (standardized)
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
 ```
 #### Denoised
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
 ```
 #### Missing Periodic
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
 ```
 #### Missing Random
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario noisy
 ```
 
 ### Trained on Denoised, Tested on:
 #### Denoised
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
 ```
 #### Raw (standardized)
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
 ```
 #### Noisy
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
 ```
 #### Missing Periodic
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
 ```
 #### Missing Random
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario denoised
 ```
 
 ### Trained on Missing Periodic, Tested on:
 #### Missing Periodic
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
 ```
 #### Raw (standardized)
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
 ```
 #### Denoised
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
 ```
 #### Noisy
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
 ```
 #### Missing Random
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_periodic
 ```
 
 ### Trained on Missing Random, Tested on:
 #### Missing Random
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_random --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
 ```
 #### Raw (standardized)
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario standardized --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
 ```
 #### Denoised
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario denoised --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
 ```
 #### Noisy
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario noisy --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
 ```
 #### Missing Periodic
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
+python scripts/chronos/config_generator.py --mode trained_inference --dataset ohiot1dm --data_scenario missing_periodic --patients 540,544,552,559,563,567,570,575,584,588,591,596 --models amazon/chronos-t5-base --seeds 831363,809906,427368,238822,247659 --window_config 6_6 --train_scenario missing_random
 ```
 
 ---
 
 ## 5. Run Inference Experiments
 ```bash
-python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --modes trained_inference --datasets ohiot1dm
 ```
 
 **Note**: All experiments automatically extract metrics to CSV files after completion. Results are saved to files like `chronos_trained_inference_ohiot1dm_noisy_results.csv` in the root directory.
@@ -225,7 +225,7 @@ python scripts/chronos/run_all_chronos_experiments.py --modes trained_inference 
 ### Multiple Window Configurations
 Generate configs for both 6_6 and 6_9 windows:
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode trained_inference \
+python scripts/chronos/config_generator.py --mode trained_inference \
     --dataset ohiot1dm --data_scenario standardized --patients 570,584 \
     --models amazon/chronos-t5-base --seeds 831363 \
     --train_scenario standardized --window_config both
@@ -233,7 +233,7 @@ python scripts/chronos/config_generator_chronos.py --mode trained_inference \
 
 ### LoRA Fine-tuning
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode lora_inference \
+python scripts/chronos/config_generator.py --mode lora_inference \
     --dataset ohiot1dm --data_scenario standardized --patients 570,584 \
     --models amazon/chronos-t5-base --seeds 831363 \
     --use_lora --window_config 6_6 --train_scenario standardized
@@ -241,7 +241,7 @@ python scripts/chronos/config_generator_chronos.py --mode lora_inference \
 
 ### Custom Model Selection
 ```bash
-python scripts/chronos/config_generator_chronos.py --mode train \
+python scripts/chronos/config_generator.py --mode train \
     --patients 570,584 --models amazon/chronos-t5-tiny,amazon/chronos-t5-base
 ```
 
@@ -270,9 +270,9 @@ The Chronos experiment runner now includes automated outlier detection and corre
 ### Basic Usage
 ```bash
 # Run experiments with automatic outlier correction
-python scripts/chronos/run_all_chronos_experiments.py --modes training 
+python scripts/chronos/run_experiments.py --modes training 
 # Use custom outlier threshold (default is 3.0)
-python scripts/chronos/run_all_chronos_experiments.py --modes training --fix_results --fix_threshold 2.5
+python scripts/chronos/run_experiments.py --modes training --fix_results --fix_threshold 2.5
 ```
 
 ### How It Works

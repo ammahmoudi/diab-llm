@@ -7,41 +7,47 @@ The unified Chronos experiment runner discovers and executes **4,370 total confi
 - **9 Inference experiments** (2,070 configs) 
 - **6 Training experiments** (620 configs)
 
-## Quick Usage
+## Quick Start
 
-### Run All Experiments
 ```bash
-# Run everything (4,370 experiments)
-python run_chronos.py
+# Run all Chronos experiments
+python scripts/chronos/run_experiments.py
 
-# Run with parallel execution (recommended)
-python run_chronos.py --parallel --max_workers 4
+# Run with parallel processing
+python scripts/chronos/run_experiments.py --parallel --max_workers 4
 ```
 
-### Run Specific Types
+### Filter by Mode
+
 ```bash
-# Run only training experiments
-python run_chronos.py --modes training
-
-# Run only inference experiments  
-python run_chronos.py --modes inference
-
-# Run specific datasets
-python run_chronos.py --datasets d1namo
-python run_chronos.py --datasets ohiot1dm
-python run_chronos.py --datasets d1namo,ohiot1dm
+python scripts/chronos/run_experiments.py --modes training
+# Or inference only
+python scripts/chronos/run_experiments.py --modes inference
+# Or specific dataset
+python scripts/chronos/run_experiments.py --datasets d1namo
+python scripts/chronos/run_experiments.py --datasets ohiot1dm
+python scripts/chronos/run_experiments.py --datasets d1namo,ohiot1dm
 ```
 
 ### Resume and Progress Tracking
+
 ```bash
-# Resume from previous run (skips completed experiments)
-python run_chronos.py --resume
+python scripts/chronos/run_experiments.py --resume
+# Test what will be run without executing
+python scripts/chronos/run_experiments.py --dry_run
+# Extract metrics only
+python scripts/chronos/run_experiments.py --extract_metrics
+```
 
-# Check what would run without executing
-python run_chronos.py --dry_run
+### Advanced Options
 
-# Run with metrics extraction
-python run_chronos.py --extract_metrics
+```bash
+# Parallel execution with 8 workers
+python scripts/chronos/run_experiments.py --parallel --max_workers 8
+# Set log level
+python scripts/chronos/run_experiments.py --log_level DEBUG
+# Combine options
+python scripts/chronos/run_experiments.py --modes training,inference --datasets d1namo
 ```
 
 ### Advanced Options
@@ -90,17 +96,24 @@ python run_chronos.py --modes training,inference --datasets d1namo
 
 ## Example Session
 ```bash
-# Start with a small test
-python run_chronos.py --modes training --datasets d1namo --dry_run
+## Example Session
 
-# Run the small test for real  
-python run_chronos.py --modes training --datasets d1namo
+```bash
+# Test what will be executed
+python scripts/chronos/run_experiments.py --modes training --datasets d1namo --dry_run
 
-# Run all training experiments in parallel
-python run_chronos.py --modes training --parallel --max_workers 4
+# Run training experiments
+python scripts/chronos/run_experiments.py --modes training --datasets d1namo
 
-# Resume and run inference experiments  
-python run_chronos.py --modes inference --resume --parallel
+# Run with parallel processing
+python scripts/chronos/run_experiments.py --modes training --parallel --max_workers 4
+
+# Resume after interruption
+python scripts/chronos/run_experiments.py --modes inference --resume --parallel
+```
+
+The script automatically handles checkpoint management, determines appropriate `--remove_checkpoints` settings, and provides detailed progress reporting.
+
 ```
 
 The script automatically handles checkpoint management, determines appropriate `--remove_checkpoints` settings, and provides detailed progress reporting.

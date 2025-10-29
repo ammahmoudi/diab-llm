@@ -78,20 +78,20 @@ Time-LLM config generator supports the following parameters:
 
 ```bash
 # 1. Generate training configs for standardized data
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --patients 570,584 --data_scenario standardized --llm_models BERT \
     --seeds 831363 --epochs 10
 
 # 2. Run training experiments
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets ohiot1dm
+python scripts/time_llm/run_experiments.py --modes train --datasets ohiot1dm
 
 # 3. Generate cross-scenario inference configs (train standardized → test noisy)
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --data_scenario noisy --train_data_scenario standardized \
     --patients 570,584 --llm_models BERT --seeds 831363 --epochs 10
 
 # 4. Run inference experiments
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets ohiot1dm
 ```
 
 ---
@@ -100,7 +100,7 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference 
 
 ### Train on Standardized Data
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --dataset ohiot1dm --data_scenario standardized \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
     --llm_models BERT,DistilBERT,TinyBERT --seeds 831363 --epochs 10
@@ -109,25 +109,25 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
 ### Train on Other Scenarios
 ```bash
 # Missing Periodic
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --dataset ohiot1dm --data_scenario missing_periodic \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
     --llm_models BERT,TinyBERT --seeds 831363 --epochs 10
 
 # Missing Random  
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --dataset ohiot1dm --data_scenario missing_random \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
     --llm_models BERT,TinyBERT --seeds 831363 --epochs 10
 
 # Noisy
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --dataset ohiot1dm --data_scenario noisy \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
     --llm_models BERT,DistilBERT --seeds 831363 --epochs 10
 
 # Denoised
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --dataset ohiot1dm --data_scenario denoised \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
     --llm_models BERT,MiniLM --seeds 831363 --epochs 10
@@ -137,7 +137,7 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
 
 ## 2. Run Training Experiments
 ```bash
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets ohiot1dm
+python scripts/time_llm/run_experiments.py --modes train --datasets ohiot1dm
 ```
 
 ---
@@ -153,21 +153,21 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train --datasets
 
 #### Train on Standardized, Test on Noisy
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --dataset ohiot1dm --data_scenario noisy --train_data_scenario standardized \
     --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 ```
 
 #### Train on Standardized, Test on Missing Periodic
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --dataset ohiot1dm --data_scenario missing_periodic --train_data_scenario standardized \
     --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 ```
 
 #### Train on Standardized, Test on Missing Random
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --dataset ohiot1dm --data_scenario missing_random --train_data_scenario standardized \
     --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 10
 ```
@@ -178,12 +178,12 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode train_infere
 
 ```bash
 # Standardized data inference
-python scripts/time_llm/config_generator_time_llm_unified.py --mode inference \
+python scripts/time_llm/config_generator.py --mode inference \
     --dataset ohiot1dm --data_scenario standardized \
     --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 0
 
 # Noisy data inference  
-python scripts/time_llm/config_generator_time_llm_unified.py --mode inference \
+python scripts/time_llm/config_generator.py --mode inference \
     --dataset ohiot1dm --data_scenario noisy \
     --patients 570,584 --llm_models GPT2 --seeds 831363 --epochs 0
 ```
@@ -194,19 +194,19 @@ python scripts/time_llm/config_generator_time_llm_unified.py --mode inference \
 
 ```bash
 # Run specific experiment types (automatically extracts CSV results)
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets ohiot1dm
 
 # Run with specific models
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm --models GPT2
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets ohiot1dm --models GPT2
 
 # Parallel execution (for faster processing)
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm --parallel --max_workers 2
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets ohiot1dm --parallel --max_workers 2
 
 # Dry run (see what would be executed)
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm --dry_run
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets ohiot1dm --dry_run
 
 # Disable automatic CSV extraction
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets ohiot1dm --no_extract_metrics
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets ohiot1dm --no_extract_metrics
 ```
 
 **Note**: All experiments automatically extract metrics to CSV files after each completion. Results are saved to files like `time_llm_training_inference_ohiot1dm_results.csv` in the root directory.
@@ -219,12 +219,12 @@ Time-LLM fully supports the D1NAMO dataset:
 
 ```bash
 # Generate D1NAMO configs
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --dataset d1namo --data_scenario standardized \
     --patients 001,002,003,004,005,006,007 --llm_models GPT2 --seeds 831363 --epochs 10
 
 # Run D1NAMO experiments
-python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference --datasets d1namo
+python scripts/time_llm/run_experiments.py --modes train_inference --datasets d1namo
 ```
 
 ---
@@ -233,21 +233,21 @@ python scripts/time_llm/run_all_time_llm_experiments.py --modes train_inference 
 
 ### Multiple Seeds
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --patients 570,584 --llm_models GPT2 \
     --seeds 831363,809906,427368,238822,247659 --epochs 10
 ```
 
 ### Custom Output Directory
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --patients 570,584 --llm_models GPT2 --epochs 10 \
     --output_dir ./custom_experiments/
 ```
 
 ### All Models and Comprehensive Setup
 ```bash
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train_inference \
+python scripts/time_llm/config_generator.py --mode train_inference \
     --dataset ohiot1dm --data_scenario standardized \
     --patients 540,544,552,559,563,567,570,575,584,588,591,596 \
     --llm_models GPT2,LLAMA,BERT --seeds 831363 --epochs 10
@@ -318,7 +318,7 @@ head -n 3 data/ohiot1dm/noisy/570-ws-testing.csv
 find data/ohiot1dm -name "t1dm_prompt.txt"
 
 # Test config generation
-python scripts/time_llm/config_generator_time_llm_unified.py --mode train \
+python scripts/time_llm/config_generator.py --mode train \
     --patients 570 --llm_models GPT2 --epochs 1
 ```
 

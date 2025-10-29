@@ -1,68 +1,68 @@
 # Time-LLM Unified Configuration Generator - Usage Guide
 
 ## Overview
-The unified Time-LLM configuration generator (`config_generator_time_llm_unified.py`) combines all Time-LLM config generators into one powerful tool that supports multiple datasets, data scenarios, cross-scenario evaluation, and different LLM models.
+The unified Time-LLM configuration generator (`config_generator.py`) combines all Time-LLM config generators into one powerful tool that supports multiple datasets, data scenarios, cross-scenario evaluation, and different LLM models.
 
 ## Quick Start
 
 ### Basic Commands
 ```bash
 # Generate training configurations (default: ohiot1dm, standardized, GPT2+LLAMA)
-python3 config_generator_time_llm_unified.py --mode train
+python3 config_generator.py --mode train
 
 # Generate inference configurations (epochs=0)
-python3 config_generator_time_llm_unified.py --mode inference
+python3 config_generator.py --mode inference
 
 # Generate combined training+inference configurations
-python3 config_generator_time_llm_unified.py --mode train_inference
+python3 config_generator.py --mode train_inference
 ```
 
 ### Using Different Datasets
 ```bash
 # Use D1NAMO dataset instead of OhioT1DM
-python3 config_generator_time_llm_unified.py --mode train --dataset d1namo
+python3 config_generator.py --mode train --dataset d1namo
 
 # Use specific patients
-python3 config_generator_time_llm_unified.py --mode train --patients 570,584
+python3 config_generator.py --mode train --patients 570,584
 ```
 
 ### Data Scenarios
 ```bash
 # Train on noisy data
-python3 config_generator_time_llm_unified.py --mode train --data_scenario noisy
+python3 config_generator.py --mode train --data_scenario noisy
 
 # Train on missing periodic data
-python3 config_generator_time_llm_unified.py --mode train --data_scenario missing_periodic
+python3 config_generator.py --mode train --data_scenario missing_periodic
 
 # Inference on denoised data
-python3 config_generator_time_llm_unified.py --mode inference --data_scenario denoised
+python3 config_generator.py --mode inference --data_scenario denoised
 ```
 
 ### Cross-Scenario Evaluation
 Train on one scenario, test on another:
 ```bash
 # Train on standardized, test on missing_periodic
-python3 config_generator_time_llm_unified.py --mode train_inference \
+python3 config_generator.py --mode train_inference \
     --data_scenario missing_periodic --train_data_scenario standardized
 
 # Train on standardized, test on noisy (D1NAMO dataset)
-python3 config_generator_time_llm_unified.py --mode train_inference \
+python3 config_generator.py --mode train_inference \
     --dataset d1namo --data_scenario noisy --train_data_scenario standardized
 ```
 
 ### Model-Specific Configurations
 ```bash
 # Use only GPT2 model
-python3 config_generator_time_llm_unified.py --mode train --llm_models GPT2
+python3 config_generator.py --mode train --llm_models GPT2
 
 # Use only LLAMA model
-python3 config_generator_time_llm_unified.py --mode train --llm_models LLAMA
+python3 config_generator.py --mode train --llm_models LLAMA
 
 # Use only BERT model  
-python3 config_generator_time_llm_unified.py --mode train --llm_models BERT
+python3 config_generator.py --mode train --llm_models BERT
 
 # Use all three models
-python3 config_generator_time_llm_unified.py --mode train --llm_models GPT2,LLAMA,BERT
+python3 config_generator.py --mode train --llm_models GPT2,LLAMA,BERT
 ```
 
 ## Parameters
@@ -183,28 +183,28 @@ bash run_common_time_llm_configs.sh
 1. **Basic Model Comparison**
 ```bash
 # Compare all three LLM models on standardized data
-python3 config_generator_time_llm_unified.py --mode train_inference --llm_models GPT2,LLAMA,BERT
+python3 config_generator.py --mode train_inference --llm_models GPT2,LLAMA,BERT
 ```
 
 2. **Data Robustness Study**  
 ```bash
 # Test model trained on clean data against various test scenarios
-python3 config_generator_time_llm_unified.py --mode train_inference --data_scenario missing_periodic --train_data_scenario standardized
-python3 config_generator_time_llm_unified.py --mode train_inference --data_scenario noisy --train_data_scenario standardized
-python3 config_generator_time_llm_unified.py --mode train_inference --data_scenario missing_random --train_data_scenario standardized
+python3 config_generator.py --mode train_inference --data_scenario missing_periodic --train_data_scenario standardized
+python3 config_generator.py --mode train_inference --data_scenario noisy --train_data_scenario standardized
+python3 config_generator.py --mode train_inference --data_scenario missing_random --train_data_scenario standardized
 ```
 
 3. **Dataset Comparison**
 ```bash
 # Compare same model on different datasets
-python3 config_generator_time_llm_unified.py --mode train --dataset ohiot1dm --llm_models GPT2
-python3 config_generator_time_llm_unified.py --mode train --dataset d1namo --llm_models GPT2
+python3 config_generator.py --mode train --dataset ohiot1dm --llm_models GPT2
+python3 config_generator.py --mode train --dataset d1namo --llm_models GPT2
 ```
 
 4. **Extended Training**
 ```bash
 # Train for more epochs with specific seeds
-python3 config_generator_time_llm_unified.py --mode train --epochs 20 --seeds 1,2,3,4,5
+python3 config_generator.py --mode train --epochs 20 --seeds 1,2,3,4,5
 ```
 
 ## Migration from Old Generators
@@ -226,5 +226,5 @@ The unified generator replaces these individual scripts:
 
 ### Getting Help
 ```bash
-python3 config_generator_time_llm_unified.py --help
+python3 config_generator.py --help
 ```
