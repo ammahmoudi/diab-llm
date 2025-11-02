@@ -77,9 +77,13 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN="--dry-run"
             shift
             ;;
+        --no-checkpoints)
+            NO_CHECKPOINTS="--remove_checkpoints"
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--dry-run]"
+            echo "Usage: $0 --teacher <model> --student <model> --patients <patient_ids> --dataset <dataset_name> --seed <seed> --teacher-epochs <n> --student-epochs <n> --distill-epochs <n> [--lr <rate>] [--batch-size <size>] [--alpha <weight>] [--beta <weight>] [--dry-run] [--no-checkpoints]"
             exit 1
             ;;
     esac
@@ -101,6 +105,7 @@ LR=${LR:-0.001}
 BATCH_SIZE=${BATCH_SIZE:-32}
 ALPHA=${ALPHA:-0.5}
 BETA=${BETA:-0.5}
+NO_CHECKPOINTS=${NO_CHECKPOINTS:-""}
 DATA_TYPE="raw_standardized"
 
 # Create organized pipeline directory structure
@@ -176,7 +181,7 @@ for CURRENT_PATIENT in "${PATIENT_ARRAY[@]}"; do
     echo "=========================================="
     echo "Training $TEACHER on patient $CURRENT_PATIENT for $TEACHER_EPOCHS epochs..."
     echo "Output directory: $PHASE1_DIR"
-    python distillation/scripts/train_teachers.py --model $TEACHER --patients $CURRENT_PATIENT --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --epochs $TEACHER_EPOCHS --output-dir "$PHASE1_DIR" --config-dir "$PHASE1_DIR"
+    python distillation/scripts/train_teachers.py --model $TEACHER --patients $CURRENT_PATIENT --dataset $DATASET_NAME --seed $SEED --lr $LR --batch-size $BATCH_SIZE --epochs $TEACHER_EPOCHS --output-dir "$PHASE1_DIR" --config-dir "$PHASE1_DIR" $([ "$NO_CHECKPOINTS" != "" ] && echo "--remove-checkpoints")
     if [ $? -ne 0 ]; then
         echo "❌ Teacher training failed for patient $CURRENT_PATIENT!"
         exit 1
