@@ -29,6 +29,7 @@ data_old
 flexible
 distillation/configs/
 distillation_experiments
+distillation_experiments_1
 *.pth
 *.pkl
 *.bin
