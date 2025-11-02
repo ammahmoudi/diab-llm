@@ -297,7 +297,15 @@ class TeacherTrainer:
         config["llm_settings"]["train_epochs"] = epochs
         config["llm_settings"]["seed"] = self.seed
         config["llm_settings"]["learning_rate"] = self.lr
-        config["llm_settings"]["train_batch_size"] = self.batch_size
+        
+        # Use model-specific batch sizes for large models
+        if normalized_name == "llama":
+            # LLAMA-7B is much larger, use smaller batch size to avoid OOM
+            config["llm_settings"]["train_batch_size"] = max(1, self.batch_size // 8)  # 32->4, 16->2, 8->1
+            config["llm_settings"]["prediction_batch_size"] = max(1, 64 // 8)  # 64->8
+            print(f"Using reduced batch size for LLAMA-7B: train={config['llm_settings']['train_batch_size']}, pred={config['llm_settings']['prediction_batch_size']}")
+        else:
+            config["llm_settings"]["train_batch_size"] = self.batch_size
         
         # Generate log directory path using output directory if provided
         if hasattr(self, 'results_dir') and str(self.results_dir) != str(self.base_dir / "results" / "teacher_models"):

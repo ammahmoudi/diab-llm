@@ -15,13 +15,16 @@ set -e
 # Define ALL supported teacher-student pairs for comprehensive comparison
 declare -a TEACHERS=(
     "bert-base-uncased"              # BERT: 768×12 = 110M params
+    "bert-base-cased"                # BERT: 768×12 = 110M params
     "bert-large-uncased"             # BERT-Large: 1024×24 = 340M params  
+    "bert-large-cased"               # BERT-Large: 1024×24 = 340M params
     "distilbert-base-uncased"        # DistilBERT: 768×6 = 66M params
-    "albert-base-v2"                 # ALBERT: 768×12 = 12M params (shared)
-    "gpt2"                           # GPT2: 768×12 = 117M params
-    "huggyllama/llama-7b"           # LLAMA: 4096×32 = 7B params
-    "google/mobilebert-uncased"      # MobileBERT: 512×24 = 25M params
-    "facebook/opt-125m"              # OPT-125M: 768×12 = 125M params
+    "distilbert-base-cased"          # DistilBERT: 768×6 = 66M params
+    "tinybert"                       # TinyBERT
+    "prajjwal1/bert-tiny"            # BERT-tiny: 128×2 = 4M params
+    "prajjwal1/bert-mini"            # BERT-mini: 256×4 = 11M params
+    "prajjwal1/bert-small"           # BERT-small: 512×4 = 29M params
+    "prajjwal1/bert-medium"          # BERT-medium: 512×8 = 41M params
 )
 
 declare -a STUDENTS=(
