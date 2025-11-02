@@ -556,7 +556,13 @@ def main():
     parser = argparse.ArgumentParser(description="Train Time-LLM Teacher Models")
     parser.add_argument("--model", choices=["bert", "bert-base-uncased", "bert-base-cased", "bert-large-uncased", "bert-large-cased", 
                                            "distilbert", "distilbert-base-uncased", "distilbert-base-cased", 
-                                           "tinybert", "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium", "all"], 
+                                           "tinybert", "huawei-noah/TinyBERT_General_4L_312D",
+                                           "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium",
+                                           "gpt2", "openai-community/gpt2", "llama", "huggyllama/llama-7b",
+                                           "minilm", "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large",
+                                           "mobilebert", "google/mobilebert-uncased", 
+                                           "albert", "albert/albert-base-v2",
+                                           "opt-125m", "facebook/opt-125m", "all"], 
                        default="all", help="Model to train")
     parser.add_argument("--patients", default="584", help="Patient IDs (comma-separated or single)")
     parser.add_argument("--all-patients", action="store_true", help="Train on ALL patients combined data (overrides --patients)")
