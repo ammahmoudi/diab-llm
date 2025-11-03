@@ -59,15 +59,23 @@ def get_llm_config(llm_model):
     # First map HuggingFace model names to our short names
     hf_to_short_name = {
         "bert-base-uncased": "BERT",
-        "distilbert-base-uncased": "DistilBERT", 
+        "bert-base-cased": "BERT",
+        "bert-large-uncased": "BERT",
+        "bert-large-cased": "BERT",
+        "distilbert-base-uncased": "DistilBERT",
+        "distilbert-base-cased": "DistilBERT", 
         "huawei-noah/TinyBERT_General_4L_312D": "TinyBERT",
         "prajjwal1/bert-tiny": "BERT-tiny",
-        "microsoft/MiniLM-L12-H384-A12": "MiniLM",
+        "prajjwal1/bert-mini": "BERT-mini",
+        "prajjwal1/bert-small": "BERT-small",
+        "prajjwal1/bert-medium": "BERT-medium",
+        "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large": "MiniLM",
         "google/mobilebert-uncased": "MobileBERT",
-        "albert-base-v2": "ALBERT",
+        "albert/albert-base-v2": "ALBERT",
         "gpt2": "GPT2",
+        "openai-community/gpt2": "GPT2",
         "facebook/opt-125m": "OPT-125M",
-        "meta-llama/Llama-2-7b-hf": "LLAMA",
+        "huggyllama/llama-7b": "LLAMA",
     }
     
     # Convert HuggingFace name to short name if needed
@@ -82,7 +90,10 @@ def get_llm_config(llm_model):
         # Small student models
         "TinyBERT": {"llm_model": "TinyBERT", "llm_dim": 312, "llm_layers": 4},
         "BERT-tiny": {"llm_model": "BERT-tiny", "llm_dim": 128, "llm_layers": 2},
-        "MiniLM": {"llm_model": "MiniLM", "llm_dim": 384, "llm_layers": 12},
+        "BERT-mini": {"llm_model": "BERT", "llm_dim": 256, "llm_layers": 4},
+        "BERT-small": {"llm_model": "BERT", "llm_dim": 512, "llm_layers": 4},
+        "BERT-medium": {"llm_model": "BERT", "llm_dim": 512, "llm_layers": 8},
+        "MiniLM": {"llm_model": "MiniLM", "llm_dim": 384, "llm_layers": 6},
         "MobileBERT": {"llm_model": "MobileBERT", "llm_dim": 512, "llm_layers": 24},
         "ALBERT": {"llm_model": "ALBERT", "llm_dim": 768, "llm_layers": 12},
         "OPT-125M": {"llm_model": "OPT-125M", "llm_dim": 768, "llm_layers": 12},

@@ -163,6 +163,12 @@ class DistillationTrainer:
                 "llm_dim": 768,
                 "model_comment": "student_ALBERT_768_6_6_9_6"
             },
+            "llama": {
+                "llm_model": "LLAMA",
+                "llm_layers": 32,
+                "llm_dim": 4096,
+                "model_comment": "student_LLAMA_4096_6_6_9_6"
+            },
             "opt-125m": {
                 "llm_model": "OPT-125M",
                 "llm_layers": 12,
@@ -672,11 +678,23 @@ def main():
     parser = argparse.ArgumentParser(description="Perform Knowledge Distillation for Time-LLM Models")
     parser.add_argument("--teacher", choices=["bert", "bert-base-uncased", "bert-base-cased", "bert-large-uncased", "bert-large-cased", 
                                              "distilbert", "distilbert-base-uncased", "distilbert-base-cased", 
-                                             "tinybert", "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium"], 
+                                             "tinybert", "huawei-noah/TinyBERT_General_4L_312D",
+                                             "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium",
+                                             "gpt2", "openai-community/gpt2", "llama", "huggyllama/llama-7b",
+                                             "minilm", "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large",
+                                             "mobilebert", "google/mobilebert-uncased", 
+                                             "albert", "albert/albert-base-v2",
+                                             "opt-125m", "facebook/opt-125m"], 
                        help="Teacher model to distill from")
     parser.add_argument("--student", choices=["bert", "bert-base-uncased", "bert-base-cased", "bert-large-uncased", "bert-large-cased", 
                                              "distilbert", "distilbert-base-uncased", "distilbert-base-cased", 
-                                             "tinybert", "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium"],
+                                             "tinybert", "huawei-noah/TinyBERT_General_4L_312D",
+                                             "prajjwal1/bert-tiny", "prajjwal1/bert-mini", "prajjwal1/bert-small", "prajjwal1/bert-medium",
+                                             "gpt2", "openai-community/gpt2", "llama", "huggyllama/llama-7b",
+                                             "minilm", "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large",
+                                             "mobilebert", "google/mobilebert-uncased", 
+                                             "albert", "albert/albert-base-v2",
+                                             "opt-125m", "facebook/opt-125m"],
                        help="Student model to distill to")
     parser.add_argument("--patients", default="584", help="Patient IDs (comma-separated or single)")
     parser.add_argument("--all-patients", action="store_true", help="Train on ALL patients combined data (overrides --patients)")

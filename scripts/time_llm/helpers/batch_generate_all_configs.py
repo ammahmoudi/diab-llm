@@ -63,9 +63,9 @@ def main():
     # Use first 3 seeds from utilities/seeds.py as default
     default_seeds = ",".join(map(str, fixed_seeds[:3]))
     
-    # Common parameters
+    # Common parameters - using comprehensive model set
     common_params = [
-        "--llm_models", "GPT2,LLAMA", 
+        "--llm_models", "BERT,GPT2,LLAMA,DistilBERT,TinyBERT,BERT-tiny,MiniLM,MobileBERT,ALBERT,OPT-125M", 
         "--seeds", default_seeds  # Use seeds from utilities/seeds.py
     ]
     

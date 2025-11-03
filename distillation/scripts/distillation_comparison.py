@@ -30,17 +30,23 @@ class DistillationTester:
         self.teacher_models = {
             # Large, capable models (good teachers)
             "bert-base-uncased": {"size": "110M", "dim": 768, "category": "large"},
-            "albert-base-v2": {"size": "12M", "dim": 768, "category": "efficient"},  # Parameter sharing
+            "bert-large-uncased": {"size": "340M", "dim": 1024, "category": "very_large"},
             "distilbert-base-uncased": {"size": "66M", "dim": 768, "category": "medium"},
             "gpt2": {"size": "117M", "dim": 768, "category": "generative"},
+            "huggyllama/llama-7b": {"size": "7B", "dim": 4096, "category": "huge"},
+            "google/mobilebert-uncased": {"size": "25M", "dim": 512, "category": "mobile"},
+            "albert/albert-base-v2": {"size": "12M", "dim": 768, "category": "efficient"},
+            "facebook/opt-125m": {"size": "125M", "dim": 768, "category": "large"},
         }
         
         self.student_models = {
             # Small, fast models (good students)
             "prajjwal1/bert-tiny": {"size": "4M", "dim": 128, "category": "tiny"},
             "huawei-noah/TinyBERT_General_4L_312D": {"size": "14M", "dim": 312, "category": "small"},
-            "microsoft/MiniLM-L12-H384-A12": {"size": "33M", "dim": 384, "category": "small"},
-            "google/mobilebert-uncased": {"size": "25M", "dim": 512, "category": "mobile"},
+            "prajjwal1/bert-mini": {"size": "11M", "dim": 256, "category": "small"},
+            "prajjwal1/bert-small": {"size": "29M", "dim": 512, "category": "small"},
+            "prajjwal1/bert-medium": {"size": "41M", "dim": 512, "category": "medium"},
+            "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large": {"size": "22M", "dim": 384, "category": "small"},
         }
         
         self.test_params = {
@@ -67,19 +73,20 @@ class DistillationTester:
             strategic_pairs = [
                 # Strong teacher -> tiny student (max compression)
                 ("bert-base-uncased", "prajjwal1/bert-tiny"),
-                ("albert-base-v2", "prajjwal1/bert-tiny"),
+                ("bert-large-uncased", "prajjwal1/bert-tiny"),
+                ("facebook/opt-125m", "prajjwal1/bert-tiny"),
                 
                 # Strong teacher -> small student (good balance)
                 ("bert-base-uncased", "huawei-noah/TinyBERT_General_4L_312D"),
-                ("albert-base-v2", "huawei-noah/TinyBERT_General_4L_312D"),
+                ("gpt2", "prajjwal1/bert-mini"),
                 
                 # Medium teacher -> small student (efficient)
-                ("distilbert-base-uncased", "microsoft/MiniLM-L12-H384-A12"),
-                ("distilbert-base-uncased", "google/mobilebert-uncased"),
+                ("distilbert-base-uncased", "prajjwal1/bert-small"),
+                ("google/mobilebert-uncased", "nreimers/MiniLMv2-L6-H384-distilled-from-BERT-Large"),
                 
-                # Cross-architecture experiments
-                ("gpt2", "prajjwal1/bert-tiny"),
-                ("gpt2", "huawei-noah/TinyBERT_General_4L_312D"),
+                # Extreme compression experiments
+                ("huggyllama/llama-7b", "prajjwal1/bert-tiny"),
+                ("albert/albert-base-v2", "prajjwal1/bert-mini"),
             ]
             pairs = strategic_pairs
             
@@ -88,7 +95,7 @@ class DistillationTester:
             quick_pairs = [
                 ("bert-base-uncased", "prajjwal1/bert-tiny"),
                 ("bert-base-uncased", "huawei-noah/TinyBERT_General_4L_312D"),
-                ("distilbert-base-uncased", "microsoft/MiniLM-L12-H384-A12"),
+                ("distilbert-base-uncased", "prajjwal1/bert-small"),
             ]
             pairs = quick_pairs
             
@@ -105,7 +112,7 @@ class DistillationTester:
         
         # Build command
         cmd = [
-            "bash", "distill_pipeline.sh",
+            "bash", "scripts/pipelines/distill_pipeline.sh",
             "--teacher", teacher,
             "--student", student,
             "--patients", ",".join(self.test_params["patients"]),
