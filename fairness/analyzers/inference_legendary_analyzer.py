@@ -128,8 +128,8 @@ class LegendaryInferenceAnalyzer(BaseInferenceAnalyzer):
             # Find best and worst scenario for this feature
             valid_ratios = {k: v['ratio'] for k, v in feature_results.items() if v['ratio'] > 0}
             if valid_ratios:
-                best = min(valid_ratios, key=valid_ratios.get)
-                worst = max(valid_ratios, key=valid_ratios.get)
+                best = min(valid_ratios, key=lambda x: valid_ratios[x])
+                worst = max(valid_ratios, key=lambda x: valid_ratios[x])
                 print(f"\n  ✅ Best Scenario: {best} ({valid_ratios[best]:.2f}x)")
                 print(f"  ⚠️  Worst Scenario: {worst} ({valid_ratios[worst]:.2f}x)")
         
@@ -232,9 +232,9 @@ class LegendaryInferenceAnalyzer(BaseInferenceAnalyzer):
         
         # Create large figure with proper layout: 1 heatmap + 2 rows for RMSE charts + 1 table
         fig = plt.figure(figsize=(20, 18))
-        gs = fig.add_gridspec(4, 3, hspace=0.5, wspace=0.4, top=0.94, height_ratios=[1, 1, 1, 1.2])
+        gs = fig.add_gridspec(4, 3, hspace=0.6, wspace=0.4, top=0.94, height_ratios=[1, 1, 1, 1.2])
         
-        fig.suptitle('🏆 LEGENDARY: Fairness Across All Features & Scenarios', 
+        fig.suptitle('📊 COMPREHENSIVE: Fairness Across All Features & Scenarios', 
                      fontsize=20, fontweight='bold', y=0.98)
         
         features = list(mega_results.keys())
@@ -266,10 +266,13 @@ class LegendaryInferenceAnalyzer(BaseInferenceAnalyzer):
         ax_table.set_title('Summary Table: Per-Group RMSE Performance Across Scenarios', 
                           fontweight='bold', fontsize=14, pad=15)
         
-        # Prepare table data - show RMSE for each group like distillation analyzer
+        # Prepare table data - show RMSE with color-coded impact indicators
         table_data = []
-        table_data.append(['Feature', 'Group', 'Inf Only\nRMSE', 'Trained Std\nRMSE', 
-                          'Trained Noisy\nRMSE', 'Trained Denoised\nRMSE', 'Best\nScenario', 'Worst\nScenario'])
+        impact_colors: list[list[str | None]] = []  # Track colors for each cell
+        
+        table_data.append(['Feature', 'Group', 'Inf Only\nRMSE', 'Trained Std\nRMSE (Δ)', 
+                          'Trained Noisy\nRMSE (Δ)', 'Trained Denoised\nRMSE (Δ)', 'Best Scenario'])
+        impact_colors.append([None] * 7)  # Header row has no special colors
         
         for feature_name in features:
             # Get all groups for this feature
@@ -280,58 +283,109 @@ class LegendaryInferenceAnalyzer(BaseInferenceAnalyzer):
             
             for group_name in sorted(all_groups):
                 row = [feature_name, group_name]
+                row_colors: list[str | None] = [None, None]  # Feature and Group columns
                 rmse_values = {}
+                inference_only_rmse = None
                 
-                for scenario in scenarios:
+                # First add inference_only RMSE
+                if 'inference_only' in mega_results[feature_name]:
+                    stats = mega_results[feature_name]['inference_only'].get('statistics', {})
+                    if group_name in stats:
+                        inference_only_rmse = stats[group_name]['rmse_mean']
+                        row.append(f"{inference_only_rmse:.2f}")
+                        row_colors.append(None)  # Baseline - no color
+                        rmse_values['inference_only'] = inference_only_rmse
+                    else:
+                        row.append('N/A')
+                        row_colors.append(None)
+                else:
+                    row.append('N/A')
+                    row_colors.append(None)
+                
+                # Add each training scenario with impact embedded in the text
+                training_scenarios = ['trained_standard', 'trained_noisy', 'trained_denoised']
+                for scenario in training_scenarios:
                     if scenario in mega_results[feature_name]:
                         stats = mega_results[feature_name][scenario].get('statistics', {})
                         if group_name in stats:
                             rmse = stats[group_name]['rmse_mean']
-                            row.append(f"{rmse:.2f}")
                             rmse_values[scenario] = rmse
+                            
+                            # Calculate impact vs inference_only
+                            if inference_only_rmse is not None:
+                                impact = rmse - inference_only_rmse
+                                impact_pct = (impact / inference_only_rmse) * 100
+                                
+                                # Format cell with RMSE and impact inline
+                                if impact < -0.5:
+                                    row.append(f"{rmse:.2f} (✓ {impact:.1f})")
+                                    row_colors.append('good')  # Green - improvement
+                                elif impact > 0.5:
+                                    row.append(f"{rmse:.2f} (✗ +{impact:.1f})")
+                                    row_colors.append('bad')  # Red - degradation
+                                else:
+                                    row.append(f"{rmse:.2f} (≈ {impact:+.1f})")
+                                    row_colors.append('neutral')  # Yellow - similar
+                            else:
+                                row.append(f"{rmse:.2f}")
+                                row_colors.append(None)
                         else:
                             row.append('N/A')
+                            row_colors.append(None)
                     else:
                         row.append('N/A')
+                        row_colors.append(None)
                 
-                # Find best and worst scenarios for this group
+                # Find best scenario for this group
                 if rmse_values:
                     best_scenario = min(rmse_values.keys(), key=lambda k: rmse_values[k])
-                    worst_scenario = max(rmse_values.keys(), key=lambda k: rmse_values[k])
-                    best_label = best_scenario.replace('_', ' ').title()
-                    worst_label = worst_scenario.replace('_', ' ').title()
-                    row.append(f"{best_label}\n({rmse_values[best_scenario]:.2f})")
-                    row.append(f"{worst_label}\n({rmse_values[worst_scenario]:.2f})")
+                    best_rmse = rmse_values[best_scenario]
+                    row.append(f"{best_scenario.replace('_', ' ').title()} ({best_rmse:.1f})")
                 else:
-                    row.extend(['N/A', 'N/A'])
+                    row.append('N/A')
                 
+                row_colors.append('best')  # Best scenario column
                 table_data.append(row)
+                impact_colors.append(row_colors)
         
         # Create table
         table = ax_table.table(cellText=table_data, cellLoc='center', loc='center',
-                              bbox=[0.05, 0.1, 0.9, 0.8])
+                              bbox=[0.05, 0.1, 0.9, 0.8])  # type: ignore[arg-type]
         
         table.auto_set_font_size(False)
-        table.set_fontsize(8)
+        table.set_fontsize(7)
+        
+        # Define color mappings
+        color_map = {
+            'good': '#c8e6c9',      # Light green - improvement
+            'bad': '#ffcdd2',       # Light red - degradation
+            'neutral': '#fff9c4',   # Light yellow - similar
+            'best': '#a5d6a7',      # Medium green - best scenario
+        }
         
         # Style header row
         for i in range(len(table_data[0])):
             table[(0, i)].set_facecolor('#4a90e2')
-            table[(0, i)].set_text_props(weight='bold', color='white')
+            table[(0, i)].set_text_props(weight='bold', color='white', fontsize=7)
             table[(0, i)].set_height(0.06)
         
-        # Style data rows with color coding for best/worst
+        # Style data rows with color coding based on impact
         for i in range(1, len(table_data)):
             for j in range(len(table_data[0])):
+                # Set base background
                 if i % 2 == 0:
-                    table[(i, j)].set_facecolor('#f8f9fa')
-                table[(i, j)].set_height(0.05)
+                    base_color = '#f8f9fa'
+                else:
+                    base_color = 'white'
                 
-                # Highlight best/worst columns
-                if j == len(table_data[0]) - 2:  # Best scenario column
-                    table[(i, j)].set_facecolor('#d4edda')
-                elif j == len(table_data[0]) - 1:  # Worst scenario column
-                    table[(i, j)].set_facecolor('#f8d7da')
+                # Apply impact-based coloring
+                color_key = impact_colors[i][j]
+                if color_key is not None and color_key in color_map:
+                    table[(i, j)].set_facecolor(color_map[color_key])
+                else:
+                    table[(i, j)].set_facecolor(base_color)
+                
+                table[(i, j)].set_height(0.05)
         
         # Save single combined visualization
         plot_file = self.results_dir / f"legendary_inference_scenarios_{timestamp}.png"
