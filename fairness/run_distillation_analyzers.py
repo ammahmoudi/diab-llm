@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 """
-Script to run all fairness analyzers with flexible experiment type selection
+Script to run DISTILLATION fairness analyzers
 
-Supports both per-patient and all-patients experiments.
+Analyzes fairness across the distillation process (teacher → student → distilled)
+with flexible experiment type selection.
+
+Supports two modes:
+- per_patient: Each patient has separate training/student/distillation phases
+- all_patients: Single model trained on all patients, then per-patient inference
+
+Results are saved in:
+- fairness/analysis_results/distillation_per_patient/ (per-patient mode)
+- fairness/analysis_results/distillation_all_patients/ (all-patients mode)
 """
 
 import subprocess
@@ -16,7 +25,10 @@ project_root = current_dir.parent
 sys.path.insert(0, str(project_root))
 
 # Parse arguments
-parser = argparse.ArgumentParser(description='Run all fairness analyzers')
+parser = argparse.ArgumentParser(
+    description='Run all DISTILLATION fairness analyzers',
+    epilog='Results saved in fairness/analysis_results/distillation_{per_patient|all_patients}/'
+)
 parser.add_argument('--experiment-type', type=str, default='per_patient',
                    choices=['per_patient', 'all_patients'],
                    help='Type of experiment to analyze (default: per_patient)')
@@ -36,18 +48,21 @@ venv_python = project_root / "venv" / "bin" / "python"
 python_cmd = str(venv_python) if venv_python.exists() else sys.executable
 
 exp_type_label = "ALL-PATIENTS" if args.experiment_type == "all_patients" else "PER-PATIENT"
+results_folder = f"distillation_{args.experiment_type}"
 
 print("=" * 80)
-print(f"RUNNING ALL FAIRNESS ANALYZERS ({exp_type_label} MODE)")
+print(f"RUNNING DISTILLATION FAIRNESS ANALYZERS ({exp_type_label} MODE)")
 print("=" * 80)
 
 if args.experiment_type == "all_patients":
-    print("\nAnalyzing all-patients experiments:")
+    print("\n📊 Analyzing all-patients distillation experiments:")
     print("  - Single model trained on all patients")
     print("  - Per-patient inference for each phase (teacher, student, distilled)")
+    print(f"  - Results saved in: fairness/analysis_results/{results_folder}/")
 else:
-    print("\nAnalyzing per-patient experiments:")
+    print("\n📊 Analyzing per-patient distillation experiments:")
     print("  - Each patient has separate training/student/distillation phases")
+    print(f"  - Results saved in: fairness/analysis_results/{results_folder}/")
 
 print()
 

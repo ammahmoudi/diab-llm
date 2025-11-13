@@ -56,8 +56,11 @@ class BaseFairnessAnalyzer(ABC):
             data_path = str(get_project_root() / "data" / "ohiot1dm" / "data.csv")
         self.data_path = data_path
         
-        # Create results directory
-        self.results_dir = get_project_root() / "fairness" / "analysis_results"
+        # Create results directory based on experiment type
+        if experiment_type == "all_patients":
+            self.results_dir = get_project_root() / "fairness" / "analysis_results" / "distillation_all_patients"
+        else:
+            self.results_dir = get_project_root() / "fairness" / "analysis_results" / "distillation_per_patient"
         self.results_dir.mkdir(parents=True, exist_ok=True)
         
         # Load patient data
