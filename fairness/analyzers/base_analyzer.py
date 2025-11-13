@@ -114,8 +114,25 @@ class BaseFairnessAnalyzer(ABC):
         if not experiment_dirs:
             raise FileNotFoundError(f"💥 No pipeline experiment directories found in {search_dir}")
         
-        # Sort and get latest
-        latest_experiment = sorted(experiment_dirs)[-1]
+        # Filter to only complete experiments (with all 3 phases)
+        if self.experiment_type == "all_patients":
+            complete_dirs = []
+            for d in sorted(experiment_dirs, reverse=True):
+                required_phases = ['phase_1_teacher', 'phase_2_student', 'phase_3_distillation']
+                has_all_phases = all((d / phase).exists() for phase in required_phases)
+                
+                if has_all_phases:
+                    complete_dirs.append(d)
+                else:
+                    print(f"⚠️  Skipping incomplete experiment: {d.name}")
+            
+            if not complete_dirs:
+                raise FileNotFoundError(f"💥 No complete pipeline experiments found in {search_dir}. Need all 3 phases.")
+            
+            latest_experiment = complete_dirs[0]
+        else:
+            # Sort and get latest for per-patient experiments
+            latest_experiment = sorted(experiment_dirs)[-1]
         
         exp_type_label = "all-patients" if self.experiment_type == "all_patients" else "per-patient"
         print(f"🔍 Analyzing {exp_type_label} experiment: {latest_experiment.name}")
