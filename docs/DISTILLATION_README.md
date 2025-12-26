@@ -130,7 +130,7 @@ distillation_experiments/
 │       │       ├── config_distill_*.gin        # Distillation configuration
 │       │       ├── distillation_summary.json  # Final metrics
 │       │       └── bert_to_bert_tiny_570/      # Distilled model and logs
-│       └── patient_584/                        # Additional patients...
+│       └── patient_584/                        # Additional patients
 ├── pipeline_results.csv                        # Comprehensive CSV results
 └── pipeline_csv_logger.py                     # CSV logging utility
 ```
@@ -314,7 +314,7 @@ pip install --upgrade torch
 #### Memory Issues
 ```bash
 # Reduce batch size for limited GPU memory
-bash distill_pipeline.sh ... --batch-size 8
+bash distill_pipeline.sh --teacher bert-base-uncased --student prajjwal1/bert-tiny --batch-size 8
 
 # Use CPU if GPU memory is insufficient (slower but works)
 # Edit configs to set device: 'cpu' instead of 'cuda'
@@ -412,7 +412,7 @@ Before running your first distillation experiment:
 
 - [ ] **Initial Testing**
   - [ ] Test pipeline setup: `bash distill_pipeline.sh --help`
-  - [ ] Run dry run: `bash distill_pipeline.sh ... --dry-run`
+  - [ ] Run dry run: `bash distill_pipeline.sh --teacher bert-base-uncased --student prajjwal1/bert-tiny --dry-run`
   - [ ] Check GPU availability: `python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"`
 
 - [ ] **First Experiment**

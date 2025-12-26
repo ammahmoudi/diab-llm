@@ -285,10 +285,10 @@ The `--all-patients` flag works seamlessly with the existing distillation pipeli
   --patients 570,584 \
   --dataset ohiot1dm
 
-# NEW: All-patients mode (add --all-patients to each script in your custom pipeline)
-python distillation/scripts/train_teachers.py --model bert --all-patients ...
-python distillation/scripts/train_students.py --model prajjwal1/bert-tiny --all-patients ...
-python distillation/scripts/distill_students.py --teacher bert --student prajjwal1/bert-tiny --all-patients ...
+# All-patients mode (add --all-patients to each script in your custom pipeline)
+python distillation/scripts/train_teachers.py --model bert --all-patients
+python distillation/scripts/train_students.py --model prajjwal1/bert-tiny --all-patients
+python distillation/scripts/distill_students.py --teacher bert --student prajjwal1/bert-tiny --all-patients
 ```
 
 ---
@@ -313,11 +313,11 @@ python distillation/scripts/distill_students.py --teacher bert --student prajjwa
 ## � Related Scripts
 
 - `data_processing/combine_all_patients.py` - Create combined datasets
-- `distillation/scripts/train_teachers.py` - Train teacher models (now supports --all-patients)
-- `distillation/scripts/train_students.py` - Train student models (now supports --all-patients)
-- `distillation/scripts/distill_students.py` - Perform distillation (now supports --all-patients)
+- `distillation/scripts/train_teachers.py` - Train teacher models (supports --all-patients)
+- `distillation/scripts/train_students.py` - Train student models (supports --all-patients)
+- `distillation/scripts/distill_students.py` - Perform distillation (supports --all-patients)
 - `scripts/distill_pipeline.sh` - Original per-patient pipeline
-- `scripts/run_all_patients_distillation.sh` - NEW: All-patients pipeline wrapper
+- `scripts/run_all_patients_distillation.sh` - All-patients pipeline wrapper
 
 ---
 

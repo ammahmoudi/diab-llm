@@ -33,7 +33,7 @@ The following redundant and outdated notebooks were moved to archive:
 - `results.ipynb` + `results_d1namo.ipynb`
 - `metrics.ipynb` + `plots.ipynb`
 
-### 🔧 Function-Based Modules (NEW)
+### Function-Based Modules
 
 1. **`clean_efficiency_analyzer.py`** - **MAIN MODULE**
    - Clean, organized LLMEfficiencyAnalyzer class
@@ -44,7 +44,7 @@ The following redundant and outdated notebooks were moved to archive:
 2. **`efficiency_analyzer.py`** 
    - Previous version (may be redundant now)
 
-### 📈 Benefits of Organization
+### Benefits of Organization
 
 1. **Reduced Clutter**: 11+ redundant notebooks moved to archive
 2. **Clean Interface**: Main notebook now has simple function calls instead of 79 scattered cells

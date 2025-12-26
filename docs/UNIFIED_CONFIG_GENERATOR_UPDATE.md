@@ -111,7 +111,7 @@ Verified that generated configs:
        --mode per_patient_inference \
        --checkpoint-dir ./phase1_teacher/ \
        --llm_models BERT \
-       --patients 540,544,...,596
+       --patients 540,544,552,559,563,567,570,575,584,588,591,596
    ```
 
 3. **Run per-patient inference**:
