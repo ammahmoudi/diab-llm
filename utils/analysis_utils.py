@@ -1,5 +1,5 @@
 """
-Enhanced analysis utilities for LLM-TIME project
+Enhanced analysis utilities for DiabLLM project
 with improved data handling for both Chronos and Time-LLM models
 """
 

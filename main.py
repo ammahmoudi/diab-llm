@@ -1,3 +1,17 @@
+"""
+DiabLLM: An LLM-Based Framework for Blood Glucose Prediction in Type 1 Diabetes
+
+Main training and inference script for blood glucose prediction using Large Language Models.
+Supports multiple LLM architectures (Time-LLM, Chronos) with knowledge distillation capabilities.
+
+Authors: Amirhossein Mahmoudi, Ghazal Farahani, Peter Domanski, Bahar Farahani, 
+         Farshad Firouzi, and Krishnendu Chakrabarty
+IEEE Journal of Biomedical and Health Informatics, 2025
+
+Usage:
+    python main.py --config_path=./configs/config.gin
+"""
+
 import os
 import random
 import gin

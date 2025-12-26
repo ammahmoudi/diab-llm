@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Path Utilities for LLM-TIME Project
+Path Utilities for DiabLLM Project
 
 This module provides centralized path management utilities to make the project
 portable across different installations and users. It automatically detects
@@ -23,7 +23,7 @@ def get_project_root() -> Path:
     """
     Get the project root directory dynamically.
     
-    This function searches for the LLM-TIME project root by looking for
+    This function searches for the DiabLLM project root by looking for
     characteristic files/directories like README.md, requirements.txt, etc.
     
     Returns:
@@ -55,7 +55,10 @@ def get_project_root() -> Path:
         if indicators_found >= 3:
             return parent
     
-    # If we can't find the root automatically, check environment variable
+    # If we can't find the root automatically, check environment variables
+    # Support both new DIABLLM_ROOT and legacy LLM_TIME_ROOT
+    if 'DIABLLM_ROOT' in os.environ:
+        return Path(os.environ['DIABLLM_ROOT'])
     if 'LLM_TIME_ROOT' in os.environ:
         return Path(os.environ['LLM_TIME_ROOT'])
     
@@ -65,8 +68,8 @@ def get_project_root() -> Path:
         return cwd
     
     raise FileNotFoundError(
-        "Could not determine LLM-TIME project root. "
-        "Please set the LLM_TIME_ROOT environment variable or "
+        "Could not determine DiabLLM project root. "
+        "Please set the DIABLLM_ROOT or LLM_TIME_ROOT environment variable or "
         "run from within the project directory."
     )
 
@@ -82,9 +85,9 @@ def get_data_path(*subdirs: str) -> Path:
         Path: The complete data path
         
     Examples:
-        get_data_path() -> /path/to/LLM-TIME/data
-        get_data_path("ohiot1dm") -> /path/to/LLM-TIME/data/ohiot1dm
-        get_data_path("ohiot1dm", "raw_standardized") -> /path/to/LLM-TIME/data/ohiot1dm/raw_standardized
+        get_data_path() -> /path/to/diab-llm/data
+        get_data_path("ohiot1dm") -> /path/to/diab-llm/data/ohiot1dm
+        get_data_path("ohiot1dm", "raw_standardized") -> /path/to/diab-llm/data/ohiot1dm/raw_standardized
     """
     data_path = get_project_root() / "data"
     for subdir in subdirs:
@@ -239,21 +242,25 @@ def get_relative_path(full_path: Union[str, Path], relative_to: Optional[Union[s
 def get_project_root_env() -> Optional[str]:
     """
     Get project root from environment variable if set.
+    Supports both DIABLLM_ROOT and legacy LLM_TIME_ROOT.
     
     Returns:
         Optional[str]: Project root path from environment or None
     """
-    return os.environ.get('LLM_TIME_ROOT')
+    return os.environ.get('DIABLLM_ROOT') or os.environ.get('LLM_TIME_ROOT')
 
 
 def set_project_root_env(path: Union[str, Path]) -> None:
     """
     Set the project root environment variable.
+    Sets both DIABLLM_ROOT and LLM_TIME_ROOT for compatibility.
     
     Args:
         path: Project root path to set
     """
-    os.environ['LLM_TIME_ROOT'] = str(Path(path).resolve())
+    resolved_path = str(Path(path).resolve())
+    os.environ['DIABLLM_ROOT'] = resolved_path
+    os.environ['LLM_TIME_ROOT'] = resolved_path  # Legacy support
 
 
 # Legacy support functions for common patterns
