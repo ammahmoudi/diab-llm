@@ -1,6 +1,6 @@
-# LLM-TIME Efficiency Analysis Toolkit
+# DiabLLM Efficiency Analysis Toolkit
 
-A comprehensive toolkit for analyzing the efficiency of Time-LLM and Chronos models, including training efficiency, inference performance, memory usage analysis, and knowledge distillation evaluation.
+A comprehensive toolkit for analyzing the efficiency of Time-LLM and Chronos models for blood glucose prediction, including training efficiency, inference performance, memory usage analysis, and knowledge distillation evaluation.
 
 ## 🚀 Quick Start
 

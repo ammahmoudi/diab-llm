@@ -2,7 +2,7 @@
 
 ## Overview
 
-The LLM-TIME project uses dynamic path resolution to make it portable across different users and systems. The `utils/path_utils.py` module provides centralized path management.
+The DiabLLM project uses dynamic path resolution to make it portable across different users and systems. The `utils/path_utils.py` module provides centralized path management.
 
 ## Quick Start
 
@@ -35,7 +35,11 @@ models_path = get_models_path()
 Set `LLM_TIME_ROOT` to override automatic detection:
 
 ```bash
-export LLM_TIME_ROOT=/custom/path/to/LLM-TIME
+# Recommended: use new variable name
+export DIABLLM_ROOT=/custom/path/to/diab-llm
+
+# Or use legacy variable (backwards compatible)
+export LLM_TIME_ROOT=/custom/path/to/diab-llm
 ```
 
 ## Testing

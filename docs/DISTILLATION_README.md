@@ -405,7 +405,7 @@ After successful knowledge distillation:
 Before running your first distillation experiment:
 
 - [ ] **Environment Setup**
-  - [ ] Clone repository: `git clone --recursive https://github.com/PeterDomanski/LLM-TIME.git`
+  - [ ] Clone repository: `git clone --recursive https://github.com/ammahmoudi/diab-llm.git`
   - [ ] Create virtual environment: `python3 -m venv venv`
   - [ ] Activate environment: `source venv/bin/activate`
   - [ ] Install dependencies: `pip install -r requirements.txt`

@@ -1,6 +1,6 @@
 # Tests Directory
 
-This directory contains test scripts for the LLM-TIME project.
+This directory contains test scripts for the DiabLLM project.
 
 ## Available Tests
 
