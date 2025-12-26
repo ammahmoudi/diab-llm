@@ -2,6 +2,42 @@
 
 **DiabLLM** is a novel framework that leverages Large Language Models (LLMs) for accurate blood glucose prediction in Type 1 Diabetes Mellitus (T1DM) patients. This repository features advanced time series forecasting with knowledge distillation, cross-scenario validation, and comprehensive efficiency analysis.
 
+## 📚 Acknowledgments
+
+This project builds upon and extends the following excellent works:
+
+### Time-LLM
+**Time-LLM: Time Series Forecasting by Reprogramming Large Language Models**
+- Paper: [arXiv:2310.01728](https://arxiv.org/abs/2310.01728)
+- Authors: Ming Jin, Shiyu Wang, Lintao Ma, et al.
+- Original Repository: [KimMeen/Time-LLM](https://github.com/KimMeen/Time-LLM)
+
+```bibtex
+@inproceedings{jin2024time,
+  title={Time-llm: Time series forecasting by reprogramming large language models},
+  author={Jin, Ming and Wang, Shiyu and Ma, Lintao and Chu, Zhixuan and Zhang, James Y and Shi, Xiaoming and Chen, Pin-Yu and Liang, Yuxuan and Li, Yuan-Fang and Pan, Shirui and others},
+  booktitle={International Conference on Learning Representations (ICLR)},
+  year={2024}
+}
+```
+
+### Chronos
+**Chronos: Learning the Language of Time Series**
+- Paper: [arXiv:2403.07815](https://arxiv.org/abs/2403.07815)
+- Authors: Abdul Fatir Ansari, Lorenzo Stella, Caner Turkmen, et al.
+- Original Repository: [amazon-science/chronos-forecasting](https://github.com/amazon-science/chronos-forecasting)
+
+```bibtex
+@article{ansari2024chronos,
+  title={Chronos: Learning the Language of Time Series},
+  author={Ansari, Abdul Fatir and Stella, Lorenzo and Turkmen, Caner and Zhang, Xiyuan and Mercado, Pedro and Shen, Huibin and Shchur, Oleksandr and Rangapuram, Syama Syndar and Pineda Arango, Sebastian and Kapoor, Shubham and Zschiegner, Jasper and Maddix, Danielle C. and Mahoney, Michael W. and Torkkola, Kari and Gordon Wilson, Andrew and Bohlke-Schneider, Michael and Wang, Yuyang},
+  journal={Transactions on Machine Learning Research},
+  year={2024}
+}
+```
+
+DiabLLM extends these foundational models with diabetes-specific adaptations, knowledge distillation techniques, and comprehensive efficiency analysis for medical applications.
+
 ## Clone Repository
 
 To clone this repository with all its submodules (including the Chronos forecasting model), use:
