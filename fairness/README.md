@@ -16,11 +16,14 @@ This framework analyzes fairness across demographic dimensions in two contexts:
 ### Distillation Analysis
 
 ```bash
-# Per-patient experiments
+# Per-patient experiments (original BERT distillation)
 python fairness/run_distillation_analyzers.py --experiment-type per_patient
 
 # All-patients experiments
 python fairness/run_distillation_analyzers.py --experiment-type all_patients
+
+# MiniLM distillation experiments
+python fairness/run_minilm_analyzers.py
 ```
 
 ### Inference Scenarios Analysis
@@ -41,9 +44,13 @@ Analyze fairness during knowledge distillation across 5 demographic features plu
 
 - **Features**: Gender, Age, Pump Model, Sensor Band, Cohort, Legendary (all features)
 - **Phases Analyzed**: Teacher → Student Baseline → Distilled
+- **Experiment Folders**: 
+  - `distillation_experiments` (BERT-based distillation)
+  - `minilm_distil_experiments` (MiniLM-based distillation)
 - **Results Location**:
   - fairness/analysis_results/distillation_per_patient/
   - fairness/analysis_results/distillation_all_patients/
+  - fairness/analysis_results/minilm_distillation_per_patient/
 
 ### Inference Scenario Analyzers (6)
 

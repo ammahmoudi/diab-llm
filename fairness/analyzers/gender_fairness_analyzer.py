@@ -29,18 +29,20 @@ from fairness.utils.analyzer_utils import (
 class GenderFairnessAnalyzer(BaseFairnessAnalyzer):
     """Analyze fairness across genders."""
     
-    def __init__(self, data_path=None, experiment_type="per_patient"):
+    def __init__(self, data_path=None, experiment_type="per_patient", experiments_folder="distillation_experiments"):
         """
         Initialize gender fairness analyzer.
         
         Args:
             data_path: Optional path to patient data CSV
             experiment_type: Type of experiment ("per_patient" or "all_patients")
+            experiments_folder: Name of the experiments folder
         """
         super().__init__(feature_name="Gender", data_path=data_path, 
-                        experiment_type=experiment_type)
+                        experiment_type=experiment_type, experiments_folder=experiments_folder)
         print(f"📊 Loaded gender data for {len(self.patient_data)} patients")
         print(f"🔬 Experiment type: {experiment_type}")
+        print(f"📁 Experiments folder: {experiments_folder}")
     
     def _load_patient_data(self) -> Dict:
         """Load patient gender data from CSV or use defaults."""
@@ -74,6 +76,10 @@ class GenderFairnessAnalyzer(BaseFairnessAnalyzer):
         
         # Find and load latest experiment
         experiment_path = self.find_latest_experiment()
+        
+        # Load model names for visualization
+        self.load_model_names(Path(experiment_path))
+        
         patient_results = self.load_patient_results(Path(experiment_path))
         
         # Group by gender
@@ -309,9 +315,12 @@ def main():
     parser.add_argument('--experiment-type', type=str, default='per_patient',
                        choices=['per_patient', 'all_patients'],
                        help='Type of experiment to analyze (default: per_patient)')
+    parser.add_argument('--experiments-folder', type=str, default='distillation_experiments',
+                       help='Name of the experiments folder (default: distillation_experiments)')
     args = parser.parse_args()
     
-    analyzer = GenderFairnessAnalyzer(experiment_type=args.experiment_type)
+    analyzer = GenderFairnessAnalyzer(experiment_type=args.experiment_type,
+                                     experiments_folder=args.experiments_folder)
     analyzer.analyze_latest()
 
 

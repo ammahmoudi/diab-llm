@@ -29,8 +29,9 @@ from fairness.utils.analyzer_utils import (
 class CohortFairnessAnalyzer(BaseFairnessAnalyzer):
     """Analyze fairness across cohorts."""
     
-    def __init__(self, data_path=None, experiment_type='per_patient'):
-        super().__init__(feature_name="Cohort", data_path=data_path, experiment_type=experiment_type)
+    def __init__(self, data_path=None, experiment_type='per_patient', experiments_folder='distillation_experiments'):
+        super().__init__(feature_name="Cohort", data_path=data_path, experiment_type=experiment_type,
+                        experiments_folder=experiments_folder)
         print(f"📊 Loaded cohort data for {len(self.patient_data)} patients")
     
     def _load_patient_data(self) -> Dict:
@@ -65,6 +66,10 @@ class CohortFairnessAnalyzer(BaseFairnessAnalyzer):
         
         # Find and load latest experiment
         experiment_path = self.find_latest_experiment()
+        
+        # Load model names for visualization
+        self.load_model_names(Path(experiment_path))
+        
         patient_results = self.load_patient_results(Path(experiment_path))
         
         # Group by cohort
@@ -179,9 +184,12 @@ def main():
     parser.add_argument('--experiment-type', type=str, default='per_patient',
                        choices=['per_patient', 'all_patients'],
                        help='Type of experiment to analyze')
+    parser.add_argument('--experiments-folder', type=str, default='distillation_experiments',
+                       help='Name of the experiments folder')
     args = parser.parse_args()
     
-    analyzer = CohortFairnessAnalyzer(experiment_type=args.experiment_type)
+    analyzer = CohortFairnessAnalyzer(experiment_type=args.experiment_type,
+                                     experiments_folder=args.experiments_folder)
     analyzer.analyze_latest()
 
 

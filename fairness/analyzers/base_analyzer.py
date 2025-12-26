@@ -38,7 +38,7 @@ class BaseFairnessAnalyzer(ABC):
     """
     
     def __init__(self, feature_name: str, data_path: Optional[str] = None, 
-                 experiment_type: str = "per_patient"):
+                 experiment_type: str = "per_patient", experiments_folder: str = "distillation_experiments"):
         """
         Initialize the analyzer.
         
@@ -48,20 +48,27 @@ class BaseFairnessAnalyzer(ABC):
             experiment_type: Type of experiment to analyze:
                            - "per_patient": Per-patient distillation (default)
                            - "all_patients": All-patients training with per-patient inference
+            experiments_folder: Name of the experiments folder (default: "distillation_experiments")
         """
         self.feature_name = feature_name
         self.experiment_type = experiment_type
+        self.experiments_folder = experiments_folder
         
         if data_path is None:
             data_path = str(get_project_root() / "data" / "ohiot1dm" / "data.csv")
         self.data_path = data_path
         
-        # Create results directory based on experiment type
+        # Create results directory based on experiment type and folder
+        folder_suffix = "minilm_distillation" if "minilm" in experiments_folder else "distillation"
         if experiment_type == "all_patients":
-            self.results_dir = get_project_root() / "fairness" / "analysis_results" / "distillation_all_patients"
+            self.results_dir = get_project_root() / "fairness" / "analysis_results" / f"{folder_suffix}_all_patients"
         else:
-            self.results_dir = get_project_root() / "fairness" / "analysis_results" / "distillation_per_patient"
+            self.results_dir = get_project_root() / "fairness" / "analysis_results" / f"{folder_suffix}_per_patient"
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize model names (will be loaded from experiment)
+        self.teacher_model = "Teacher Model"
+        self.student_model = "Student Model"
         
         # Load patient data
         self.patient_data = self._load_patient_data()
@@ -95,10 +102,10 @@ class BaseFairnessAnalyzer(ABC):
         Returns:
             Path to the latest experiment directory
         """
-        distillation_dir = get_project_root() / "distillation_experiments"
+        distillation_dir = get_project_root() / self.experiments_folder
         
         if not distillation_dir.exists():
-            raise FileNotFoundError(f"💥 Distillation directory not found: {distillation_dir}")
+            raise FileNotFoundError(f"💥 Experiments directory not found: {distillation_dir}")
         
         # Choose subdirectory based on experiment type
         if self.experiment_type == "all_patients":
@@ -140,6 +147,36 @@ class BaseFairnessAnalyzer(ABC):
         exp_type_label = "all-patients" if self.experiment_type == "all_patients" else "per-patient"
         print(f"🔍 Analyzing {exp_type_label} experiment: {latest_experiment.name}")
         return str(latest_experiment)
+    
+    def load_model_names(self, experiment_path: Path = None):
+        """
+        Load teacher and student model names from pipeline_results.csv.
+        
+        Args:
+            experiment_path: Path to experiment directory (optional, will find latest if not provided)
+        """
+        if experiment_path is None:
+            experiment_path = Path(self.find_latest_experiment())
+        else:
+            experiment_path = Path(experiment_path)
+        
+        # Look for pipeline_results.csv in parent directory
+        results_csv = experiment_path.parent.parent / "pipeline_results.csv"
+        
+        if not results_csv.exists():
+            print(f"⚠️  Could not find pipeline_results.csv at {results_csv}")
+            return
+        
+        try:
+            df = pd.read_csv(results_csv)
+            if not df.empty and 'teacher_model' in df.columns and 'student_model' in df.columns:
+                self.teacher_model = df['teacher_model'].iloc[0]
+                self.student_model = df['student_model'].iloc[0]
+                print(f"✅ Loaded model names:")
+                print(f"   Teacher: {self.teacher_model}")
+                print(f"   Student: {self.student_model}")
+        except Exception as e:
+            print(f"⚠️  Could not load model names: {e}")
     
     def load_patient_results(self, experiment_path: Path) -> Dict:
         """
@@ -461,10 +498,20 @@ class BaseFairnessAnalyzer(ABC):
         # Create comprehensive visualization
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
         mode_label = 'All-Patients' if getattr(self, 'experiment_type', 'per_patient') == 'all_patients' else 'Per-Patient'
-        fig.suptitle(f'{self.feature_name} Fairness Analysis ({mode_label} Mode) - Distillation Impact', 
-                     fontsize=16, fontweight='bold')
+        
+        # Build title with model names
+        title_text = f'{self.feature_name} Fairness Analysis ({mode_label} Mode) - Distillation Impact\n'
+        title_text += f'Teacher: {self.teacher_model} | Student: {self.student_model}'
+        fig.suptitle(title_text, fontsize=14, fontweight='bold')
         
         groups = list(statistics.keys())
+        
+        # Create model name mappings
+        model_display_names = {
+            'Teacher': f'Teacher\n({self.teacher_model})',
+            'Student': f'Student\n({self.student_model})',
+            'Distilled': f'Distilled\n({self.student_model})'
+        }
         
         # 1. RMSE Comparison by Group (Teacher, Student, Distilled)
         models = ['Teacher', 'Student', 'Distilled']
@@ -481,10 +528,17 @@ class BaseFairnessAnalyzer(ABC):
             width = 0.25
             colors = ['#3498db', '#e74c3c', '#2ecc71']
             
+            # Create shorter names for legend
+            legend_names = {
+                'Teacher': self.teacher_model.split('/')[-1] if '/' in self.teacher_model else self.teacher_model[:20],
+                'Student': self.student_model.split('/')[-1] if '/' in self.student_model else self.student_model[:20],
+                'Distilled': f"Distilled ({self.student_model.split('/')[-1][:15]})" if '/' in self.student_model else f"Distilled ({self.student_model[:15]})"
+            }
+            
             for i, (model, rmse_vals) in enumerate(group_rmse.items()):
                 if rmse_vals:
                     offset = width * (i - 1)
-                    bars = ax1.bar(x + offset, rmse_vals, width, label=model, 
+                    bars = ax1.bar(x + offset, rmse_vals, width, label=legend_names[model], 
                                    color=colors[i], alpha=0.8)
                     
                     # Add value labels
