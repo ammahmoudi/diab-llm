@@ -1,64 +1,62 @@
-## Notebook Organization and Cleanup Summary
+# Notebook Organization
 
-### ✅ Active Notebooks (Current Use)
-The following notebooks remain active and serve specific purposes:
+This directory contains Jupyter notebooks for analysis and demonstration of the DiabLLM project.
 
-1. **`clean_llm_analysis.ipynb`** - **NEW MAIN NOTEBOOK**
-   - Clean, organized efficiency analysis
-   - Uses function-based approach via `clean_efficiency_analyzer.py`
-   - Replaces the messy 79-cell `ultimate_llm_efficiency_analysis.ipynb`
-   - Simple interface with just function calls
+## Active Notebooks (5 total)
 
-2. **`distillation_results_analysis.ipynb`** 
-   - Specialized analysis for distillation experiments
-   - Kept for distillation-specific analysis
+### 1. Efficiency Analysis
+**clean_llm_analysis.ipynb** - Main efficiency analysis notebook
+- Comprehensive efficiency metrics (inference, training, distillation)
+- Uses modules from `utils/` directory
+- Generates plots, tables, and reports
+- Status: ✅ Active and tested
 
-3. **`analyze_grid_logs.ipynb`**
-   - Grid search log analysis 
-   - Kept for hyperparameter tuning analysis
+### 2. Model Demonstrations
+**forecasting_chronos.ipynb** - Chronos model forecasting examples
+- Complete Chronos usage guide
+- Data loading and preprocessing examples
+- Forecasting demonstrations
+- Status: ✅ Active
 
-4. **`forecasting_chronos.ipynb`** & **`step_trend.ipynb`**
-   - Time series forecasting analysis
-   - Kept for chronos model evaluation
+**distillation_results_analysis.ipynb** - Knowledge distillation analysis
+- Teacher-student performance comparison
+- Distillation effectiveness metrics
+- Comprehensive visualization
+- Status: ✅ Active
 
-### 🗂️ Archived Notebooks (Moved to archive/old_notebooks/)
-The following redundant and outdated notebooks were moved to archive:
+### 3. Utility Notebooks
+**analyze_grid_logs.ipynb** - Hyperparameter grid search log analysis
+- Simple log parsing and visualization
+- Status: ✅ Active
 
-- `ultimate_llm_efficiency_analysis.ipynb` - **Original messy 79-cell notebook**
-- `comprehensive_efficiency_analysis.ipynb` + `comprehensive_efficiency_analysis_old.ipynb`
-- `streamlined_efficiency_analysis.ipynb` + `streamlined_efficiency_analysis_old.ipynb` 
-- `efficiency_analysis_clean.ipynb`
-- `clean_efficiency_analysis.ipynb` + `clean_efficiency_analysis_old.ipynb`
-- `comprehensive_llm_analysis.ipynb` + `comprehensive_llm_analysis_old.ipynb`
-- `results.ipynb` + `results_d1namo.ipynb`
-- `metrics.ipynb` + `plots.ipynb`
+**step_trend.ipynb** - Time series step trend visualization
+- Simple plotting utility for time series data
+- Status: ✅ Active
 
-### Function-Based Modules
+## Supporting Modules
 
-1. **`clean_efficiency_analyzer.py`** - **MAIN MODULE**
-   - Clean, organized LLMEfficiencyAnalyzer class
-   - Real experimental data only (no estimations)
-   - Functions: `quick_analysis()`, `generate_latex_only()`, `run_full_analysis()`
-   - Replaces scattered notebook code with proper functions
+All analysis modules are in the main `utils/` directory:
+- `utils/enhanced_data_loader.py` - Data loading for Time-LLM and Chronos
+- `utils/analysis_utils.py` - Analysis and visualization functions
+- `utils/training_analysis.py` - Training and distillation analysis
+- `utils/edge_analysis.py` - Edge deployment assessment
+- `utils/latex_table_generator.py` - LaTeX table generation for papers
 
-2. **`efficiency_analyzer.py`** 
-   - Previous version (may be redundant now)
+## Output Structure
 
-### Benefits of Organization
-
-1. **Reduced Clutter**: 11+ redundant notebooks moved to archive
-2. **Clean Interface**: Main notebook now has simple function calls instead of 79 scattered cells
-3. **Function-Based**: Reusable, organized code in proper modules
-4. **No Estimations**: Only real experimental data used as requested
-5. **Easy Maintenance**: Changes made in module, not scattered across notebook cells
-
-### 🚀 Usage 
-
-For efficiency analysis, use the main notebook:
-```python
-from clean_efficiency_analyzer import quick_analysis, run_full_analysis
-analyzer = quick_analysis()  # Quick test
-results = run_full_analysis()  # Complete pipeline
+Notebooks save outputs to:
+```
+outputs/
+├── plots/          # Visualization files (.png)
+├── data/           # Processed data (.csv)
+└── reports/        # Analysis reports (.md)
 ```
 
-All old notebooks are preserved in `archive/old_notebooks/` if needed for reference.
+## Usage
+
+To run the main efficiency analysis:
+```bash
+jupyter notebook clean_llm_analysis.ipynb
+```
+
+All notebooks use the project's virtual environment and modules from `utils/`.

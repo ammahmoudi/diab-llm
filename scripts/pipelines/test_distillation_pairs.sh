@@ -46,7 +46,7 @@ print_info() {
 # Check if distillation pipeline exists
 check_dependencies() {
     if [[ ! -f "distill_pipeline.sh" ]]; then
-        print_error "distill_pipeline.sh not found! Run from LLM-TIME root directory."
+        print_error "distill_pipeline.sh not found! Run from DiabLLM root directory."
         exit 1
     fi
     

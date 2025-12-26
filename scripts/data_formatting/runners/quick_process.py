@@ -50,7 +50,7 @@ def run_complete_pipeline(dataset, scenarios='all', dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Quick Data Processing for LLM-TIME",
+        description="Quick Data Processing for DiabLLM",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     

@@ -27,12 +27,8 @@ python scripts/missing_and_noise/apply_missings.py --input data/standardized/ --
 python scripts/missing_and_noise/apply_missings.py --input data/standardized/ --output data/missing_periodic/ --pattern periodic
 ```
 
-## Note
+## Integration
 
-**Legacy config generators removed** (October 29, 2025):
-- All scenario-specific config generators have been removed
-- Use the unified config generators instead:
-  - `scripts/chronos/config_generator.py --data_scenario noisy|missing_periodic|missing_random|denoised`
-  - `scripts/time_llm/config_generator.py --data_scenario noisy|missing_periodic|missing_random|denoised`
-
-The unified config generators support all data scenarios and cross-scenario evaluation, making the old scenario-specific generators obsolete.
+These utilities are integrated with the unified config generators:
+- `scripts/chronos/config_generator.py --data_scenario noisy|missing_periodic|missing_random`
+- `scripts/time_llm/config_generator.py --data_scenario noisy|missing_periodic|missing_random`

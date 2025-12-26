@@ -10,7 +10,7 @@ import sys
 import subprocess
 from pathlib import Path
 
-# Ensure we're running from the LLM-TIME root directory
+# Ensure we're running from the DiabLLM root directory
 script_dir = Path(__file__).parent.absolute()
 project_root = script_dir.parent.parent  # Go up from scripts/time_llm to root
 

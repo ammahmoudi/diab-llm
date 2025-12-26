@@ -6,7 +6,6 @@ Supports multiple LLM architectures (Time-LLM, Chronos) with knowledge distillat
 
 Authors: Amirhossein Mahmoudi, Ghazal Farahani, Peter Domanski, Bahar Farahani, 
          Farshad Firouzi, and Krishnendu Chakrabarty
-IEEE Journal of Biomedical and Health Informatics, 2025
 
 Usage:
     python main.py --config_path=./configs/config.gin

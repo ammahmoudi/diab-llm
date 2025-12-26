@@ -10,7 +10,7 @@ from .distillation_analyzer import DistillationEfficiencyAnalyzer
 from .resource_monitor import ResourceMonitor
 
 __version__ = "1.0.0"
-__author__ = "LLM-TIME Team"
+__author__ = "DiabLLM Team"
 
 # Core imports
 __all__ = [

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified Arrow Converter for LLM-TIME Project
+Unified Arrow Converter for DiabLLM Project
 
 This script converts standardized CSV files to Arrow format for use with GluonTS.
 It processes all standardized data scenarios for both d1namo and ohiot1dm datasets.
@@ -194,7 +194,7 @@ def convert_dataset_scenario(dataset, scenario):
     return converted_count
 
 def main():
-    parser = argparse.ArgumentParser(description="Unified Arrow converter for LLM-TIME datasets")
+    parser = argparse.ArgumentParser(description="Unified Arrow converter for DiabLLM datasets")
     parser.add_argument("--dataset", required=True, 
                        choices=["d1namo", "ohiot1dm", "standardized", "all"],
                        help="Dataset to convert")

@@ -42,7 +42,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parents[2]))  # Add LLM-TIME root to path
+sys.path.append(str(Path(__file__).parents[2]))  # Add DiabLLM root to path
 from utils.path_utils import get_project_root, get_scripts_path
 
 # Fixed seeds for consistency
@@ -1380,7 +1380,7 @@ Folder Structure:
 def main():
     """Main entry point for the comprehensive efficiency runner."""
     parser = argparse.ArgumentParser(
-        description="Comprehensive Efficiency Testing for LLM-TIME Models",
+        description="Comprehensive Efficiency Testing for DiabLLM Models",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

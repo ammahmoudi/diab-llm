@@ -14,7 +14,7 @@ import sys
 import numpy as np
 from pathlib import Path
 
-sys.path.append('/workspace/LLM-TIME')
+sys.path.append('/workspace/DiabLLM')
 
 from fairness.loss_functions.fairness_losses import FairnessLossFactory
 from fairness.metrics.fairness_metrics import FairnessMetrics

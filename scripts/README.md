@@ -145,32 +145,6 @@ bash scripts/raw_data_replacement/run_replace_true_values.sh
 python scripts/raw_data_replacement/verify_exact_replacement.py
 ```
 
-## Recent Updates
-
-### October 29, 2025
-- ✅ Reorganized scripts into logical subdirectories
-- ✅ Moved analysis scripts to `analysis/`
-- ✅ Moved pipeline scripts to `pipelines/`
-- ✅ Moved raw data replacement scripts to `raw_data_replacement/`
-- ✅ Removed redundant wrapper script `run_chronos.py`
-- ✅ Cleaned up chronos folder (removed archived configs and redundant shell scripts)
-- ✅ Cleaned up time_llm folder (organized helpers into subdirectory)
-- ✅ Removed deprecated `fix_chronos.py` (functionality moved to `utilities/fix_results.py`)
-- ✅ Renamed files for clarity: `config_generator.py`, `run_experiments.py`
-- ✅ Removed legacy time_llm generator and batch_run_* helper scripts
-- ✅ Renamed helper scripts with descriptive prefixes (batch_, examples_)
-- ✅ Created README files for scripts/, chronos/, and time_llm/ directories
-- ✅ Final structure: 2 main + 3 helpers per model folder
-- ✅ Removed 22+ legacy scenario-specific config generators from missing_and_noise/
-- ✅ missing_and_noise/ now contains only core utilities (apply_noise.py, apply_missings.py)
-- ✅ Removed duplicate apply_missing.py from data_processing/
-- ✅ Moved distillation analysis scripts to distillation/scripts/ folder
-- ✅ Consolidated data processing: moved standardize_data.py, format_data.py, convert_to_arrow.py to scripts/data_formatting/
-- ✅ Removed 10+ redundant formatting scripts (old format_files.py, reformat_*.py, etc.)
-- ✅ Moved post-processing utilities (smooth_data.py, convert_window_to_single_data.py) to scripts/utilities/
-- ✅ Organized data_formatting/ with core/ (3 main scripts) and runners/ (2 orchestrators) subdirectories
-- ✅ Clean separation: data_processing/ = core libraries, scripts/data_formatting/core/ = pipeline steps, scripts/utilities/ = post-processing
-
 ## Notes
 
 - All subdirectories have `__init__.py` for proper Python package structure

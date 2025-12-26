@@ -192,4 +192,4 @@ When adding new efficiency analysis features:
 
 ## 📄 License
 
-Part of the LLM-TIME project. See main project LICENSE for details.
+Part of the DiabLLM project. See main project LICENSE for details.

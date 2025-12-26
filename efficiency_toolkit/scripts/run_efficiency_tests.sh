@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 PURPLE='\033[0;35m'
 NC='\033[0m'
 
-echo -e "${GREEN}🔧 LLM-TIME Comprehensive Efficiency Testing${NC}"
+echo -e "${GREEN}🔧 DiabLLM Comprehensive Efficiency Testing${NC}"
 echo "=============================================="
 echo ""
 

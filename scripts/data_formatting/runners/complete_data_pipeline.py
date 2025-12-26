@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete Data Processing Pipeline for LLM-TIME Project
+Complete Data Processing Pipeline for DiabLLM Project
 
 This script provides a complete data processing pipeline that:
 1. Standardizes data files (converts to item_id, timestamp, target format)
@@ -301,7 +301,7 @@ def parse_scenarios(scenarios_str: str) -> List[str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Complete Data Processing Pipeline for LLM-TIME",
+        description="Complete Data Processing Pipeline for DiabLLM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

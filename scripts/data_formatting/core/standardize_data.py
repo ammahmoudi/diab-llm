@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified Data Standardization Script for LLM-TIME Project
+Unified Data Standardization Script for DiabLLM Project
 
 This script standardizes data files from different scenarios (raw, missing, noisy, denoised)
 for both d1namo and ohiot1dm datasets. It converts various column formats to the standard
@@ -166,7 +166,7 @@ def standardize_dataset_scenario(dataset, scenario):
     return processed_count
 
 def main():
-    parser = argparse.ArgumentParser(description="Unified data standardization for LLM-TIME datasets")
+    parser = argparse.ArgumentParser(description="Unified data standardization for DiabLLM datasets")
     parser.add_argument("--dataset", required=True, 
                        choices=["d1namo", "ohiot1dm", "all"],
                        help="Dataset to standardize")

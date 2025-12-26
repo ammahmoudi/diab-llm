@@ -207,15 +207,6 @@ python3 config_generator.py --mode train --dataset d1namo --llm_models GPT2
 python3 config_generator.py --mode train --epochs 20 --seeds 1,2,3,4,5
 ```
 
-## Migration from Old Generators
-
-The unified generator replaces these individual scripts:
-- `config_generator_time_llm.py` → `--mode train`
-- `config_generator_time_llm_test.py` → `--mode inference`  
-- `config_generator_time_llm_train_test.py` → `--mode train_inference`
-- `config_generator_time_llm_noisy.py` → `--data_scenario noisy`
-- All other scenario-specific generators → use appropriate `--data_scenario`
-
 ## Troubleshooting
 
 ### Common Issues
