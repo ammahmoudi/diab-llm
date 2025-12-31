@@ -1,6 +1,6 @@
 # DiabLLM: An LLM-Based Framework for Blood Glucose Prediction in Type 1 Diabetes
 
-**DiabLLM** is a novel framework that leverages Large Language Models (LLMs) for accurate blood glucose prediction in Type 1 Diabetes Mellitus (T1DM) patients. This repository features advanced time series forecasting with knowledge distillation, cross-scenario validation, and comprehensive efficiency analysis.
+**DiabLLM** is a framework that leverages Large Language Models (LLMs) for accurate blood glucose prediction in Type 1 Diabetes Mellitus (T1DM) patients. This repository features advanced time series forecasting with knowledge distillation, cross-scenario validation, and comprehensive efficiency analysis.
 
 ## 📚 Acknowledgments
 
