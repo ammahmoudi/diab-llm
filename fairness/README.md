@@ -2,12 +2,36 @@
 
 Comprehensive fairness analysis for distillation and inference scenarios in diabetes prediction models.
 
+## 🆕 NEW: Advanced Fairness Metrics
+
+Three new metrics specifically designed for blood glucose prediction fairness:
+
+1. **Demographic Parity Gap (DP Gap)**: Ensures alerts are distributed equally across groups
+2. **Equal Opportunity Gap (EO Gap)**: **CRITICAL for patient safety** - detects unequal risk detection rates  
+3. **Fairness Violation Objective (FVO)**: Measures maximum accuracy disparity between groups
+
+### Quick Start with Advanced Metrics
+
+```bash
+# Quick demo with synthetic data
+python3 fairness/quickstart_advanced_metrics.py
+
+# Apply to your experiment results (if you have prediction files)
+python3 fairness/apply_advanced_metrics_to_results.py --experiment-dir <path>
+
+# See comprehensive example
+PYTHONPATH=/home/amma/LLM-TIME:$PYTHONPATH python3 fairness/advanced_metrics_example.py --example
+```
+
+📖 **Full Documentation**: [Advanced Metrics README](metrics/ADVANCED_METRICS_README.md)
+
 ## Overview
 
-This framework analyzes fairness across demographic dimensions in two contexts:
+This framework analyzes fairness across demographic dimensions in three contexts:
 
 1. **Distillation Analysis**: Teacher → Student → Distilled models during knowledge distillation
 2. **Inference Scenarios**: Different training conditions (inference-only, standard, noisy, denoised)
+3. **Advanced Clinical Metrics**: DP Gap, EO Gap, FVO for critical health outcome fairness
 
 ## Quick Start
 
@@ -34,6 +58,19 @@ python fairness/run_inference_analyzers.py --feature all
 
 # Specific feature
 python fairness/run_inference_analyzers.py --feature gender
+```
+
+### Comprehensive Cross-Scenario Analysis
+
+```bash
+# Compare ALL scenarios (inference + distillation) - includes advanced metrics summary
+python fairness/investigate_all_scenarios.py
+
+# Detailed training impact analysis
+python fairness/analyze_training_impact.py
+
+# Investigate specific fairness issues
+python fairness/investigate_fairness_issues.py
 ```
 
 ## Analyzers
@@ -160,6 +197,47 @@ analyzer.analyze()
 - **Import errors**: Run commands from project root and verify all dependencies installed
 - **Visualization issues**: Adjust figure size parameters in analyzer code if needed
 
+## Advanced Metrics Scripts
+
+### New Analysis Tools
+
+1. **`quickstart_advanced_metrics.py`** - Simplest way to test advanced metrics
+   ```bash
+   python3 fairness/quickstart_advanced_metrics.py
+   ```
+
+2. **`advanced_metrics_example.py`** - Comprehensive examples with visualizations
+   ```bash
+   PYTHONPATH=/home/amma/LLM-TIME:$PYTHONPATH python3 fairness/advanced_metrics_example.py --example
+   ```
+
+3. **`apply_advanced_metrics_to_results.py`** - Apply to your experiment results
+   ```bash
+   python3 fairness/apply_advanced_metrics_to_results.py --experiment-dir <path>
+   ```
+
+4. **`investigate_all_scenarios.py`** - Now includes advanced metrics summary!
+   ```bash
+   python3 fairness/investigate_all_scenarios.py
+   ```
+
+### Output Locations
+
+- Standard fairness analysis: `fairness/analysis_results/`
+- Advanced metrics results: `fairness/analysis_results/advanced_metrics/`
+- Comprehensive reports: `fairness/analysis_results/comprehensive_fairness_report_*.png`
+
+## Key Metrics Comparison
+
+| Metric | Type | What It Measures | When To Use |
+|--------|------|------------------|-------------|
+| **Fairness Ratio** | Ratio | max(RMSE) / min(RMSE) | Overall performance disparity |
+| **DP Gap** ✨ | Difference | Alert distribution equality | Ensuring equal warning rates |
+| **EO Gap** ✨ | Difference | Detection rate equality | **Critical for patient safety** |
+| **FVO** ✨ | Maximum | Accuracy disparity | General reliability across groups |
+
+✨ = New advanced metrics
+
 ---
 
-All 12 analyzers tested and operational
+All analyzers tested and operational (12 original + 3 advanced metrics tools)
