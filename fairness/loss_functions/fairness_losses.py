@@ -80,8 +80,24 @@ class DemographicParityLoss(FairnessAwareLoss):
 class EqualizedOddsLoss(FairnessAwareLoss):
     """Loss function that enforces equalized odds."""
     
-    def __init__(self, base_loss: nn.Module = None, fairness_weight: float = 1.0):
+    def __init__(self, base_loss: nn.Module = None, fairness_weight: float = 1.0,
+                 pred_threshold: float = 0.5, target_threshold: Optional[float] = None):
+        """Initialize equalized odds loss.
+        
+        Args:
+            base_loss: Base loss function
+            fairness_weight: Weight for the fairness penalty term
+            pred_threshold: Threshold to binarize predictions. For probability outputs
+                           use 0.5; for continuous glucose values use a clinical
+                           threshold (e.g. 70.0 for hypoglycemia detection).
+            target_threshold: Threshold to binarize targets. If None, uses
+                             torch.median(targets) — only appropriate for generic
+                             binary splits. For blood glucose set this explicitly
+                             (e.g. 70.0 for hypoglycemia, 180.0 for hyperglycemia).
+        """
         super().__init__(base_loss, fairness_weight)
+        self.pred_threshold = pred_threshold
+        self.target_threshold = target_threshold
     
     def forward(self, predictions: torch.Tensor, 
                 targets: torch.Tensor, 
@@ -99,16 +115,16 @@ class EqualizedOddsLoss(FairnessAwareLoss):
         # Base loss
         base_loss_value = self.base_loss(predictions, targets)
         
-        # Convert to binary classification for equalized odds
-        pred_binary = (predictions > 0.5).float()
-        target_binary = (targets > torch.median(targets)).float()
+        # Binarize using configurable thresholds
+        pred_binary = (predictions > self.pred_threshold).float()
+        if self.target_threshold is not None:
+            target_binary = (targets > self.target_threshold).float()
+        else:
+            target_binary = (targets > torch.median(targets)).float()
         
         unique_groups = torch.unique(group_labels)
         if len(unique_groups) != 2:
             return base_loss_value
-        
-        tpr_diff = 0.0
-        fpr_diff = 0.0
         
         tprs = []
         fprs = []
@@ -290,7 +306,7 @@ class FairnessLossFactory:
         if loss_type == 'demographic_parity':
             return DemographicParityLoss(base_loss, fairness_weight)
         elif loss_type == 'equalized_odds':
-            return EqualizedOddsLoss(base_loss, fairness_weight)
+            return EqualizedOddsLoss(base_loss, fairness_weight, **kwargs)
         elif loss_type == 'group_regularized':
             return GroupRegularizedLoss(base_loss, fairness_weight, **kwargs)
         elif loss_type == 'adversarial':

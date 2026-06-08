@@ -91,7 +91,8 @@ class FairnessMetrics:
                                     threshold: float = 0.5) -> float:
         """Calculate demographic parity difference.
         
-        Measures the difference in positive prediction rates between groups.
+        Measures the maximum difference in positive prediction rates across groups.
+        Supports any number of groups (returns max pairwise difference).
         
         Args:
             y_pred: Predicted probabilities or values
@@ -99,11 +100,11 @@ class FairnessMetrics:
             threshold: Threshold for binary classification
             
         Returns:
-            Demographic parity difference (0 = perfect parity)
+            Maximum demographic parity difference across all group pairs (0 = perfect parity)
         """
         unique_groups = np.unique(group_labels)
-        if len(unique_groups) != 2:
-            raise ValueError("Demographic parity currently supports only 2 groups")
+        if len(unique_groups) < 2:
+            return 0.0
         
         positive_rates = []
         for group in unique_groups:
@@ -112,7 +113,7 @@ class FairnessMetrics:
             positive_rate = np.mean(group_pred > threshold)
             positive_rates.append(positive_rate)
         
-        return abs(positive_rates[0] - positive_rates[1])
+        return max(positive_rates) - min(positive_rates)
     
     def equalized_odds_difference(self, 
                                 y_true: np.ndarray,
@@ -121,7 +122,8 @@ class FairnessMetrics:
                                 threshold: float = 0.5) -> Dict[str, float]:
         """Calculate equalized odds difference.
         
-        Measures differences in true positive and false positive rates between groups.
+        Measures maximum differences in TPR and FPR across all group pairs.
+        Supports any number of groups.
         
         Args:
             y_true: True binary labels
@@ -130,11 +132,11 @@ class FairnessMetrics:
             threshold: Threshold for binary classification
             
         Returns:
-            Dictionary with TPR and FPR differences
+            Dictionary with max TPR and FPR differences across all group pairs
         """
         unique_groups = np.unique(group_labels)
-        if len(unique_groups) != 2:
-            raise ValueError("Equalized odds currently supports only 2 groups")
+        if len(unique_groups) < 2:
+            return {'tpr_difference': 0.0, 'fpr_difference': 0.0, 'max_difference': 0.0}
         
         y_pred_binary = (y_pred > threshold).astype(int)
         
@@ -158,11 +160,12 @@ class FairnessMetrics:
             fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
             fpr_rates.append(fpr)
         
+        tpr_diff = max(tpr_rates) - min(tpr_rates)
+        fpr_diff = max(fpr_rates) - min(fpr_rates)
         return {
-            'tpr_difference': abs(tpr_rates[0] - tpr_rates[1]),
-            'fpr_difference': abs(fpr_rates[0] - fpr_rates[1]),
-            'max_difference': max(abs(tpr_rates[0] - tpr_rates[1]), 
-                                abs(fpr_rates[0] - fpr_rates[1]))
+            'tpr_difference': tpr_diff,
+            'fpr_difference': fpr_diff,
+            'max_difference': max(tpr_diff, fpr_diff)
         }
     
     def statistical_parity_difference(self, 
@@ -170,19 +173,22 @@ class FairnessMetrics:
                                     metric_name: str = 'mse') -> float:
         """Calculate statistical parity difference for any performance metric.
         
+        Returns the maximum pairwise difference in the metric across all groups.
+        Supports any number of groups.
+        
         Args:
             group_metrics: Dictionary from calculate_group_performance
             metric_name: Name of the metric to compare
             
         Returns:
-            Absolute difference in metric between groups
+            Maximum absolute difference in metric across any pair of groups
         """
         groups = list(group_metrics.keys())
-        if len(groups) != 2:
-            raise ValueError("Statistical parity currently supports only 2 groups")
+        if len(groups) < 2:
+            return 0.0
         
         metric_values = [group_metrics[group][metric_name] for group in groups]
-        return abs(metric_values[0] - metric_values[1])
+        return max(metric_values) - min(metric_values)
     
     def fairness_through_awareness_score(self, 
                                        group_metrics: Dict[str, Dict[str, float]], 

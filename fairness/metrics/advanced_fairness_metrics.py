@@ -275,9 +275,11 @@ class AdvancedFairnessMetrics:
             Binary array (1 = high-risk event, 0 = normal)
         """
         if risk_type == 'hypoglycemia':
-            return (glucose_values < self.hypoglycemia_threshold).astype(int)
+            # ADA standard: hypoglycemia Level 1 is <= 70 mg/dL
+            return (glucose_values <= self.hypoglycemia_threshold).astype(int)
         elif risk_type == 'hyperglycemia':
-            return (glucose_values > self.hyperglycemia_threshold).astype(int)
+            # ADA standard: hyperglycemia is >= 180 mg/dL (2h post-meal)
+            return (glucose_values >= self.hyperglycemia_threshold).astype(int)
         else:
             raise ValueError("risk_type must be 'hypoglycemia' or 'hyperglycemia'")
     
@@ -494,9 +496,9 @@ class AdvancedFairnessMetrics:
                     warnings.warn(f"No samples for group {group}")
                     continue
                 
-                # Calculate confusion matrix
+                # Calculate confusion matrix (labels=[0,1] guarantees a 2x2 matrix)
                 cm = confusion_matrix(group_y_true, group_y_pred, labels=[0, 1])
-                tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
+                tn, fp, fn, tp = cm.ravel()
                 
                 # Calculate TPR = TP / (TP + FN)
                 tpr = tp / (tp + fn) if (tp + fn) > 0 else 0.0
@@ -557,9 +559,9 @@ class AdvancedFairnessMetrics:
                     y_pred_binary = y_pred_binary[:min_len]
                     y_true_binary = y_true_binary[:min_len]
                     
-                    # Calculate confusion matrix
+                    # Calculate confusion matrix (labels=[0,1] guarantees a 2x2 matrix)
                     cm = confusion_matrix(y_true_binary, y_pred_binary, labels=[0, 1])
-                    tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
+                    tn, fp, fn, tp = cm.ravel()
                     
                     # Calculate TPR
                     tpr = tp / (tp + fn) if (tp + fn) > 0 else 0.0
@@ -675,6 +677,9 @@ class AdvancedFairnessMetrics:
             y_pred_array = np.asarray(y_pred).flatten()
             group_labels_array = np.asarray(group_labels)
             
+            # Pre-compute global range for regression proxy (must be consistent across groups)
+            global_glucose_range = np.ptp(y_true_array)
+            
             unique_groups = np.unique(group_labels_array)
             
             # Calculate accuracy for each group
@@ -694,12 +699,12 @@ class AdvancedFairnessMetrics:
                     accuracy = accuracy_score(y_true_binary, y_pred_binary)
                 
                 elif metric_type == 'regression':
-                    # For regression: use accuracy proxy based on RMSE
+                    # Use global range so the proxy is comparable across groups.
+                    # Per-group range would give different scales per group, making
+                    # cross-group accuracy comparison meaningless.
                     rmse = np.sqrt(np.mean((group_y_true - group_y_pred) ** 2))
-                    glucose_range = np.ptp(group_y_true)
-                    
-                    if glucose_range > 0:
-                        accuracy = max(0, 1 - (rmse / glucose_range))
+                    if global_glucose_range > 0:
+                        accuracy = max(0.0, 1.0 - (rmse / global_glucose_range))
                     else:
                         accuracy = 1.0
                 
@@ -717,6 +722,16 @@ class AdvancedFairnessMetrics:
                     y_true=y_true, y_pred=y_pred, group_labels=group_labels, 
                     risk_type=risk_type, metric_type=metric_type, calc_mode=CALC_MODE_SIMPLE
                 )
+            
+            # Pre-compute global range across all groups for regression proxy
+            global_glucose_range = 0.0
+            if metric_type == 'regression':
+                all_true_values = []
+                for group_windows in y_true.values():
+                    for w in group_windows:
+                        all_true_values.extend(np.asarray(w).flatten().tolist())
+                if all_true_values:
+                    global_glucose_range = np.ptp(all_true_values)
             
             for group in y_pred.keys():
                 if group not in y_true:
@@ -758,10 +773,8 @@ class AdvancedFairnessMetrics:
                     
                     elif metric_type == 'regression':
                         rmse = np.sqrt(np.mean((y_true_processed - y_pred_processed) ** 2))
-                        glucose_range = np.ptp(y_true_processed)
-                        
-                        if glucose_range > 0:
-                            accuracy = max(0, 1 - (rmse / glucose_range))
+                        if global_glucose_range > 0:
+                            accuracy = max(0.0, 1.0 - (rmse / global_glucose_range))
                         else:
                             accuracy = 1.0
                     
