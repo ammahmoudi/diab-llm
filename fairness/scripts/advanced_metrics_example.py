@@ -18,6 +18,7 @@ import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from typing import Dict, List, Optional
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -278,7 +279,7 @@ def example_with_synthetic_data():
     )
     
     # Save results
-    output_dir = Path(__file__).parent / "analysis_results" / "advanced_metrics_examples"
+    output_dir = Path(__file__).parent.parent / "analysis_results" / "advanced_metrics_examples"
     analyzer.save_results(
         results,
         output_dir / "synthetic_data_advanced_metrics.json"

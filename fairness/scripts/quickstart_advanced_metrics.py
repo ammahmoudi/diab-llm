@@ -21,7 +21,7 @@ import pandas as pd
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fairness.metrics.advanced_fairness_metrics import AdvancedFairnessMetrics
 
@@ -128,7 +128,7 @@ def run_analysis(y_true, y_pred, demographics, demo_name):
     afm.print_comprehensive_report(results)
     
     # Save results to JSON
-    output_dir = Path(__file__).parent / "analysis_results" / "advanced_metrics"
+    output_dir = Path(__file__).parent.parent / "analysis_results" / "advanced_metrics"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     output_file = output_dir / "quickstart_results.json"

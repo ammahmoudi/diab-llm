@@ -20,7 +20,7 @@ from datetime import datetime
 from collections import defaultdict
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fairness.metrics.advanced_fairness_metrics import (
     AdvancedFairnessMetrics,
@@ -33,7 +33,7 @@ from fairness.metrics.advanced_fairness_metrics import (
 
 def load_demographics():
     """Load patient demographics."""
-    demo_file = Path(__file__).parent.parent / "data" / "ohiot1dm" / "data.csv"
+    demo_file = Path(__file__).parent.parent.parent / "data" / "ohiot1dm" / "data.csv"
     if not demo_file.exists():
         raise FileNotFoundError(f"Demographics file not found: {demo_file}")
     
@@ -250,7 +250,7 @@ def main():
     print(f"   Loaded {len(demographics)} patients")
     
     # Load predictions from inference experiment
-    experiments_dir = Path(__file__).parent.parent / "experiments"
+    experiments_dir = Path(__file__).parent.parent.parent / "experiments"
     scenarios = {
         'inference_only': experiments_dir / "time_llm_inference_ohiot1dm",
         'trained_standard': experiments_dir / "time_llm_training_inference_ohiot1dm",
@@ -408,7 +408,7 @@ def generate_comparison_chart(all_results: dict):
     
     # Save
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = Path(__file__).parent / "analysis_results"
+    output_dir = Path(__file__).parent.parent / "analysis_results"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / f"calc_modes_comparison_{timestamp}.png"
     

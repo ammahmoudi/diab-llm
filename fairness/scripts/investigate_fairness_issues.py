@@ -16,7 +16,7 @@ import numpy as np
 
 class FairnessInvestigator:
     def __init__(self):
-        self.results_dir = Path(__file__).parent / "analysis_results"
+        self.results_dir = Path(__file__).parent.parent / "analysis_results"
         self.distillation_dir = self.results_dir / "distillation_all_patients"
         self.inference_dir = self.results_dir / "inference_scenarios"
         

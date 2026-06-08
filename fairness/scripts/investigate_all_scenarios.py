@@ -24,7 +24,7 @@ import sys
 from collections import defaultdict
 
 # Add project root to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
     from fairness.metrics.advanced_fairness_metrics import (
@@ -55,7 +55,7 @@ class ComprehensiveFairnessInvestigator:
                       - 'window_majority': Binarize each window, use majority vote (default)
         """
         self.calc_mode = calc_mode
-        self.results_dir = Path(__file__).parent / "analysis_results"
+        self.results_dir = Path(__file__).parent.parent / "analysis_results"
         self.inference_dir = self.results_dir / "inference_scenarios"
         self.distillation_all_patients_dir = self.results_dir / "distillation_all_patients"
         self.distillation_per_patient_dir = self.results_dir / "distillation_per_patient"

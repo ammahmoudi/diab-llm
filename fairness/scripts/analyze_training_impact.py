@@ -13,7 +13,7 @@ from datetime import datetime
 
 class TrainingImpactAnalyzer:
     def __init__(self):
-        self.results_dir = Path(__file__).parent / "analysis_results"
+        self.results_dir = Path(__file__).parent.parent / "analysis_results"
         self.inference_dir = self.results_dir / "inference_scenarios"
         # Match constants from investigate_fairness_issues.py
         self.POOR_RATIO = 1.5  # Fairness ratio above this is POOR

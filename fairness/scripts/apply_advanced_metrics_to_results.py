@@ -23,7 +23,7 @@ import pandas as pd
 from datetime import datetime
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
     from fairness.metrics.advanced_fairness_metrics import AdvancedFairnessMetrics
@@ -41,7 +41,7 @@ class AdvancedMetricsIntegrator:
             hypoglycemia_threshold=hypoglycemia_threshold,
             hyperglycemia_threshold=hyperglycemia_threshold
         )
-        self.results_dir = Path(__file__).parent / "analysis_results" / "advanced_metrics"
+        self.results_dir = Path(__file__).parent.parent / "analysis_results" / "advanced_metrics"
         self.results_dir.mkdir(parents=True, exist_ok=True)
     
     def analyze_experiment_directory(self, experiment_dir: Path) -> Dict:

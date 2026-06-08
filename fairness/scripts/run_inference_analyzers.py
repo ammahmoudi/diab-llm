@@ -23,7 +23,7 @@ from pathlib import Path
 
 # Add project root to path
 current_dir = Path(__file__).resolve().parent
-project_root = current_dir.parent
+project_root = current_dir.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Parse arguments
