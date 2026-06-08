@@ -411,3 +411,32 @@ class TimeSeriesDataset(Dataset):
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
+
+
+class GroupLabeledDataset(Dataset):
+    """Wraps an existing Dataset to also emit a per-window integer group label.
+
+    The wrapped dataset must have a fixed __len__ and return a tuple from
+    __getitem__.  This dataset appends one extra element — the group label —
+    at the end of that tuple.
+
+    Args:
+        dataset:      Any Dataset whose __getitem__ returns a tuple.
+        group_labels: 1-D array-like of integer labels, one per window
+                      (length must equal len(dataset)).
+    """
+
+    def __init__(self, dataset, group_labels):
+        import torch
+        self.dataset = dataset
+        self.group_labels = torch.tensor(group_labels, dtype=torch.long)
+        assert len(self.group_labels) == len(dataset), (
+            f"group_labels length {len(self.group_labels)} != dataset length {len(dataset)}"
+        )
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        items = self.dataset[idx]
+        return (*items, self.group_labels[idx])

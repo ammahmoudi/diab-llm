@@ -1,31 +1,71 @@
 import logging
 import os
+import sys
+from pathlib import Path
 import torch
 import torch.nn as nn
 from torch.optim.adam import Adam
+from torch.utils.data import DataLoader
 from distillation.core.distillation_trainer import DistillationTrainer
 from models import time_llm as TimeLLMModel
 import numpy as np
 import pickle
 
+# Patient demographics for OhioT1DM (fallback when CSV is unavailable)
+_OHIOT1DM_PATIENT_DATA = {
+    '540': {'gender': 'Male',   'age': '40-60', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
+    '544': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
+    '552': {'gender': 'Male',   'age': '40-60', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2018'},
+    '559': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
+    '563': {'gender': 'Female', 'age': '40-60', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2018'},
+    '567': {'gender': 'Female', 'age': '60-80', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2018'},
+    '570': {'gender': 'Male',   'age': '40-60', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2020'},
+    '575': {'gender': 'Female', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+    '584': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+    '588': {'gender': 'Female', 'age': '60-80', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2020'},
+    '591': {'gender': 'Female', 'age': '60-80', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2020'},
+    '596': {'gender': 'Male',   'age': '60-80', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2020'},
+}
+
+# Binary label mappings per feature (two groups: 0 and 1)
+_GROUP_LABEL_MAPS = {
+    'gender':  lambda v: 1 if v == 'Male' else 0,
+    'age':     lambda v: 1 if v == '60-80' else 0,   # Old (60-80) vs Young/Middle
+    'pump':    lambda v: 1 if v == '630G'  else 0,   # Closed-loop vs older pump
+    'sensor':  lambda v: 1 if v == 'Basis' else 0,   # Basis vs Empatica
+    'cohort':  lambda v: 1 if v == '2020'  else 0,   # 2020 cohort vs 2018
+}
+
+
 class DistillationWrapper:
     """Wrapper for DistillationTrainer to integrate with the pipeline"""
-    
+
     def __init__(self, settings, data_settings, log_dir, teacher_checkpoint_path):
         self.settings = settings
         self.data_settings = data_settings
         self.log_dir = log_dir
         self.teacher_checkpoint_path = teacher_checkpoint_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
+
         # Distillation parameters
         self.alpha = settings.get('distillation_alpha', 0.5)
-        self.beta = settings.get('distillation_beta', 0.5) 
-        
+        self.beta = settings.get('distillation_beta', 0.5)
+
+        # Fairness regularisation parameters (disabled by default)
+        self.fairness_weight   = float(settings.get('fairness_weight', 0.0))
+        self.fairness_feature  = settings.get('fairness_feature', None)   # e.g. "gender"
+        self.target_threshold  = float(settings.get('target_threshold', 70.0))
+        self.pred_threshold    = float(settings.get('pred_threshold',   70.0))
+
         logging.info(f"🎓 Initializing Distillation Wrapper")
         logging.info(f"  📍 Log Directory: {log_dir}")
         logging.info(f"  👨‍🏫 Teacher Checkpoint: {teacher_checkpoint_path}")
         logging.info(f"  🔥 Distillation Parameters: α={self.alpha}, β={self.beta}")
+        if self.fairness_weight > 0:
+            logging.info(
+                f"  ⚖️  Fairness Regularisation: weight={self.fairness_weight}, "
+                f"feature={self.fairness_feature}, threshold={self.target_threshold} mg/dL"
+            )
         
     def _create_model_config(self, is_student=False):
         """Create model configuration based on settings"""
@@ -113,47 +153,160 @@ class DistillationWrapper:
         
         logging.info(f"✅ Student model created: {student_config['llm_model']}-{student_config['llm_layers']}L-{student_config['llm_dim']}D")
         return student_model
-    
+
+    # ------------------------------------------------------------------
+    # Fairness helpers
+    # ------------------------------------------------------------------
+
+    def _build_group_labels(self, dataset, feature: str) -> np.ndarray:
+        """Build a 1-D integer label array (length = len(dataset)) for a given
+        demographic feature.
+
+        Each window index maps to the patient whose data starts at that row.
+        For windows that span a patient boundary the majority patient is used.
+
+        Args:
+            dataset:  A Dataset_T1DM instance (must have .data_path and size attributes).
+            feature:  One of "gender", "age", "pump", "sensor", "cohort".
+
+        Returns:
+            np.ndarray of shape (len(dataset),) with integer group labels (0 or 1).
+            Returns None if the feature is unknown or the CSV has no item_id column.
+        """
+        import pandas as pd
+        from scipy.stats import mode as scipy_mode
+
+        if feature not in _GROUP_LABEL_MAPS:
+            logging.warning(f"Unknown fairness_feature '{feature}'. Fairness loss disabled.")
+            return None
+
+        label_fn = _GROUP_LABEL_MAPS[feature]
+
+        try:
+            df = pd.read_csv(dataset.data_path)
+            if 'item_id' not in df.columns:
+                logging.warning("Training CSV has no 'item_id' column. Fairness loss disabled.")
+                return None
+
+            # Replicate the same preprocessing as Dataset_T1DM.__read_data__
+            try:
+                df['timestamp'] = pd.to_datetime(df['timestamp'], format="%d-%m-%Y %H:%M:%S")
+            except Exception:
+                try:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], format="%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.sort_values('timestamp').reset_index(drop=True)
+
+            # Apply percent truncation
+            percent = getattr(dataset, 'percent', 100)
+            df = df.iloc[:int(len(df) * percent / 100)]
+
+            # Apply train/val split
+            num_samples = len(df)
+            val_split = getattr(dataset, 'val_split', 0)
+            num_train = int(num_samples * (100 - val_split) / 100)
+            # We only care about the training slice
+            df_train = df.iloc[0:num_train].reset_index(drop=True)
+
+            # Resolve patient IDs to binary group labels
+            patient_ids = df_train['item_id'].astype(str).values
+
+            def pid_to_label(pid):
+                info = _OHIOT1DM_PATIENT_DATA.get(pid, {})
+                val = info.get(feature, None)
+                return label_fn(val) if val is not None else -1
+
+            row_labels = np.array([pid_to_label(pid) for pid in patient_ids])
+
+            # Assign per-window label using the majority patient in the window
+            seq_len  = dataset.sequence_length
+            pred_len = dataset.prediction_length
+            n_windows = len(df_train) - seq_len - pred_len + 1
+
+            if n_windows <= 0:
+                logging.warning("Not enough training rows to build group labels.")
+                return None
+
+            window_labels = np.empty(n_windows, dtype=np.int64)
+            for i in range(n_windows):
+                window_rows = row_labels[i: i + seq_len]
+                valid = window_rows[window_rows >= 0]
+                if len(valid) == 0:
+                    window_labels[i] = 0
+                else:
+                    counts = np.bincount(valid)
+                    window_labels[i] = int(np.argmax(counts))
+
+            logging.info(
+                f"⚖️  Group labels built: {n_windows} windows, feature='{feature}', "
+                f"label_0={np.sum(window_labels==0)}, label_1={np.sum(window_labels==1)}"
+            )
+            return window_labels
+
+        except Exception as e:
+            logging.warning(f"Could not build group labels: {e}. Fairness loss disabled.")
+            return None
+
     def distill_knowledge(self, train_loader, val_loader=None, epochs=10):
         """Perform knowledge distillation training"""
         logging.info(f"🎓 Starting Knowledge Distillation for {epochs} epochs...")
-        
+
         # Load teacher and create student
         teacher_model = self._load_teacher_model()
         student_model = self._create_student_model()
-        
+
+        # Optionally wrap the training DataLoader with per-window group labels
+        active_train_loader = train_loader
+        if self.fairness_weight > 0 and self.fairness_feature:
+            group_labels = self._build_group_labels(train_loader.dataset, self.fairness_feature)
+            if group_labels is not None:
+                from data_processing.data_sets import GroupLabeledDataset
+                labeled_dataset = GroupLabeledDataset(train_loader.dataset, group_labels)
+                active_train_loader = DataLoader(
+                    labeled_dataset,
+                    batch_size=train_loader.batch_size,
+                    shuffle=True,
+                    num_workers=train_loader.num_workers,
+                    drop_last=train_loader.drop_last,
+                )
+                logging.info("⚖️  Fairness-labeled DataLoader created successfully.")
+
         # Setup optimizer
         optimizer = Adam(student_model.parameters(), lr=self.settings.get('learning_rate', 0.001))
-        
+
         # Create trainer
         trainer = DistillationTrainer(
             teacher=teacher_model,
             student=student_model,
-            dataloader=train_loader,
+            dataloader=active_train_loader,
             optimizer=optimizer,
             device=self.device,
             alpha=self.alpha,
             beta=self.beta,
             train_epochs=epochs,
-            logger=logging.getLogger()
+            logger=logging.getLogger(),
+            fairness_weight=self.fairness_weight,
+            target_threshold=self.target_threshold,
+            pred_threshold=self.pred_threshold,
         )
-        
+
         # Add context_len and pred_len to trainer (needed for training loop)
         trainer.context_len = self.settings['context_length']
         trainer.pred_len = self.settings['prediction_length']
-        
+
         # Train the student model
         train_losses = trainer.train()
-        
+
         # Save the trained student model
         checkpoint_path = os.path.join(self.log_dir, "student_distilled.pth")
         torch.save(student_model.state_dict(), checkpoint_path)
-        
+
         logging.info(f"✅ Knowledge Distillation completed!")
         logging.info(f"📁 Student checkpoint saved to: {checkpoint_path}")
-        
+
         return checkpoint_path, train_losses, None
-    
+
     def predict(self, test_loader, output_dir=None):
         """Run inference with the distilled student model"""
         logging.info("🔮 Running inference with distilled student model...")

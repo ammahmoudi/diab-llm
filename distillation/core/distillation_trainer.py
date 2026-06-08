@@ -1,8 +1,15 @@
 import logging
 import os
+import sys
+from pathlib import Path
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+
+# Allow importing fairness losses from the project root
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from fairness.loss_functions.fairness_losses import EqualizedOddsLoss
+
 
 class DistillationTrainer:
     def __init__(
@@ -19,6 +26,9 @@ class DistillationTrainer:
         beta=0.5,
         train_epochs=10,
         logger=None,
+        fairness_weight: float = 0.0,
+        target_threshold: float = 70.0,
+        pred_threshold: float = 70.0,
     ):
         self.teacher = teacher
         self.student = student
@@ -36,6 +46,18 @@ class DistillationTrainer:
         self.pred_len = self.teacher.prediction_length
         self.context_len = self.teacher.sequence_length
 
+        # Fairness-aware loss (disabled when fairness_weight == 0)
+        self.fairness_weight = fairness_weight
+        if fairness_weight > 0:
+            self.eo_loss_fn = EqualizedOddsLoss(
+                base_loss=None,
+                fairness_weight=1.0,
+                pred_threshold=pred_threshold,
+                target_threshold=target_threshold,
+            )
+        else:
+            self.eo_loss_fn = None
+
         self.teacher.eval()
         for param in self.teacher.parameters():
             param.requires_grad = False
@@ -47,12 +69,21 @@ class DistillationTrainer:
             total_loss = 0.0
             total_loss_gt = 0.0
             total_loss_teacher = 0.0
+            total_loss_fairness = 0.0
 
             mse_loss_fn = nn.MSELoss()
 
             for batch in tqdm(self.dataloader, desc=f"Epoch {epoch+1}"):
+                # Support 4-element batches (standard) and 5-element batches (with group labels)
+                if len(batch) == 5:
+                    batch_x, batch_y, batch_x_mark, batch_y_mark, batch_groups = batch
+                    batch_groups = batch_groups.to(self.device)
+                else:
+                    batch_x, batch_y, batch_x_mark, batch_y_mark = batch
+                    batch_groups = None
+
                 batch_x, batch_y, batch_x_mark, batch_y_mark = [
-                    b.float().to(self.device) for b in batch
+                    b.float().to(self.device) for b in (batch_x, batch_y, batch_x_mark, batch_y_mark)
                 ]
                 dec_inp = torch.zeros_like(batch_y[:, -self.pred_len :, :]).float()
                 dec_inp = torch.cat([batch_y[:, : self.context_len, :], dec_inp], dim=1)
@@ -68,8 +99,24 @@ class DistillationTrainer:
                 # 2. Teacher distillation loss (match teacher output)
                 loss_teacher = mse_loss_fn(y_student, y_teacher)
 
-                # Combine losses - simplified for time series regression
+                # Combine losses
                 loss = self.alpha * loss_gt + self.beta * loss_teacher
+
+                # 3. Optional fairness regularisation (EO Gap on hypoglycemia detection)
+                loss_fairness = torch.tensor(0.0, device=self.device)
+                if self.eo_loss_fn is not None and batch_groups is not None:
+                    unique_groups = torch.unique(batch_groups)
+                    if len(unique_groups) == 2:
+                        # EqualizedOddsLoss returns base_loss + fairness_penalty;
+                        # here we only want the fairness penalty, so we pass a
+                        # zero base_loss by using predictions == targets as base.
+                        y_flat = y_student.reshape(y_student.shape[0], -1).mean(dim=1)
+                        t_flat = y_true.reshape(y_true.shape[0], -1).mean(dim=1)
+                        eo_combined = self.eo_loss_fn(y_flat, t_flat, batch_groups)
+                        # eo_combined = base_loss(0) + fairness_penalty; subtract base
+                        base_part = mse_loss_fn(y_flat, t_flat)
+                        loss_fairness = eo_combined - base_part
+                        loss = loss + self.fairness_weight * loss_fairness
 
                 self.optimizer.zero_grad()
                 if self.accelerator:
@@ -83,15 +130,20 @@ class DistillationTrainer:
                 total_loss += loss.item()
                 total_loss_gt += loss_gt.item()
                 total_loss_teacher += loss_teacher.item()
+                total_loss_fairness += loss_fairness.item()
 
             avg_loss = total_loss / len(self.dataloader)
             avg_loss_gt = total_loss_gt / len(self.dataloader)
             avg_loss_teacher = total_loss_teacher / len(self.dataloader)
+            avg_loss_fairness = total_loss_fairness / len(self.dataloader)
 
             train_loss_l.append(avg_loss)
 
             if self.logger:
-                self.logger.info(f"Epoch {epoch+1} | Total Loss: {avg_loss:.7f} | GT Loss: {avg_loss_gt:.7f} | Teacher Loss: {avg_loss_teacher:.7f}")
+                self.logger.info(
+                    f"Epoch {epoch+1} | Total Loss: {avg_loss:.7f} | GT Loss: {avg_loss_gt:.7f} "
+                    f"| Teacher Loss: {avg_loss_teacher:.7f} | Fairness Loss: {avg_loss_fairness:.7f}"
+                )
 
             if self.early_stopping:
                 # Provide a path to save the best model
