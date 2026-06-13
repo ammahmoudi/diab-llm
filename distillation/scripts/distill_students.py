@@ -25,7 +25,10 @@ class DistillationTrainer:
                  teacher_checkpoint_dir=None, student_config_dir=None, 
                  output_dir=None, config_output_dir=None, pipeline_dir=None,
                  dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32,
-                 alpha=0.5, beta=0.5):
+                 alpha=0.5, beta=0.5,
+                 fairness_weight=0.0, fairness_feature=None,
+                 target_threshold=70.0, pred_threshold=70.0,
+                 hypo_oversample=False):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
@@ -33,6 +36,11 @@ class DistillationTrainer:
         self.batch_size = batch_size
         self.alpha = alpha
         self.beta = beta
+        self.fairness_weight = fairness_weight
+        self.fairness_feature = fairness_feature
+        self.target_threshold = target_threshold
+        self.pred_threshold = pred_threshold
+        self.hypo_oversample = hypo_oversample
         
         # Model name mappings from HuggingFace names to internal config names
         self.model_name_mapping = {
@@ -184,6 +192,19 @@ class DistillationTrainer:
             "train_epochs": self.distill_epochs,   # Use provided distillation epochs
             "learning_rate": self.lr  # Use provided learning rate
         }
+        # Fairness regularisation hyperparameters (only applied when fairness_weight > 0)
+        if self.fairness_weight > 0 and self.fairness_feature:
+            self.distillation_params["fairness_weight"] = self.fairness_weight
+            self.distillation_params["fairness_feature"] = self.fairness_feature
+            self.distillation_params["target_threshold"] = self.target_threshold
+            self.distillation_params["pred_threshold"] = self.pred_threshold
+            if self.hypo_oversample:
+                self.distillation_params["hypo_oversample"] = True
+        elif self.hypo_oversample and self.fairness_feature:
+            # Oversampling only — no fairness loss penalty, just balanced training data
+            self.distillation_params["fairness_feature"] = self.fairness_feature
+            self.distillation_params["target_threshold"] = self.target_threshold
+            self.distillation_params["hypo_oversample"] = True
         
         # Base distillation configuration template - paths will be set dynamically
         self.base_config = {
@@ -378,10 +399,18 @@ class DistillationTrainer:
         config["llm_settings"]["teacher_model"] = teacher_model.upper()
         
         # Generate log directory path - use pipeline directory if available
-        if self.pipeline_dir:
-            log_dir = os.path.join(self.pipeline_dir, "phase_3_distillation", f"{teacher_model}_to_{student_model}_{dataset}", "logs")
+        if self.fairness_weight > 0 and self.fairness_feature and self.hypo_oversample:
+            fairness_suffix = f"_fairness_{self.fairness_feature}_oversample"
+        elif self.fairness_weight > 0 and self.fairness_feature:
+            fairness_suffix = f"_fairness_{self.fairness_feature}"
+        elif self.hypo_oversample and self.fairness_feature:
+            fairness_suffix = f"_oversample_{self.fairness_feature}"
         else:
-            log_dir = str(self.results_dir / f"{teacher_model}_to_{student_model}_{dataset}" / "logs")
+            fairness_suffix = ""
+        if self.pipeline_dir:
+            log_dir = os.path.join(self.pipeline_dir, "phase_3_distillation", f"{teacher_model}_to_{student_model}_{dataset}{fairness_suffix}", "logs")
+        else:
+            log_dir = str(self.results_dir / f"{teacher_model}_to_{student_model}_{dataset}{fairness_suffix}" / "logs")
         config_content = f'run.log_dir = "{log_dir}"\n'
         
         # Convert data_settings to gin format
@@ -714,6 +743,14 @@ def main():
     parser.add_argument("--output-dir", help="Output directory for distillation results")
     parser.add_argument("--config-output-dir", help="Directory for saving distillation configs")
     parser.add_argument("--pipeline-dir", help="Pipeline directory for organized output structure")
+    # Fairness regularisation arguments
+    parser.add_argument("--fairness-weight", type=float, default=0.0, help="Weight for fairness loss (0=disabled, e.g. 0.2)")
+    parser.add_argument("--fairness-feature", default=None, choices=["gender", "age"], help="Demographic attribute for fairness (gender or age)")
+    parser.add_argument("--target-threshold", type=float, default=70.0, help="Hypoglycemia threshold on ground-truth labels (mg/dL)")
+    parser.add_argument("--pred-threshold", type=float, default=70.0, help="Hypoglycemia threshold on predictions (mg/dL)")
+    parser.add_argument("--hypo-oversample", action="store_true", default=False,
+                        help="Fix A: Oversample minority-group hypoglycemia windows during training "
+                             "to equalize hypo prevalence across demographic groups")
     # NOTE: teacher-epochs and student-epochs removed - this script only does distillation!
     # Use train_teachers.py and flexible_experiment_runner.py for training
     
@@ -731,7 +768,12 @@ def main():
         lr=args.lr,
         batch_size=args.batch_size,
         alpha=args.alpha,
-        beta=args.beta
+        beta=args.beta,
+        fairness_weight=args.fairness_weight,
+        fairness_feature=args.fairness_feature,
+        target_threshold=args.target_threshold,
+        pred_threshold=args.pred_threshold,
+        hypo_oversample=args.hypo_oversample,
     )
     
     if args.list_models:

@@ -235,6 +235,104 @@ class GroupRegularizedLoss(FairnessAwareLoss):
         return base_loss_value + self.fairness_weight * fairness_penalty
 
 
+class HypoglycemiaTPREqualityLoss(FairnessAwareLoss):
+    """Fairness loss that directly equalizes hypoglycemia detection TPR across groups.
+
+    The key insight: standard EqualizedOddsLoss fails in practice because
+    hypoglycemia windows (target < threshold) are rare (~1-5% of windows),
+    so most batches have zero or near-zero hypo samples for one gender,
+    making the gradient noisy and ineffective.
+
+    This loss fixes that with two mechanisms:
+    1. **Soft TPR**: uses a sigmoid-based soft threshold instead of hard
+       binarization, giving a differentiable signal even with rare events.
+    2. **Hypo-focal regression**: amplifies the regression loss on true
+       hypoglycemia windows by a configurable focal factor, forcing the model
+       to pay more attention to getting low-glucose predictions right.
+
+    Result: the model is pushed to predict values below the threshold on
+    true hypoglycemia windows for *all* groups equally.
+    """
+
+    def __init__(self, base_loss: nn.Module = None,
+                 fairness_weight: float = 1.0,
+                 hypo_threshold: float = 70.0,
+                 focal_gamma: float = 3.0,
+                 soft_slope: float = 0.1):
+        """
+        Args:
+            base_loss:        Base regression loss (default MSELoss).
+            fairness_weight:  Weight λ applied to the TPR-equalization penalty.
+            hypo_threshold:   Glucose threshold for hypoglycemia (mg/dL).
+            focal_gamma:      Multiplier on regression loss for true hypo windows.
+                              Higher = more focus on not missing hypos.
+            soft_slope:       Controls sharpness of the soft-threshold sigmoid.
+                              Smaller = smoother gradient; 0.1 works well for
+                              glucose-scale values.
+        """
+        super().__init__(base_loss, fairness_weight)
+        self.hypo_threshold = hypo_threshold
+        self.focal_gamma = focal_gamma
+        self.soft_slope = soft_slope
+
+    def _soft_positive(self, x: torch.Tensor) -> torch.Tensor:
+        """Soft indicator: ~1 when x < threshold, ~0 otherwise (differentiable)."""
+        return torch.sigmoid((self.hypo_threshold - x) / (self.hypo_threshold * self.soft_slope))
+
+    def forward(self, predictions: torch.Tensor,
+                targets: torch.Tensor,
+                group_labels: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            predictions:   [B, T] or [B, T, 1] — denormalized glucose predictions.
+            targets:       [B, T] or [B, T, 1] — denormalized glucose targets.
+            group_labels:  [B] — integer group index per sample.
+        """
+        preds_flat = predictions.reshape(predictions.shape[0], -1)  # [B, T]
+        tgts_flat  = targets.reshape(targets.shape[0], -1)           # [B, T]
+
+        # ── 1. Focal regression loss ──────────────────────────────────────────
+        # Upweight timesteps where the true glucose is hypo
+        hypo_mask = (tgts_flat < self.hypo_threshold).float()          # [B, T]
+        focal_weights = 1.0 + (self.focal_gamma - 1.0) * hypo_mask    # [B, T]
+        sq_err = (preds_flat - tgts_flat) ** 2                         # [B, T]
+        base_loss_value = (focal_weights * sq_err).mean()
+
+        # ── 2. Soft-TPR equalization across groups ────────────────────────────
+        unique_groups = torch.unique(group_labels)
+        if len(unique_groups) < 2:
+            return base_loss_value
+
+        soft_tprs = []
+        for group in unique_groups:
+            mask = (group_labels == group)           # [B]
+            if mask.sum() == 0:
+                continue
+
+            g_preds  = preds_flat[mask]              # [n_g, T]
+            g_tgts   = tgts_flat[mask]               # [n_g, T]
+
+            # Which timesteps are truly hypo?
+            true_hypo = (g_tgts < self.hypo_threshold).float()  # [n_g, T]
+            n_true_hypo = true_hypo.sum() + 1e-8
+
+            # Soft probability that prediction is also below threshold
+            pred_hypo_soft = self._soft_positive(g_preds)        # [n_g, T]
+
+            # Soft TPR = Σ (true_hypo * pred_hypo_soft) / Σ true_hypo
+            soft_tpr = (true_hypo * pred_hypo_soft).sum() / n_true_hypo
+            soft_tprs.append(soft_tpr)
+
+        if len(soft_tprs) >= 2:
+            # Penalty = variance of soft-TPRs across groups (0 when equal)
+            tpr_tensor = torch.stack(soft_tprs)
+            fairness_penalty = torch.var(tpr_tensor)
+        else:
+            fairness_penalty = torch.tensor(0.0, device=predictions.device)
+
+        return base_loss_value + self.fairness_weight * fairness_penalty
+
+
 class AdversarialFairnessLoss(nn.Module):
     """Adversarial fairness loss function."""
     

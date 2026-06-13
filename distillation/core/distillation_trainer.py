@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 # Allow importing fairness losses from the project root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from fairness.loss_functions.fairness_losses import EqualizedOddsLoss
+from fairness.loss_functions.fairness_losses import EqualizedOddsLoss, HypoglycemiaTPREqualityLoss
 
 
 class DistillationTrainer:
@@ -49,11 +49,16 @@ class DistillationTrainer:
         # Fairness-aware loss (disabled when fairness_weight == 0)
         self.fairness_weight = fairness_weight
         if fairness_weight > 0:
-            self.eo_loss_fn = EqualizedOddsLoss(
+            # HypoglycemiaTPREqualityLoss fixes the core issue with EqualizedOddsLoss:
+            # rare hypoglycemia windows (~1-5% of batches) caused near-zero gradients.
+            # The new loss uses soft-TPR equalization + focal regression upweighting
+            # on true hypo timesteps, giving a stable gradient even with rare events.
+            self.eo_loss_fn = HypoglycemiaTPREqualityLoss(
                 base_loss=None,
                 fairness_weight=1.0,
-                pred_threshold=pred_threshold,
-                target_threshold=target_threshold,
+                hypo_threshold=target_threshold,   # 70.0 mg/dL
+                focal_gamma=3.0,
+                soft_slope=0.1,
             )
         else:
             self.eo_loss_fn = None

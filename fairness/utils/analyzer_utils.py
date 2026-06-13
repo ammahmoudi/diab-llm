@@ -165,24 +165,50 @@ def format_metric(metric_name: str, value: float, decimals: int = 3) -> str:
 
 def get_ohiot1dm_default_data() -> Dict[str, Dict]:
     """
-    Get default OhioT1DM patient metadata when CSV is unavailable.
-    
+    Get OhioT1DM patient metadata.
+
+    Loads from data/ohiot1dm/data.csv (primary source) with a hardcoded
+    fallback matching Table 1 of the OhioT1DM paper (Marling & Bunescu, 2020).
+
+    CSV format expected:
+        ID,Gender,Age,Pump Model,Sensor Band,Cohort
+
     Returns:
-        Dictionary with all demographic information
+        Dictionary mapping patient_id (str) -> demographic dict with keys:
+        gender, age, pump, sensor, cohort
     """
+    import csv
+    from pathlib import Path
+
+    csv_path = Path(__file__).parent.parent.parent / "data" / "ohiot1dm" / "data.csv"
+    if csv_path.exists():
+        result = {}
+        with open(csv_path, newline='') as f:
+            for row in csv.DictReader(f):
+                pid = str(row['ID']).strip()
+                result[pid] = {
+                    'gender': row['Gender'].strip().capitalize(),
+                    'age':    row['Age'].strip(),
+                    'pump':   row['Pump Model'].strip(),
+                    'sensor': row['Sensor Band'].strip(),
+                    'cohort': str(row['Cohort']).strip(),
+                }
+        return result
+
+    # Fallback: hardcoded from Table 1, OhioT1DM paper
     return {
-        '540': {'gender': 'Male', 'age': '40-60', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
-        '544': {'gender': 'Male', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
-        '552': {'gender': 'Male', 'age': '40-60', 'pump': '630G', 'sensor': 'Basis', 'cohort': '2018'},
-        '559': {'gender': 'Male', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
-        '563': {'gender': 'Female', 'age': '40-60', 'pump': '630G', 'sensor': 'Basis', 'cohort': '2018'},
-        '567': {'gender': 'Female', 'age': '60-80', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2018'},
-        '570': {'gender': 'Male', 'age': '40-60', 'pump': '630G', 'sensor': 'Basis', 'cohort': '2020'},
-        '575': {'gender': 'Female', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
-        '584': {'gender': 'Male', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
-        '588': {'gender': 'Female', 'age': '60-80', 'pump': '630G', 'sensor': 'Basis', 'cohort': '2020'},
-        '591': {'gender': 'Female', 'age': '60-80', 'pump': '630G', 'sensor': 'Basis', 'cohort': '2020'},
-        '596': {'gender': 'Male', 'age': '60-80', 'pump': '530G', 'sensor': 'Basis', 'cohort': '2020'}
+        '540': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '544': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '552': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '559': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '563': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '567': {'gender': 'Female', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '570': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '575': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '584': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '588': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '591': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '596': {'gender': 'Male',   'age': '60-80', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2020'},
     }
 
 

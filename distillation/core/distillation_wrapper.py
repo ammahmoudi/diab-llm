@@ -11,21 +11,26 @@ from models import time_llm as TimeLLMModel
 import numpy as np
 import pickle
 
-# Patient demographics for OhioT1DM (fallback when CSV is unavailable)
-_OHIOT1DM_PATIENT_DATA = {
-    '540': {'gender': 'Male',   'age': '40-60', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
-    '544': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
-    '552': {'gender': 'Male',   'age': '40-60', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2018'},
-    '559': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2018'},
-    '563': {'gender': 'Female', 'age': '40-60', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2018'},
-    '567': {'gender': 'Female', 'age': '60-80', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2018'},
-    '570': {'gender': 'Male',   'age': '40-60', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2020'},
-    '575': {'gender': 'Female', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
-    '584': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
-    '588': {'gender': 'Female', 'age': '60-80', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2020'},
-    '591': {'gender': 'Female', 'age': '60-80', 'pump': '630G', 'sensor': 'Basis',    'cohort': '2020'},
-    '596': {'gender': 'Male',   'age': '60-80', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2020'},
-}
+# Single source of truth: import patient demographics from fairness module
+try:
+    from fairness.utils.analyzer_utils import get_ohiot1dm_default_data
+    _OHIOT1DM_PATIENT_DATA = get_ohiot1dm_default_data()
+except ImportError:
+    # Fallback if fairness module unavailable — matches Table 1, OhioT1DM paper
+    _OHIOT1DM_PATIENT_DATA = {
+        '540': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '544': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '552': {'gender': 'Male',   'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '559': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '563': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '567': {'gender': 'Female', 'age': '20-40', 'pump': '630G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '570': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '575': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '584': {'gender': 'Male',   'age': '40-60', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2020'},
+        '588': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '591': {'gender': 'Female', 'age': '40-60', 'pump': '530G', 'sensor': 'Basis',    'cohort': '2018'},
+        '596': {'gender': 'Male',   'age': '60-80', 'pump': '530G', 'sensor': 'Empatica', 'cohort': '2020'},
+    }
 
 # Binary label mappings per feature (two groups: 0 and 1)
 _GROUP_LABEL_MAPS = {
@@ -56,6 +61,7 @@ class DistillationWrapper:
         self.fairness_feature  = settings.get('fairness_feature', None)   # e.g. "gender"
         self.target_threshold  = float(settings.get('target_threshold', 70.0))
         self.pred_threshold    = float(settings.get('pred_threshold',   70.0))
+        self.hypo_oversample   = bool(settings.get('hypo_oversample',   False))
 
         logging.info(f"🎓 Initializing Distillation Wrapper")
         logging.info(f"  📍 Log Directory: {log_dir}")
@@ -257,16 +263,66 @@ class DistillationWrapper:
         student_model = self._create_student_model()
 
         # Optionally wrap the training DataLoader with per-window group labels
+        # and/or hypo-prevalence oversampling to reduce group imbalance
         active_train_loader = train_loader
-        if self.fairness_weight > 0 and self.fairness_feature:
+        _need_group_labels = (
+            (self.fairness_weight > 0 and self.fairness_feature) or
+            (self.hypo_oversample and self.fairness_feature)
+        )
+        if _need_group_labels:
             group_labels = self._build_group_labels(train_loader.dataset, self.fairness_feature)
             if group_labels is not None:
                 from data_processing.data_sets import GroupLabeledDataset
+                from torch.utils.data import WeightedRandomSampler
                 labeled_dataset = GroupLabeledDataset(train_loader.dataset, group_labels)
+
+                # Fix A: Hypo-prevalence oversampling
+                # Weight each window inversely proportional to its group's hypo
+                # prevalence so the model sees balanced hypo events per gender.
+                sampler = None
+                if self.hypo_oversample:
+                    import numpy as np
+                    targets_np = np.array([float(labeled_dataset[i][1].mean())
+                                          for i in range(len(labeled_dataset))])
+                    grp_np = np.array(group_labels)
+                    HYPO_THRESH = self.target_threshold  # 70 mg/dL
+                    sample_weights = np.ones(len(labeled_dataset))
+                    unique_groups = np.unique(grp_np)
+                    # Compute per-group hypo prevalence
+                    group_hypo_rates = {}
+                    for g in unique_groups:
+                        g_mask = grp_np == g
+                        g_targets = targets_np[g_mask]
+                        group_hypo_rates[g] = (g_targets < HYPO_THRESH).mean() + 1e-8
+                    max_rate = max(group_hypo_rates.values())
+                    # Oversample windows from underrepresented-hypo groups
+                    for g in unique_groups:
+                        g_mask = grp_np == g
+                        g_targets = targets_np[g_mask]
+                        is_hypo = g_targets < HYPO_THRESH
+                        oversample_factor = max_rate / group_hypo_rates[g]
+                        # Upweight hypo windows of underrepresented group
+                        indices = np.where(g_mask)[0]
+                        for idx, hypo in zip(indices, is_hypo):
+                            if hypo:
+                                sample_weights[idx] = oversample_factor
+                    sampler = WeightedRandomSampler(
+                        weights=sample_weights.tolist(),
+                        num_samples=len(labeled_dataset),
+                        replacement=True,
+                    )
+                    n_groups = {g: (grp_np == g).sum() for g in unique_groups}
+                    rates_str = {g: f"{r:.3f}" for g, r in group_hypo_rates.items()}
+                    max_factor = max_rate / min(group_hypo_rates.values())
+                    logging.info(f"⚖️  Hypo oversampling: groups={n_groups}, "
+                                 f"rates={rates_str}, "
+                                 f"max_oversample={max_factor:.1f}x")
+
                 active_train_loader = DataLoader(
                     labeled_dataset,
                     batch_size=train_loader.batch_size,
-                    shuffle=True,
+                    shuffle=(sampler is None),
+                    sampler=sampler,
                     num_workers=train_loader.num_workers,
                     drop_last=train_loader.drop_last,
                 )
