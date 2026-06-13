@@ -490,6 +490,8 @@ def run(
                 data_settings["path_to_train_data"],
                 batch_size=llm_settings["train_batch_size"],
                 split="train",
+                fair_sampling=data_settings.get("fair_teacher_sampling", False),
+                fair_feature=data_settings.get("fair_teacher_feature", "gender"),
             )
             val_data, val_loader = data_loader.load_from_csv(
                 data_settings["path_to_train_data"],

@@ -28,7 +28,7 @@ class DistillationTrainer:
                  alpha=0.5, beta=0.5,
                  fairness_weight=0.0, fairness_feature=None,
                  target_threshold=70.0, pred_threshold=70.0,
-                 hypo_oversample=False):
+                 hypo_oversample=False, dir_suffix=""):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
@@ -41,6 +41,7 @@ class DistillationTrainer:
         self.target_threshold = target_threshold
         self.pred_threshold = pred_threshold
         self.hypo_oversample = hypo_oversample
+        self.dir_suffix = dir_suffix
         
         # Model name mappings from HuggingFace names to internal config names
         self.model_name_mapping = {
@@ -408,9 +409,9 @@ class DistillationTrainer:
         else:
             fairness_suffix = ""
         if self.pipeline_dir:
-            log_dir = os.path.join(self.pipeline_dir, "phase_3_distillation", f"{teacher_model}_to_{student_model}_{dataset}{fairness_suffix}", "logs")
+            log_dir = os.path.join(self.pipeline_dir, "phase_3_distillation", f"{teacher_model}_to_{student_model}_{dataset}{fairness_suffix}{self.dir_suffix}", "logs")
         else:
-            log_dir = str(self.results_dir / f"{teacher_model}_to_{student_model}_{dataset}{fairness_suffix}" / "logs")
+            log_dir = str(self.results_dir / f"{teacher_model}_to_{student_model}_{dataset}{fairness_suffix}{self.dir_suffix}" / "logs")
         config_content = f'run.log_dir = "{log_dir}"\n'
         
         # Convert data_settings to gin format
@@ -751,6 +752,8 @@ def main():
     parser.add_argument("--hypo-oversample", action="store_true", default=False,
                         help="Fix A: Oversample minority-group hypoglycemia windows during training "
                              "to equalize hypo prevalence across demographic groups")
+    parser.add_argument("--dir-suffix", default="",
+                        help="Extra suffix appended to the output directory name (e.g. '_fair_teacher')")
     # NOTE: teacher-epochs and student-epochs removed - this script only does distillation!
     # Use train_teachers.py and flexible_experiment_runner.py for training
     
@@ -774,6 +777,7 @@ def main():
         target_threshold=args.target_threshold,
         pred_threshold=args.pred_threshold,
         hypo_oversample=args.hypo_oversample,
+        dir_suffix=args.dir_suffix,
     )
     
     if args.list_models:

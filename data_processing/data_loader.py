@@ -167,10 +167,21 @@ class TimeLLMDataHandler:
         self.scaler = None
         self._settings = settings
 
-    def load_from_csv(self, path_to_csv, batch_size=32, split="train", missed=None):
+    def load_from_csv(self, path_to_csv, batch_size=32, split="train", missed=None,
+                      fair_sampling=False, fair_feature='gender', fair_demographics=None,
+                      fair_hypo_threshold=70.0, fair_max_oversample=2.4):
         """
         Load data from CSV and prepare DataLoader.
         Handles the case when validation data is not needed (val_split == 0).
+
+        Args:
+            fair_sampling:        If True (training split only), apply hypo-prevalence
+                                  oversampling via WeightedRandomSampler to reduce
+                                  between-group EO Gap (T1 fair teacher training).
+            fair_feature:         Demographic feature to group on (default: 'gender').
+            fair_demographics:    Optional demographics dict override.
+            fair_hypo_threshold:  Glucose threshold for hypoglycaemia detection (mg/dL).
+            fair_max_oversample:  Maximum per-window weight multiplier.
         """
         if split == "test":
             shuffle_flag = False
@@ -209,10 +220,41 @@ class TimeLLMDataHandler:
             missed=missed,
         )
 
+        sampler = None
+        if fair_sampling and split == "train":
+            try:
+                import logging
+                from fairness.utils.sampling import build_group_labels, build_hypo_sampler
+                group_labels = build_group_labels(
+                    data_path=path_to_csv,
+                    seq_len=self._settings["sequence_length"],
+                    pred_len=self._settings["prediction_length"],
+                    val_split=self._settings["val_split"],
+                    percent=self._settings["percent"],
+                    feature=fair_feature,
+                    demographics=fair_demographics,
+                )
+                if group_labels is not None and len(group_labels) == len(data_set):
+                    sampler, info = build_hypo_sampler(
+                        data_set, group_labels,
+                        hypo_threshold=fair_hypo_threshold,
+                        max_oversample=fair_max_oversample,
+                    )
+                    logging.info(
+                        f"⚖️  Fair teacher sampling active: feature='{fair_feature}', "
+                        f"hypo_rates={info['group_hypo_rates']}, "
+                        f"max_oversample={info['max_oversample']}x"
+                    )
+                    shuffle_flag = False  # sampler handles ordering
+            except Exception as e:
+                import logging
+                logging.warning(f"Fair sampling setup failed: {e}. Falling back to standard shuffle.")
+
         data_loader = DataLoader(
             data_set,
             batch_size=batch_size,
-            shuffle=shuffle_flag,
+            shuffle=shuffle_flag if sampler is None else False,
+            sampler=sampler,
             num_workers=self._settings["num_workers"],
             drop_last=drop_last,
         )

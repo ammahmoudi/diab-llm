@@ -155,7 +155,8 @@ def get_model_batch_sizes(llm_model):
 
 def generate_config_content(mode, seed, llm_config, length_set, patient_id, train_epochs=10,
                           data_scenario="standardized", dataset="ohiot1dm", train_data_scenario=None,
-                          checkpoint_path=None, torch_dtype="bfloat16"):
+                          checkpoint_path=None, torch_dtype="bfloat16", fair_teacher=False,
+                          fair_teacher_feature="gender"):
     """Generate the configuration content based on parameters."""
     
     # Use train_data_scenario for training data, data_scenario for test data
@@ -182,6 +183,13 @@ def generate_config_content(mode, seed, llm_config, length_set, patient_id, trai
         mode_str = "inference"
     else:
         mode_str = "training+inference"
+
+    # Fair teacher sampling flags
+    fair_teacher_line = (
+        f"\n     'fair_teacher_sampling': True,"
+        f"\n     'fair_teacher_feature': '{fair_teacher_feature}',"
+        if fair_teacher and mode != "per_patient_inference" else ""
+    )
     
     config_content = f'''# Parameters for run:
 # ==============================================================================
@@ -197,7 +205,7 @@ run.data_settings = \\
      'preprocess_label': False,
      'preprocessing_method': 'min_max',
      'prompt_path': '{prompt_path}',
-     'val_split': 0}}
+     'val_split': 0{fair_teacher_line}}}
 
 run.llm_settings = \\
     {{'activation': 'gelu',
@@ -288,6 +296,11 @@ def main():
     parser.add_argument("--torch-dtype", default="bfloat16",
                        choices=["float32", "bfloat16", "float16"],
                        help="Torch dtype for model (default: bfloat16). Use float32 for loading checkpoints trained with float32")
+    parser.add_argument("--fair-teacher", action="store_true",
+                       help="Enable fair teacher training: oversample minority-group hypo windows (T1 fix)")
+    parser.add_argument("--fair-teacher-feature", default="gender",
+                       choices=["gender", "age", "pump", "sensor", "cohort"],
+                       help="Demographic feature for fair teacher sampling (default: gender)")
     
     args = parser.parse_args()
     
@@ -375,6 +388,9 @@ def main():
         elif args.checkpoint_dir:
             print(f"📂 Checkpoint directory: {args.checkpoint_dir}")
     
+    if args.fair_teacher:
+        print(f"⚖️  Fair teacher sampling: enabled (feature={args.fair_teacher_feature})")
+
     # Generate configurations
     config_count = 0
     for seed, llm_model_name, length_set, torch_dtype, model_id in product(seeds, llm_models, length_sets, torch_dtypes, model_ids):
@@ -418,7 +434,8 @@ def main():
             config_content = generate_config_content(
                 args.mode, seed, llm_config, length_set, patient_id, train_epochs,
                 data_scenario=args.data_scenario, dataset=args.dataset, train_data_scenario=args.train_data_scenario,
-                checkpoint_path=checkpoint_path, torch_dtype=torch_dtype
+                checkpoint_path=checkpoint_path, torch_dtype=torch_dtype,
+                fair_teacher=args.fair_teacher, fair_teacher_feature=args.fair_teacher_feature,
             )
             
             # Replace log folder placeholder with actual path

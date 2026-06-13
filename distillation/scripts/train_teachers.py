@@ -20,7 +20,7 @@ from utils.path_utils import get_project_root, get_configs_path
 class TeacherTrainer:
     """Class to handle automated training of teacher models."""
     
-    def __init__(self, base_dir=None, output_dir=None, config_dir=None, dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32, remove_checkpoints=False):
+    def __init__(self, base_dir=None, output_dir=None, config_dir=None, dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32, remove_checkpoints=False, fair_teacher=False, fair_teacher_feature="gender"):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
@@ -30,6 +30,8 @@ class TeacherTrainer:
         self.lr = lr
         self.batch_size = batch_size
         self.remove_checkpoints = remove_checkpoints
+        self.fair_teacher = fair_teacher
+        self.fair_teacher_feature = fair_teacher_feature
         
         # Set config directory - use pipeline config dir if provided, otherwise root configs
         if config_dir:
@@ -291,6 +293,10 @@ class TeacherTrainer:
         config["data_settings"]["path_to_train_data"] = train_file
         config["data_settings"]["path_to_test_data"] = test_file
         config["data_settings"]["prompt_path"] = prompt_file
+        # Fair teacher sampling (T1 fix)
+        if self.fair_teacher:
+            config["data_settings"]["fair_teacher_sampling"] = True
+            config["data_settings"]["fair_teacher_feature"] = self.fair_teacher_feature
         
         # Update model-specific settings
         config["llm_settings"].update(model_config)
@@ -576,6 +582,11 @@ def main():
     parser.add_argument("--remove-checkpoints", action="store_true", help="Remove checkpoint files after training to save disk space")
     parser.add_argument("--output-dir", help="Output directory for trained models (default: results/teacher_models)")
     parser.add_argument("--config-dir", help="Directory for saving config files (default: configs)")
+    parser.add_argument("--fair-teacher", action="store_true",
+                       help="Enable fair teacher training: oversample minority-group hypo windows (T1 fix)")
+    parser.add_argument("--fair-teacher-feature", default="gender",
+                       choices=["gender", "age", "pump", "sensor", "cohort"],
+                       help="Demographic feature for fair teacher sampling (default: gender)")
     
     args = parser.parse_args()
     
@@ -586,7 +597,9 @@ def main():
         seed=args.seed,
         lr=args.lr,
         batch_size=args.batch_size,
-        remove_checkpoints=args.remove_checkpoints
+        remove_checkpoints=args.remove_checkpoints,
+        fair_teacher=args.fair_teacher,
+        fair_teacher_feature=args.fair_teacher_feature,
     )
     
     if args.list_checkpoints:
