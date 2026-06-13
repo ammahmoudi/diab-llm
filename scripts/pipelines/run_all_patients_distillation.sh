@@ -39,6 +39,10 @@ LR="${LR:-0.001}"
 BATCH_SIZE="${BATCH_SIZE:-32}"
 ALPHA="${ALPHA:-0.5}"
 BETA="${BETA:-0.5}"
+FAIRNESS_WEIGHT="${FAIRNESS_WEIGHT:-0.0}"
+FAIRNESS_FEATURE="${FAIRNESS_FEATURE:-}"
+TARGET_THRESHOLD="${TARGET_THRESHOLD:-70.0}"
+PRED_THRESHOLD="${PRED_THRESHOLD:-70.0}"
 RUN_TRAINING=true
 RUN_INFERENCE=true
 EXISTING_PIPELINE_DIR=""
@@ -83,6 +87,22 @@ while [[ $# -gt 0 ]]; do
             ;;
         --beta)
             BETA="$2"
+            shift 2
+            ;;
+        --fairness-weight)
+            FAIRNESS_WEIGHT="$2"
+            shift 2
+            ;;
+        --fairness-feature)
+            FAIRNESS_FEATURE="$2"
+            shift 2
+            ;;
+        --target-threshold)
+            TARGET_THRESHOLD="$2"
+            shift 2
+            ;;
+        --pred-threshold)
+            PRED_THRESHOLD="$2"
             shift 2
             ;;
         --training-only)
@@ -162,6 +182,12 @@ echo "  Learning Rate: $LR"
 echo "  Batch Size: $BATCH_SIZE"
 echo "  Alpha (ground truth weight): $ALPHA"
 echo "  Beta (teacher weight): $BETA"
+if [ -n "$FAIRNESS_FEATURE" ]; then
+    echo "  Fairness Weight: $FAIRNESS_WEIGHT"
+    echo "  Fairness Feature: $FAIRNESS_FEATURE"
+    echo "  Target Threshold: $TARGET_THRESHOLD mg/dL"
+    echo "  Pred Threshold: $PRED_THRESHOLD mg/dL"
+fi
 echo ""
 echo "Execution Mode:"
 if [ "$RUN_TRAINING" = true ] && [ "$RUN_INFERENCE" = true ]; then
@@ -275,7 +301,11 @@ python distillation/scripts/distill_students.py \
     --student-config-dir "$PHASE2_DIR" \
     --output-dir "$PHASE3_DIR" \
     --config-output-dir "$PHASE3_DIR" \
-    --pipeline-dir "$PIPELINE_DIR"
+    --pipeline-dir "$PIPELINE_DIR" \
+    ${FAIRNESS_WEIGHT:+--fairness-weight $FAIRNESS_WEIGHT} \
+    ${FAIRNESS_FEATURE:+--fairness-feature $FAIRNESS_FEATURE} \
+    ${FAIRNESS_FEATURE:+--target-threshold $TARGET_THRESHOLD} \
+    ${FAIRNESS_FEATURE:+--pred-threshold $PRED_THRESHOLD}
 
 if [ $? -ne 0 ]; then
     echo "❌ Knowledge distillation failed!"
@@ -328,7 +358,7 @@ else
     mkdir -p "$TEACHER_INFERENCE_DIR"
     
     # Use unified config generator with per_patient_inference mode
-    python scripts/time_llm/config_generator_time_llm_unified.py \
+    python scripts/time_llm/config_generator.py \
         --mode per_patient_inference \
         --checkpoint-path "$TEACHER_CHECKPOINT" \
         --llm_models BERT \
@@ -344,7 +374,7 @@ else
         echo "⚠️  Config generation failed for teacher (continuing...)"
     else
         # Run experiments using unified runner - search in the per_patient_inference parent directory
-        python scripts/time_llm/run_all_time_llm_experiments.py \
+        python scripts/time_llm/run_experiments.py \
             --experiments_dir "$PHASE1_DIR/per_patient_inference"
         
         if [ $? -ne 0 ]; then
@@ -384,7 +414,7 @@ else
     mkdir -p "$STUDENT_INFERENCE_DIR"
     
     # Use unified config generator with per_patient_inference mode
-    python scripts/time_llm/config_generator_time_llm_unified.py \
+    python scripts/time_llm/config_generator.py \
         --mode per_patient_inference \
         --checkpoint-path "$STUDENT_CHECKPOINT" \
         --llm_models BERT-tiny \
@@ -400,7 +430,7 @@ else
         echo "⚠️  Config generation failed for student baseline (continuing...)"
     else
         # Run experiments using unified runner - search in the per_patient_inference parent directory
-        python scripts/time_llm/run_all_time_llm_experiments.py \
+        python scripts/time_llm/run_experiments.py \
             --experiments_dir "$PHASE2_DIR/per_patient_inference"
         
         if [ $? -ne 0 ]; then
@@ -443,7 +473,7 @@ else
     mkdir -p "$DISTILLED_INFERENCE_DIR"
     
     # Use unified config generator with per_patient_inference mode
-    python scripts/time_llm/config_generator_time_llm_unified.py \
+    python scripts/time_llm/config_generator.py \
         --mode per_patient_inference \
         --checkpoint-path "$DISTILLED_CHECKPOINT" \
         --llm_models BERT-tiny \
@@ -459,7 +489,7 @@ else
         echo "⚠️  Config generation failed for distilled student (continuing...)"
     else
         # Run experiments using unified runner - search in the per_patient_inference parent directory
-        python scripts/time_llm/run_all_time_llm_experiments.py \
+        python scripts/time_llm/run_experiments.py \
             --experiments_dir "$PHASE3_DIR/per_patient_inference"
         
         if [ $? -ne 0 ]; then
