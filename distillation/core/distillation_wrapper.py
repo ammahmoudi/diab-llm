@@ -63,6 +63,12 @@ class DistillationWrapper:
         self.pred_threshold    = float(settings.get('pred_threshold',   70.0))
         self.hypo_oversample   = bool(settings.get('hypo_oversample',   False))
 
+        # K1: calibrated soft labels (teacher output shifts by group)
+        self.teacher_calibration_enabled = bool(settings.get('teacher_calibration_enabled', False))
+        self.teacher_calibration_feature = settings.get('teacher_calibration_feature', None)
+        self.teacher_calibration_group0_offset = float(settings.get('teacher_calibration_group0_offset', 0.0))
+        self.teacher_calibration_group1_offset = float(settings.get('teacher_calibration_group1_offset', 0.0))
+
         logging.info(f"🎓 Initializing Distillation Wrapper")
         logging.info(f"  📍 Log Directory: {log_dir}")
         logging.info(f"  👨‍🏫 Teacher Checkpoint: {teacher_checkpoint_path}")
@@ -71,6 +77,12 @@ class DistillationWrapper:
             logging.info(
                 f"  ⚖️  Fairness Regularisation: weight={self.fairness_weight}, "
                 f"feature={self.fairness_feature}, threshold={self.target_threshold} mg/dL"
+            )
+        if self.teacher_calibration_enabled:
+            logging.info(
+                f"  🧪 K1 Calibrated Soft Labels: feature={self.teacher_calibration_feature}, "
+                f"group0_offset={self.teacher_calibration_group0_offset:+.3f}, "
+                f"group1_offset={self.teacher_calibration_group1_offset:+.3f}"
             )
         
     def _create_model_config(self, is_student=False):
@@ -267,10 +279,12 @@ class DistillationWrapper:
         active_train_loader = train_loader
         _need_group_labels = (
             (self.fairness_weight > 0 and self.fairness_feature) or
-            (self.hypo_oversample and self.fairness_feature)
+            (self.hypo_oversample and self.fairness_feature) or
+            (self.teacher_calibration_enabled and self.teacher_calibration_feature)
         )
         if _need_group_labels:
-            group_labels = self._build_group_labels(train_loader.dataset, self.fairness_feature)
+            label_feature = self.fairness_feature or self.teacher_calibration_feature
+            group_labels = self._build_group_labels(train_loader.dataset, label_feature)
             if group_labels is not None:
                 from data_processing.data_sets import GroupLabeledDataset
                 from torch.utils.data import WeightedRandomSampler
@@ -345,6 +359,10 @@ class DistillationWrapper:
             fairness_weight=self.fairness_weight,
             target_threshold=self.target_threshold,
             pred_threshold=self.pred_threshold,
+            teacher_calibration_enabled=self.teacher_calibration_enabled,
+            teacher_calibration_feature=self.teacher_calibration_feature,
+            teacher_calibration_group0_offset=self.teacher_calibration_group0_offset,
+            teacher_calibration_group1_offset=self.teacher_calibration_group1_offset,
         )
 
         # Add context_len and pred_len to trainer (needed for training loop)

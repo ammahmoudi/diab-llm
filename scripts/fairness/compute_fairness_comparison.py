@@ -181,6 +181,8 @@ def main():
          phase3 / "bert_to_bert-tiny_all_patients_fairness_gender_oversample" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
         ("Distilled from Fair Teacher (T1)",
          phase3 / "bert_to_bert-tiny_all_patients_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
+        ("Distilled + K1 Calibrated Soft Labels",
+         phase3 / "bert_to_bert-tiny_all_patients_k1cal_gender" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
     ]
 
     print("\n" + "="*70)

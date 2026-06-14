@@ -29,6 +29,10 @@ class DistillationTrainer:
         fairness_weight: float = 0.0,
         target_threshold: float = 70.0,
         pred_threshold: float = 70.0,
+        teacher_calibration_enabled: bool = False,
+        teacher_calibration_feature: str = None,
+        teacher_calibration_group0_offset: float = 0.0,
+        teacher_calibration_group1_offset: float = 0.0,
     ):
         self.teacher = teacher
         self.student = student
@@ -45,6 +49,12 @@ class DistillationTrainer:
         self.logger = logger or logging.getLogger(__name__)
         self.pred_len = self.teacher.prediction_length
         self.context_len = self.teacher.sequence_length
+
+        # K1: calibrated soft labels (group-conditional teacher output shifts)
+        self.teacher_calibration_enabled = bool(teacher_calibration_enabled)
+        self.teacher_calibration_feature = teacher_calibration_feature
+        self.teacher_calibration_group0_offset = float(teacher_calibration_group0_offset)
+        self.teacher_calibration_group1_offset = float(teacher_calibration_group1_offset)
 
         # Fairness-aware loss (disabled when fairness_weight == 0)
         self.fairness_weight = fairness_weight
@@ -66,6 +76,23 @@ class DistillationTrainer:
         self.teacher.eval()
         for param in self.teacher.parameters():
             param.requires_grad = False
+
+    def _apply_teacher_group_calibration(self, y_teacher, batch_groups):
+        """Apply group-conditional additive offsets to teacher outputs.
+
+        Group labels follow project convention: group 0 / group 1 (e.g. Female/Male
+        for gender). Offsets are scalar glucose shifts in mg/dL.
+        """
+        if (not self.teacher_calibration_enabled) or (batch_groups is None):
+            return y_teacher
+
+        offsets = torch.where(
+            batch_groups == 0,
+            torch.tensor(self.teacher_calibration_group0_offset, device=y_teacher.device, dtype=y_teacher.dtype),
+            torch.tensor(self.teacher_calibration_group1_offset, device=y_teacher.device, dtype=y_teacher.dtype),
+        )
+        # Broadcast offsets over [pred_len, channels]
+        return y_teacher + offsets.view(-1, 1, 1)
 
     def train(self):
         train_loss_l = []
@@ -95,6 +122,7 @@ class DistillationTrainer:
 
                 with torch.no_grad():
                     y_teacher = self.teacher(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                    y_teacher = self._apply_teacher_group_calibration(y_teacher, batch_groups)
 
                 y_student = self.student(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 y_true = batch_y[:, -self.pred_len :, :]

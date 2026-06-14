@@ -28,7 +28,13 @@ class DistillationTrainer:
                  alpha=0.5, beta=0.5,
                  fairness_weight=0.0, fairness_feature=None,
                  target_threshold=70.0, pred_threshold=70.0,
-                 hypo_oversample=False, dir_suffix=""):
+                 hypo_oversample=False,
+                 teacher_calibration_enabled=False,
+                 teacher_calibration_feature="gender",
+                 teacher_calibration_group0_offset=0.0,
+                 teacher_calibration_group1_offset=0.0,
+                 teacher_calibration_json=None,
+                 dir_suffix=""):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
@@ -41,6 +47,18 @@ class DistillationTrainer:
         self.target_threshold = target_threshold
         self.pred_threshold = pred_threshold
         self.hypo_oversample = hypo_oversample
+        self.teacher_calibration_enabled = teacher_calibration_enabled
+        self.teacher_calibration_feature = teacher_calibration_feature
+        self.teacher_calibration_group0_offset = teacher_calibration_group0_offset
+        self.teacher_calibration_group1_offset = teacher_calibration_group1_offset
+
+        # Optional JSON source of K1 offsets
+        if teacher_calibration_json:
+            with open(teacher_calibration_json, "r") as f:
+                k1 = json.load(f)
+            self.teacher_calibration_feature = k1.get("feature", self.teacher_calibration_feature)
+            self.teacher_calibration_group0_offset = float(k1.get("group0_offset", self.teacher_calibration_group0_offset))
+            self.teacher_calibration_group1_offset = float(k1.get("group1_offset", self.teacher_calibration_group1_offset))
         self.dir_suffix = dir_suffix
         
         # Model name mappings from HuggingFace names to internal config names
@@ -206,6 +224,13 @@ class DistillationTrainer:
             self.distillation_params["fairness_feature"] = self.fairness_feature
             self.distillation_params["target_threshold"] = self.target_threshold
             self.distillation_params["hypo_oversample"] = True
+
+        # K1: calibrated soft labels (group-conditional teacher output shifts)
+        if self.teacher_calibration_enabled:
+            self.distillation_params["teacher_calibration_enabled"] = True
+            self.distillation_params["teacher_calibration_feature"] = self.teacher_calibration_feature
+            self.distillation_params["teacher_calibration_group0_offset"] = self.teacher_calibration_group0_offset
+            self.distillation_params["teacher_calibration_group1_offset"] = self.teacher_calibration_group1_offset
         
         # Base distillation configuration template - paths will be set dynamically
         self.base_config = {
@@ -406,6 +431,8 @@ class DistillationTrainer:
             fairness_suffix = f"_fairness_{self.fairness_feature}"
         elif self.hypo_oversample and self.fairness_feature:
             fairness_suffix = f"_oversample_{self.fairness_feature}"
+        elif self.teacher_calibration_enabled and self.teacher_calibration_feature:
+            fairness_suffix = f"_k1cal_{self.teacher_calibration_feature}"
         else:
             fairness_suffix = ""
         if self.pipeline_dir:
@@ -752,6 +779,17 @@ def main():
     parser.add_argument("--hypo-oversample", action="store_true", default=False,
                         help="Fix A: Oversample minority-group hypoglycemia windows during training "
                              "to equalize hypo prevalence across demographic groups")
+    parser.add_argument("--teacher-calibration", action="store_true", default=False,
+                        help="K1: apply group-conditional shifts to teacher outputs during KD")
+    parser.add_argument("--teacher-calibration-feature", default="gender",
+                        choices=["gender", "age", "pump", "sensor", "cohort"],
+                        help="Demographic feature used for K1 group calibration")
+    parser.add_argument("--teacher-calibration-group0-offset", type=float, default=0.0,
+                        help="K1 offset (mg/dL) applied to teacher outputs for group 0")
+    parser.add_argument("--teacher-calibration-group1-offset", type=float, default=0.0,
+                        help="K1 offset (mg/dL) applied to teacher outputs for group 1")
+    parser.add_argument("--teacher-calibration-json", default=None,
+                        help="Optional JSON file produced by compute_k1_teacher_offsets.py")
     parser.add_argument("--dir-suffix", default="",
                         help="Extra suffix appended to the output directory name (e.g. '_fair_teacher')")
     # NOTE: teacher-epochs and student-epochs removed - this script only does distillation!
@@ -777,6 +815,11 @@ def main():
         target_threshold=args.target_threshold,
         pred_threshold=args.pred_threshold,
         hypo_oversample=args.hypo_oversample,
+        teacher_calibration_enabled=args.teacher_calibration,
+        teacher_calibration_feature=args.teacher_calibration_feature,
+        teacher_calibration_group0_offset=args.teacher_calibration_group0_offset,
+        teacher_calibration_group1_offset=args.teacher_calibration_group1_offset,
+        teacher_calibration_json=args.teacher_calibration_json,
         dir_suffix=args.dir_suffix,
     )
     
