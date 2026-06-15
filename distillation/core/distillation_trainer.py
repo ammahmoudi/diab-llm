@@ -33,6 +33,10 @@ class DistillationTrainer:
         teacher_calibration_feature: str = None,
         teacher_calibration_group0_offset: float = 0.0,
         teacher_calibration_group1_offset: float = 0.0,
+        fairness_constraint_enabled: bool = False,
+        fairness_constraint_epsilon: float = 0.05,
+        fairness_dual_lr: float = 0.01,
+        fairness_dual_init: float = 1.0,
     ):
         self.teacher = teacher
         self.student = student
@@ -47,6 +51,8 @@ class DistillationTrainer:
         self.loss_fn = nn.MSELoss()
         self.train_epochs = train_epochs
         self.logger = logger or logging.getLogger(__name__)
+        self.target_threshold = float(target_threshold)
+        self.pred_threshold = float(pred_threshold)
         self.pred_len = self.teacher.prediction_length
         self.context_len = self.teacher.sequence_length
 
@@ -55,6 +61,12 @@ class DistillationTrainer:
         self.teacher_calibration_feature = teacher_calibration_feature
         self.teacher_calibration_group0_offset = float(teacher_calibration_group0_offset)
         self.teacher_calibration_group1_offset = float(teacher_calibration_group1_offset)
+
+        # O1: constrained fairness optimization with projected dual ascent
+        self.fairness_constraint_enabled = bool(fairness_constraint_enabled)
+        self.fairness_constraint_epsilon = float(fairness_constraint_epsilon)
+        self.fairness_dual_lr = float(fairness_dual_lr)
+        self.fairness_dual_lambda = float(max(0.0, fairness_dual_init))
 
         # Fairness-aware loss (disabled when fairness_weight == 0)
         self.fairness_weight = fairness_weight
@@ -76,6 +88,38 @@ class DistillationTrainer:
         self.teacher.eval()
         for param in self.teacher.parameters():
             param.requires_grad = False
+
+    def _compute_soft_hypo_tpr_gap(self, predictions, targets, group_labels):
+        """Differentiable EO proxy: |TPR_group0 - TPR_group1| for hypoglycemia."""
+        if group_labels is None:
+            return torch.tensor(0.0, device=predictions.device)
+
+        unique_groups = torch.unique(group_labels)
+        if len(unique_groups) != 2:
+            return torch.tensor(0.0, device=predictions.device)
+
+        preds_flat = predictions.reshape(predictions.shape[0], -1)
+        tgts_flat = targets.reshape(targets.shape[0], -1)
+
+        true_hypo = (tgts_flat < self.target_threshold).float()
+        pred_hypo_soft = torch.sigmoid(
+            (self.target_threshold - preds_flat) / (self.target_threshold * 0.1)
+        )
+
+        tprs = []
+        for group in unique_groups:
+            mask = (group_labels == group)
+            if mask.sum() == 0:
+                continue
+            g_true_hypo = true_hypo[mask]
+            g_pred_soft = pred_hypo_soft[mask]
+            denom = g_true_hypo.sum() + 1e-8
+            tpr = (g_true_hypo * g_pred_soft).sum() / denom
+            tprs.append(tpr)
+
+        if len(tprs) != 2:
+            return torch.tensor(0.0, device=predictions.device)
+        return torch.abs(tprs[0] - tprs[1])
 
     def _apply_teacher_group_calibration(self, y_teacher, batch_groups):
         """Apply group-conditional additive offsets to teacher outputs.
@@ -102,6 +146,9 @@ class DistillationTrainer:
             total_loss_gt = 0.0
             total_loss_teacher = 0.0
             total_loss_fairness = 0.0
+            total_o1_gap = 0.0
+            total_o1_violation = 0.0
+            total_o1_lambda = 0.0
 
             mse_loss_fn = nn.MSELoss()
 
@@ -151,6 +198,14 @@ class DistillationTrainer:
                         loss_fairness = eo_combined - base_part
                         loss = loss + self.fairness_weight * loss_fairness
 
+                # 4. O1: hard-style fairness constraint via projected dual ascent
+                o1_gap = torch.tensor(0.0, device=self.device)
+                o1_violation = torch.tensor(0.0, device=self.device)
+                if self.fairness_constraint_enabled and batch_groups is not None:
+                    o1_gap = self._compute_soft_hypo_tpr_gap(y_student, y_true, batch_groups)
+                    o1_violation = torch.relu(o1_gap - self.fairness_constraint_epsilon)
+                    loss = loss + self.fairness_dual_lambda * o1_violation
+
                 self.optimizer.zero_grad()
                 if self.accelerator:
                     self.accelerator.backward(loss)
@@ -160,22 +215,37 @@ class DistillationTrainer:
                 if self.scheduler:
                     self.scheduler.step()
 
+                if self.fairness_constraint_enabled and batch_groups is not None:
+                    raw_violation = float((o1_gap - self.fairness_constraint_epsilon).detach().item())
+                    self.fairness_dual_lambda = max(
+                        0.0,
+                        self.fairness_dual_lambda + self.fairness_dual_lr * raw_violation,
+                    )
+
                 total_loss += loss.item()
                 total_loss_gt += loss_gt.item()
                 total_loss_teacher += loss_teacher.item()
                 total_loss_fairness += loss_fairness.item()
+                total_o1_gap += o1_gap.item()
+                total_o1_violation += o1_violation.item()
+                total_o1_lambda += self.fairness_dual_lambda
 
             avg_loss = total_loss / len(self.dataloader)
             avg_loss_gt = total_loss_gt / len(self.dataloader)
             avg_loss_teacher = total_loss_teacher / len(self.dataloader)
             avg_loss_fairness = total_loss_fairness / len(self.dataloader)
+            avg_o1_gap = total_o1_gap / len(self.dataloader)
+            avg_o1_violation = total_o1_violation / len(self.dataloader)
+            avg_o1_lambda = total_o1_lambda / len(self.dataloader)
 
             train_loss_l.append(avg_loss)
 
             if self.logger:
                 self.logger.info(
                     f"Epoch {epoch+1} | Total Loss: {avg_loss:.7f} | GT Loss: {avg_loss_gt:.7f} "
-                    f"| Teacher Loss: {avg_loss_teacher:.7f} | Fairness Loss: {avg_loss_fairness:.7f}"
+                    f"| Teacher Loss: {avg_loss_teacher:.7f} | Fairness Loss: {avg_loss_fairness:.7f} "
+                    f"| O1 Gap: {avg_o1_gap:.7f} | O1 Viol: {avg_o1_violation:.7f} "
+                    f"| O1 Lambda: {avg_o1_lambda:.5f}"
                 )
 
             if self.early_stopping:

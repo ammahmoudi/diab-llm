@@ -13,11 +13,20 @@ distillation_experiments/all_patients_pipeline/pipeline_2025-10-28_14-20-17/
 | Dir | Checkpoint | Notes |
 |-----|-----------|-------|
 | `phase_1_teacher/bert_all_patients_10epochs/logs/logs_2025-10-28_14-20-20/` | `checkpoints/checkpoint.pth` | Baseline BERT teacher, 10 epochs, seed=42 |
+| `phase_1_teacher/bert_all_patients_10epochs_fair_gender/bert_all_patients_10epochs/logs/logs_2026-06-13_11-13-20/` | `checkpoints/checkpoint.pth` | Fair-sampling BERT teacher (T1), seed=42 |
 
 Inference (per-patient, all 12 patients):
 ```
 phase_1_teacher/per_patient_inference/time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
 ```
+
+Fair-teacher comparable inference (per-patient, all 12 patients):
+```
+phase_1_teacher/per_patient_inference_fair_teacher/time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
+```
+
+- **Teacher baseline**: RMSE 24.162 | EO Gap raw 0.2302 | EO Gap calibrated (holdout) 0.0761
+- **Teacher fair sampling (T1 teacher)**: RMSE 22.564 | EO Gap raw 0.1925 | EO Gap calibrated (holdout) 0.0478
 
 ---
 
@@ -47,7 +56,7 @@ Inference (placed at phase_3 root due to early pipeline version):
 ```
 phase_3_distillation/per_patient_inference/time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
 ```
-- **RMSE**: 23.361 | **EO Gap raw**: 0.2171 | **EO Gap calibrated**: 0.0001
+- **RMSE**: 23.361 | **EO Gap raw**: 0.2171 | **EO Gap calibrated (holdout)**: 0.0766
 
 ---
 
@@ -62,7 +71,7 @@ Inference (uses v1 checkpoint `logs_2026-06-09_12-14-26`):
 phase_3_distillation/bert_to_bert-tiny_all_patients_fairness_gender/per_patient_inference/
   time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
 ```
-- **RMSE**: 23.672 | **EO Gap raw**: 0.2194 | **EO Gap calibrated**: 0.0000
+- **RMSE**: 23.672 | **EO Gap raw**: 0.2194 | **EO Gap calibrated (holdout)**: 0.0629
 - Loss: `EqualizedOddsLoss`, fairness_weight=0.3
 
 ---
@@ -77,7 +86,7 @@ Inference (uses checkpoint from fairness_gender `logs_2026-06-10_10-07-22`):
 phase_3_distillation/bert_to_bert-tiny_all_patients_fairness_gender_v2/per_patient_inference/
   time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
 ```
-- **RMSE**: 24.426 | **EO Gap raw**: 0.2300 | **EO Gap calibrated**: 0.0001
+- **RMSE**: 24.426 | **EO Gap raw**: 0.2300 | **EO Gap calibrated (holdout)**: 0.0764
 - Loss: `HypoglycemiaTPREqualityLoss` (focal γ=3, soft sigmoid slope=0.1), fairness_weight=0.3
 
 ---
@@ -92,7 +101,7 @@ Inference:
 phase_3_distillation/bert_to_bert-tiny_all_patients_oversample_gender/per_patient_inference/
   time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
 ```
-- **RMSE**: 24.918 | **EO Gap raw**: 0.2326 | **EO Gap calibrated**: 0.0001
+- **RMSE**: 24.918 | **EO Gap raw**: 0.2326 | **EO Gap calibrated (holdout)**: 0.0752
 - WeightedRandomSampler, 2.4× female hypo windows, no fairness loss
 
 ---
@@ -107,8 +116,45 @@ Inference:
 phase_3_distillation/bert_to_bert-tiny_all_patients_fairness_gender_oversample/per_patient_inference/
   time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
 ```
-- **RMSE**: 24.141 | **EO Gap raw**: 0.2225 | **EO Gap calibrated**: 0.0001
+- **RMSE**: 24.141 | **EO Gap raw**: 0.2225 | **EO Gap calibrated (holdout)**: 0.0650
 - WeightedRandomSampler (2.4×) + HypoglycemiaTPREqualityLoss, fairness_weight=0.3
+
+---
+
+### Run 5 — Distilled from Fair Teacher (T1)
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_fair_teacher/
+```
+Inference:
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_fair_teacher/per_patient_inference/
+  time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
+```
+- **RMSE**: 23.828 | **EO Gap raw**: 0.2089 | **EO Gap calibrated (holdout)**: 0.0579
+
+### Run 6 — Distilled from Fair Teacher + O1 Constraint
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_o1_gender_fair_teacher_o1/
+  logs/logs_2026-06-15_09-20-01/student_distilled.pth     ← CANONICAL CHECKPOINT
+```
+Inference:
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_o1_gender_fair_teacher_o1/per_patient_inference/
+  time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
+```
+- **RMSE**: 23.141 | **EO Gap raw**: 0.2135 | **EO Gap calibrated (holdout)**: 0.0656
+- O1 projected dual-ascent fairness constraint on top of the T1 fair teacher; operationally successful, scientifically still negative on raw EO
+
+### Run 7 — K1 Calibrated Soft Labels
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_k1cal_gender/
+```
+Inference:
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_k1cal_gender/per_patient_inference/
+  time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
+```
+- **RMSE**: 25.677 | **EO Gap raw**: 0.2326 | **EO Gap calibrated (holdout)**: 0.0706
 
 ---
 
@@ -120,21 +166,21 @@ pipeline_2025-10-28_14-20-17/fairness_comparison_results.txt   ← human-readabl
 pipeline_2025-10-28_14-20-17/FAIRNESS_EXPERIMENTS_SUMMARY.md   ← analysis + findings
 ```
 
-**Key finding:** All training-time fairness interventions fail. EO Gap stays 0.19–0.23 regardless of loss or sampling. Post-hoc threshold calibration (Fix B) reduces EO Gap to ~0.0001 for all models.
+**Key finding:** Student-side fairness interventions remain weak even after the completed T1+O1 run. The fair teacher reaches RMSE 22.564 / EO_raw 0.1925, the distilled T1 student only partially inherits that gain at RMSE 23.828 / EO_raw 0.2089, and T1+O1 improves RMSE to 23.141 without escaping the critical raw-gap range at EO_raw 0.2135. Leakage-free patient-holdout calibration reduces EO gaps to roughly 0.05–0.08 rather than the older leaky near-zero values.
 
 ---
 
-## Planned Experiments (not yet run)
+## Remaining Method Experiments
 
 See [FAIRNESS_SOLUTIONS_ROADMAP.md](FAIRNESS_SOLUTIONS_ROADMAP.md) for full list.
 
 | ID | Dir (when run) | Description |
 |----|---------------|-------------|
-| T1 | `bert_to_bert-tiny_all_patients_fair_teacher/` | Distill from fair teacher (hypo-oversampled teacher training) |
-| K1 | `bert_to_bert-tiny_all_patients_calibrated_labels/` | Calibrated soft labels (shift teacher logits by gender offset before KD) |
-| O1 | `bert_to_bert-tiny_all_patients_lagrangian/` | Lagrangian constrained KD (hard EO constraint with dual variable) |
+| O2 | `bert_to_bert-tiny_all_patients_calibration_head/` | Jointly learned per-group calibration head |
+| T1+K1 | `bert_to_bert-tiny_all_patients_fair_teacher_k1/` | Fair teacher plus calibrated soft labels |
 
-Run T1 with:
+Highest-priority next run:
 ```bash
-bash scripts/pipelines/run_fair_teacher_experiment.sh
+# O2 is the strongest remaining method experiment.
+# T1+K1 is optional unless you need a complete combination grid.
 ```

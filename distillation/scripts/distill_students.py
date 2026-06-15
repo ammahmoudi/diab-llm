@@ -23,12 +23,17 @@ class DistillationTrainer:
     
     def __init__(self, base_dir=None, distill_epochs=1, 
                  teacher_checkpoint_dir=None, student_config_dir=None, 
+                 teacher_checkpoint_path=None,
                  output_dir=None, config_output_dir=None, pipeline_dir=None,
                  dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32,
                  alpha=0.5, beta=0.5,
                  fairness_weight=0.0, fairness_feature=None,
                  target_threshold=70.0, pred_threshold=70.0,
                  hypo_oversample=False,
+                 fairness_constraint_enabled=False,
+                 fairness_constraint_epsilon=0.05,
+                 fairness_dual_lr=0.01,
+                 fairness_dual_init=1.0,
                  teacher_calibration_enabled=False,
                  teacher_calibration_feature="gender",
                  teacher_calibration_group0_offset=0.0,
@@ -47,6 +52,10 @@ class DistillationTrainer:
         self.target_threshold = target_threshold
         self.pred_threshold = pred_threshold
         self.hypo_oversample = hypo_oversample
+        self.fairness_constraint_enabled = fairness_constraint_enabled
+        self.fairness_constraint_epsilon = fairness_constraint_epsilon
+        self.fairness_dual_lr = fairness_dual_lr
+        self.fairness_dual_init = fairness_dual_init
         self.teacher_calibration_enabled = teacher_calibration_enabled
         self.teacher_calibration_feature = teacher_calibration_feature
         self.teacher_calibration_group0_offset = teacher_calibration_group0_offset
@@ -112,6 +121,7 @@ class DistillationTrainer:
             self.teacher_results_dir = Path(teacher_checkpoint_dir)
         else:
             self.teacher_results_dir = self.base_dir / "results" / "teacher_models"
+        self.teacher_checkpoint_path = Path(teacher_checkpoint_path) if teacher_checkpoint_path else None
             
         self.student_config_dir = Path(student_config_dir) if student_config_dir else None
         self.pipeline_dir = pipeline_dir
@@ -225,6 +235,16 @@ class DistillationTrainer:
             self.distillation_params["target_threshold"] = self.target_threshold
             self.distillation_params["hypo_oversample"] = True
 
+        # O1: constrained fairness optimization
+        if self.fairness_constraint_enabled:
+            self.distillation_params["fairness_constraint_enabled"] = True
+            self.distillation_params["fairness_constraint_epsilon"] = float(self.fairness_constraint_epsilon)
+            self.distillation_params["fairness_dual_lr"] = float(self.fairness_dual_lr)
+            self.distillation_params["fairness_dual_init"] = float(self.fairness_dual_init)
+            if self.fairness_feature:
+                self.distillation_params["fairness_feature"] = self.fairness_feature
+                self.distillation_params["target_threshold"] = self.target_threshold
+
         # K1: calibrated soft labels (group-conditional teacher output shifts)
         if self.teacher_calibration_enabled:
             self.distillation_params["teacher_calibration_enabled"] = True
@@ -290,6 +310,11 @@ class DistillationTrainer:
 
     def find_teacher_checkpoint(self, teacher_model, dataset="584"):
         """Find the checkpoint file for a trained teacher model."""
+        if self.teacher_checkpoint_path is not None:
+            if not self.teacher_checkpoint_path.exists():
+                raise FileNotFoundError(f"Teacher checkpoint not found: {self.teacher_checkpoint_path}")
+            return self.teacher_checkpoint_path
+
         # First, look in new distillation_experiments structure
         distil_exp_dir = self.base_dir / "distillation_experiments"
         
@@ -431,6 +456,8 @@ class DistillationTrainer:
             fairness_suffix = f"_fairness_{self.fairness_feature}"
         elif self.hypo_oversample and self.fairness_feature:
             fairness_suffix = f"_oversample_{self.fairness_feature}"
+        elif self.fairness_constraint_enabled and self.fairness_feature:
+            fairness_suffix = f"_o1_{self.fairness_feature}"
         elif self.teacher_calibration_enabled and self.teacher_calibration_feature:
             fairness_suffix = f"_k1cal_{self.teacher_calibration_feature}"
         else:
@@ -767,6 +794,8 @@ def main():
     parser.add_argument("--list-distilled", action="store_true", help="List distilled model checkpoints")
     parser.add_argument("--distill-epochs", type=int, default=1, help="Number of epochs for distillation training")
     parser.add_argument("--teacher-checkpoint-dir", help="Directory containing teacher checkpoints")
+    parser.add_argument("--teacher-checkpoint-path", "--teacher-checkpoint", dest="teacher_checkpoint_path",
+                        help="Direct path to a teacher checkpoint; bypasses checkpoint discovery")
     parser.add_argument("--student-config-dir", help="Directory containing student configs")
     parser.add_argument("--output-dir", help="Output directory for distillation results")
     parser.add_argument("--config-output-dir", help="Directory for saving distillation configs")
@@ -779,6 +808,14 @@ def main():
     parser.add_argument("--hypo-oversample", action="store_true", default=False,
                         help="Fix A: Oversample minority-group hypoglycemia windows during training "
                              "to equalize hypo prevalence across demographic groups")
+    parser.add_argument("--fairness-constraint", action="store_true", default=False,
+                        help="O1: enforce fairness as a constraint with projected dual ascent")
+    parser.add_argument("--fairness-constraint-epsilon", type=float, default=0.05,
+                        help="O1 epsilon constraint target for soft EO gap")
+    parser.add_argument("--fairness-dual-lr", type=float, default=0.01,
+                        help="O1 dual variable update step size")
+    parser.add_argument("--fairness-dual-init", type=float, default=1.0,
+                        help="O1 initial dual multiplier (lambda)")
     parser.add_argument("--teacher-calibration", action="store_true", default=False,
                         help="K1: apply group-conditional shifts to teacher outputs during KD")
     parser.add_argument("--teacher-calibration-feature", default="gender",
@@ -796,10 +833,14 @@ def main():
     # Use train_teachers.py and flexible_experiment_runner.py for training
     
     args = parser.parse_args()
+
+    if args.fairness_constraint and not args.fairness_feature:
+        parser.error("--fairness-feature is required with --fairness-constraint")
     
     distiller = DistillationTrainer(
         distill_epochs=args.distill_epochs,
         teacher_checkpoint_dir=args.teacher_checkpoint_dir,
+        teacher_checkpoint_path=args.teacher_checkpoint_path,
         student_config_dir=args.student_config_dir,
         output_dir=args.output_dir,
         config_output_dir=args.config_output_dir,
@@ -815,6 +856,10 @@ def main():
         target_threshold=args.target_threshold,
         pred_threshold=args.pred_threshold,
         hypo_oversample=args.hypo_oversample,
+        fairness_constraint_enabled=args.fairness_constraint,
+        fairness_constraint_epsilon=args.fairness_constraint_epsilon,
+        fairness_dual_lr=args.fairness_dual_lr,
+        fairness_dual_init=args.fairness_dual_init,
         teacher_calibration_enabled=args.teacher_calibration,
         teacher_calibration_feature=args.teacher_calibration_feature,
         teacher_calibration_group0_offset=args.teacher_calibration_group0_offset,

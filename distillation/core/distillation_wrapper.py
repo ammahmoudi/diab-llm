@@ -62,6 +62,10 @@ class DistillationWrapper:
         self.target_threshold  = float(settings.get('target_threshold', 70.0))
         self.pred_threshold    = float(settings.get('pred_threshold',   70.0))
         self.hypo_oversample   = bool(settings.get('hypo_oversample',   False))
+        self.fairness_constraint_enabled = bool(settings.get('fairness_constraint_enabled', False))
+        self.fairness_constraint_epsilon = float(settings.get('fairness_constraint_epsilon', 0.05))
+        self.fairness_dual_lr = float(settings.get('fairness_dual_lr', 0.01))
+        self.fairness_dual_init = float(settings.get('fairness_dual_init', 1.0))
 
         # K1: calibrated soft labels (teacher output shifts by group)
         self.teacher_calibration_enabled = bool(settings.get('teacher_calibration_enabled', False))
@@ -83,6 +87,12 @@ class DistillationWrapper:
                 f"  🧪 K1 Calibrated Soft Labels: feature={self.teacher_calibration_feature}, "
                 f"group0_offset={self.teacher_calibration_group0_offset:+.3f}, "
                 f"group1_offset={self.teacher_calibration_group1_offset:+.3f}"
+            )
+        if self.fairness_constraint_enabled:
+            logging.info(
+                f"  📏 O1 Fairness Constraint: eps={self.fairness_constraint_epsilon:.4f}, "
+                f"dual_lr={self.fairness_dual_lr:.4f}, dual_init={self.fairness_dual_init:.4f}, "
+                f"feature={self.fairness_feature}"
             )
         
     def _create_model_config(self, is_student=False):
@@ -280,7 +290,8 @@ class DistillationWrapper:
         _need_group_labels = (
             (self.fairness_weight > 0 and self.fairness_feature) or
             (self.hypo_oversample and self.fairness_feature) or
-            (self.teacher_calibration_enabled and self.teacher_calibration_feature)
+            (self.teacher_calibration_enabled and self.teacher_calibration_feature) or
+            (self.fairness_constraint_enabled and self.fairness_feature)
         )
         if _need_group_labels:
             label_feature = self.fairness_feature or self.teacher_calibration_feature
@@ -363,6 +374,10 @@ class DistillationWrapper:
             teacher_calibration_feature=self.teacher_calibration_feature,
             teacher_calibration_group0_offset=self.teacher_calibration_group0_offset,
             teacher_calibration_group1_offset=self.teacher_calibration_group1_offset,
+            fairness_constraint_enabled=self.fairness_constraint_enabled,
+            fairness_constraint_epsilon=self.fairness_constraint_epsilon,
+            fairness_dual_lr=self.fairness_dual_lr,
+            fairness_dual_init=self.fairness_dual_init,
         )
 
         # Add context_len and pred_len to trainer (needed for training loop)
