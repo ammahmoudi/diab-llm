@@ -29,7 +29,7 @@
 
 | ID | Status | Method | Description | Expected Impact |
 | --- | --- | --- | --- | --- |
-| K1 | [x] | **Calibrated soft labels** | Implemented calibrated soft-label KD using per-gender teacher offsets and evaluated it end to end. Result: worse RMSE in all 12 patients and no fairness improvement over T1. | Negative result. Useful as evidence that source-level label shifting alone is not enough. |
+| K1 | [x] | **Calibrated soft labels** | Implemented calibrated soft-label KD using per-gender teacher offsets and evaluated it end to end, both standalone (K1-only) and on the fair teacher (T1+K1). K1-only is the worst run in the sweep (RMSE 25.677). T1+K1 recovers most of the T1 fairness gain (EO_raw 0.1981) but does not beat O2 and leaves the calibrated gap higher (EO_cal 0.0719). | Negative result. Source-level label shifting alone is not enough; even on a fair teacher it underperforms the learned calibration head. |
 | K2 | [ ] | **Group-conditional KD temperature** | Use higher softmax temperature for male batches during KD. Higher temperature flattens overconfident male hypo predictions, reducing the information the student extracts from majority-group patterns. | Simple, interpretable. Easy to ablate temperature values. |
 | K3 | [ ] | **Fairness-aware feature alignment** | Penalize divergence of intermediate hidden-state distributions across groups (not just output predictions). Add MMD or CORAL loss between male/female intermediate representations. Forces student to learn group-invariant features. | Works at representation level. Stronger than output-level constraints. |
 | K4 | [ ] | **Selective KD replay** | Upweight the KD loss specifically on minority-group (female) hypoglycemic windows. Asymmetric distillation — student is pushed harder to match the teacher on rare events for the underrepresented group. | Targeted. Doesn't distort majority-group learning. |
@@ -61,21 +61,47 @@
 
 ### Phase 3 (Best Combined)
 
-- [ ] **T1 + K1**: Fair teacher + calibrated soft labels → still unrun as a completeness check only
+- [x] **T1 + K1**: Fair teacher + calibrated soft labels → completed as completeness check; recovers most of the T1 fairness gain (EO_raw 0.1981) but does not beat O2 and leaves the calibrated gap higher (EO_cal 0.0719)
 - [x] **T1 + O1**: Fair teacher + projected dual-ascent EO constraint → completed, but still critical on raw EO Gap
 - [x] **T1 + O2**: Fair teacher + learned calibration head → completed, best student-side fairness result so far
 - [x] Compare completed Phase 2+3 runs on RMSE vs EO Gap tradeoff curve
 
 ### Current Combined Findings
 
-- Teacher baseline: RMSE 24.162, EO_raw 0.2302, leakage-free EO_cal 0.0761
-- Teacher fair sampling (T1 teacher): RMSE 22.564, EO_raw 0.1925, leakage-free EO_cal 0.0478
-- Baseline KD student: RMSE 23.361, EO_raw 0.2171, leakage-free EO_cal 0.0766
-- T1 distilled student: RMSE 23.828, EO_raw 0.2089, leakage-free EO_cal 0.0579
-- T1 + O1 distilled student: RMSE 23.141, EO_raw 0.2135, leakage-free EO_cal 0.0656
-- T1 + O2 distilled student: RMSE 22.645, EO_raw 0.1189, leakage-free EO_cal 0.0286
+Full comparison (OhioT1DM, BERT→BERT-tiny, all-patients pipeline, leakage-free
+patient-holdout calibration, folds=2). EO Gap = |Male_TPR − Female_TPR| for
+hypoglycemia detection; lower is fairer.
 
-Interpretation: T1 is effective at the teacher stage, but most KD variants still fail to preserve the full teacher fairness/accuracy gain. O1 improved RMSE relative to baseline KD and T1-only distillation, but it still failed to reduce the raw EO Gap below the critical range. O2 is the first completed student-side method that materially improves both fairness and accuracy at once, lowering the raw EO Gap to 0.1189 and the leakage-free calibrated EO Gap to 0.0286 while keeping RMSE near the fair teacher. The current evidence is that teacher quality matters, but the transfer mechanism itself must also encode group-aware calibration to recover a substantial fairness gain.
+| Model | RMSE | EO_raw | EO_cal | Assessment (raw) |
+| --- | --- | --- | --- | --- |
+| Teacher baseline (BERT) | 24.162 | 0.2302 | 0.0761 | ❌ CRITICAL |
+| Teacher fair sampling (T1 teacher) | 22.564 | 0.1925 | 0.0478 | ⚠️ CONCERNING |
+| Student baseline (no KD) | 21.989 | 0.1948 | 0.0534 | ⚠️ CONCERNING |
+| Distilled — no fairness | 23.361 | 0.2171 | 0.0766 | ❌ CRITICAL |
+| Distilled + HypoglycemiaTPR loss (v1, EqualizedOdds) | 23.672 | 0.2194 | 0.0629 | ❌ CRITICAL |
+| Distilled + HypoglycemiaTPR loss (v2, focal+soft) | 24.426 | 0.2300 | 0.0764 | ❌ CRITICAL |
+| Distilled + Oversampling only | 24.918 | 0.2326 | 0.0752 | ❌ CRITICAL |
+| Distilled + Oversampling + HypoglycemiaTPR loss | 24.141 | 0.2225 | 0.0650 | ❌ CRITICAL |
+| Distilled from Fair Teacher (T1) | 23.828 | 0.2089 | 0.0579 | ❌ CRITICAL |
+| Distilled from Fair Teacher + O1 Constraint | 23.141 | 0.2135 | 0.0656 | ❌ CRITICAL |
+| Distilled from Fair Teacher + K1 Calibrated Soft Labels | 22.654 | 0.1981 | 0.0719 | ⚠️ CONCERNING |
+| **Distilled from Fair Teacher + O2 Calibration Head** | **22.645** | **0.1189** | **0.0286** | ⚠️ MODERATE |
+| Distilled + K1 Calibrated Soft Labels | 25.677 | 0.2326 | 0.0706 | ❌ CRITICAL |
+
+Interpretation: T1 is effective at the teacher stage, but most KD variants still fail
+to preserve the full teacher fairness/accuracy gain. Every training-time intervention
+(TPR losses v1/v2, oversampling, and combinations) leaves the raw EO Gap in the critical
+range. O1 improved RMSE relative to baseline KD and T1-only distillation, but it still
+failed to reduce the raw EO Gap below the critical range. T1+K1 recovers most of the T1
+fairness gain (EO_raw 0.1981) yet does not beat O2 and leaves the calibrated gap higher,
+while K1-only is the worst run overall. O2 is the only completed student-side method that
+materially improves both fairness and accuracy at once, lowering the raw EO Gap to 0.1189
+and the leakage-free calibrated EO Gap to 0.0286 while keeping RMSE near the fair teacher.
+A second quiet finding: per-gender threshold calibration flattens almost every model's
+EO_cal into the 0.05–0.08 band regardless of training-time intervention, which further
+undercuts the loss-based methods — only O2 stands apart on both raw and calibrated gaps.
+The current evidence is that teacher quality matters, but the transfer mechanism itself
+must also encode group-aware calibration to recover a substantial fairness gain.
 
 ### Recommended Next Experiments
 

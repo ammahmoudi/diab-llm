@@ -170,6 +170,18 @@ phase_3_distillation/bert_to_bert-tiny_all_patients_k1cal_gender/per_patient_inf
 ```
 - **RMSE**: 25.677 | **EO Gap raw**: 0.2326 | **EO Gap calibrated (holdout)**: 0.0706
 
+### Run 9 — Distilled from Fair Teacher + K1 Calibrated Soft Labels (T1+K1)
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_k1cal_gender_fair_teacher/
+```
+Inference:
+```
+phase_3_distillation/bert_to_bert-tiny_all_patients_k1cal_gender_fair_teacher/per_patient_inference/
+  time_llm_per_patient_inference_ohiot1dm/experiment_results.csv
+```
+- **RMSE**: 22.654 | **EO Gap raw**: 0.1981 | **EO Gap calibrated (holdout)**: 0.0719
+- T1+K1 completeness check: recovers most of the T1 fairness gain but does not beat O2 and leaves the calibrated gap higher
+
 ---
 
 ## Comparison Results
@@ -188,12 +200,21 @@ pipeline_2025-10-28_14-20-17/FAIRNESS_EXPERIMENTS_SUMMARY.md   ← analysis + fi
 
 See [FAIRNESS_SOLUTIONS_ROADMAP.md](FAIRNESS_SOLUTIONS_ROADMAP.md) for full list.
 
-| ID | Dir (when run) | Description |
-|----|---------------|-------------|
-| T1+K1 | `bert_to_bert-tiny_all_patients_fair_teacher_k1/` | Fair teacher plus calibrated soft labels |
+All committed roadmap phases (1–3) are complete. The methods below are
+proposed future contributions only — none are run yet.
 
-Highest-priority next run:
+| ID | Description |
+|----|-------------|
+| T2 | Per-group teachers distilled into a shared student (multi-teacher KD) |
+| T3 | Counterfactual augmentation of female hypo windows before teacher training |
+| K2 | Group-conditional KD temperature |
+| K3 | Fairness-aware feature alignment (MMD/CORAL on hidden states) |
+| K4 | Selective KD replay on minority-group hypo windows |
+| O3 | Adversarial group erasure (gradient-reversal discriminator) |
+
+Highest-priority next step:
 ```bash
-# T1+K1 is optional unless you need a complete combination grid.
-# Main next step should be robustness and documentation, not another immediate method run.
+# Not another method run. Do a multi-seed robustness check on
+# baseline KD, T1, and T1+O2 to confirm O2's gain is not seed noise.
+# If one stronger follow-on method is wanted, prioritize T2 or K3.
 ```
