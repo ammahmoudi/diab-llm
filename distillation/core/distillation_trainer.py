@@ -33,6 +33,8 @@ class DistillationTrainer:
         teacher_calibration_feature: str = None,
         teacher_calibration_group0_offset: float = 0.0,
         teacher_calibration_group1_offset: float = 0.0,
+        student_calibration_enabled: bool = False,
+        student_calibration_feature: str = None,
         fairness_constraint_enabled: bool = False,
         fairness_constraint_epsilon: float = 0.05,
         fairness_dual_lr: float = 0.01,
@@ -61,6 +63,24 @@ class DistillationTrainer:
         self.teacher_calibration_feature = teacher_calibration_feature
         self.teacher_calibration_group0_offset = float(teacher_calibration_group0_offset)
         self.teacher_calibration_group1_offset = float(teacher_calibration_group1_offset)
+
+        # O2: learned per-group affine calibration head on student outputs
+        self.student_calibration_enabled = bool(student_calibration_enabled)
+        self.student_calibration_feature = student_calibration_feature
+        self.student_calibration_scale = None
+        self.student_calibration_bias = None
+        if self.student_calibration_enabled:
+            self.student_calibration_scale = nn.Parameter(
+                torch.ones(2, device=self.device, dtype=torch.float32)
+            )
+            self.student_calibration_bias = nn.Parameter(
+                torch.zeros(2, device=self.device, dtype=torch.float32)
+            )
+            self.optimizer.add_param_group(
+                {
+                    "params": [self.student_calibration_scale, self.student_calibration_bias],
+                }
+            )
 
         # O1: constrained fairness optimization with projected dual ascent
         self.fairness_constraint_enabled = bool(fairness_constraint_enabled)
@@ -138,6 +158,40 @@ class DistillationTrainer:
         # Broadcast offsets over [pred_len, channels]
         return y_teacher + offsets.view(-1, 1, 1)
 
+    def _apply_student_group_calibration(self, y_student, batch_groups):
+        """Apply learned per-group affine calibration to student outputs."""
+        if (not self.student_calibration_enabled) or (batch_groups is None):
+            return y_student
+
+        scales = torch.where(
+            batch_groups == 0,
+            self.student_calibration_scale[0].to(dtype=y_student.dtype),
+            self.student_calibration_scale[1].to(dtype=y_student.dtype),
+        )
+        biases = torch.where(
+            batch_groups == 0,
+            self.student_calibration_bias[0].to(dtype=y_student.dtype),
+            self.student_calibration_bias[1].to(dtype=y_student.dtype),
+        )
+        return y_student * scales.view(-1, 1, 1) + biases.view(-1, 1, 1)
+
+    def export_student_calibration_metadata(self):
+        """Return serializable O2 calibration metadata for checkpoint sidecar save."""
+        if not self.student_calibration_enabled:
+            return None
+
+        return {
+            "feature": self.student_calibration_feature,
+            "group_scales": [
+                float(self.student_calibration_scale[0].detach().cpu().item()),
+                float(self.student_calibration_scale[1].detach().cpu().item()),
+            ],
+            "group_biases": [
+                float(self.student_calibration_bias[0].detach().cpu().item()),
+                float(self.student_calibration_bias[1].detach().cpu().item()),
+            ],
+        }
+
     def train(self):
         train_loss_l = []
         for epoch in range(self.train_epochs):
@@ -172,6 +226,7 @@ class DistillationTrainer:
                     y_teacher = self._apply_teacher_group_calibration(y_teacher, batch_groups)
 
                 y_student = self.student(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                y_student = self._apply_student_group_calibration(y_student, batch_groups)
                 y_true = batch_y[:, -self.pred_len :, :]
 
                 # 1. Ground-truth loss

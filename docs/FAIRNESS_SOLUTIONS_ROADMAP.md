@@ -41,7 +41,7 @@
 | ID | Status | Method | Description | Expected Impact |
 | --- | --- | --- | --- | --- |
 | O1 | [x] | **Projected dual-ascent EO constraint** | Implemented a constrained distillation objective on top of the fair teacher with an adaptive dual variable and EO-gap violation penalty. The run completed end to end, but the student still stayed in the critical raw-gap range. | Scientifically negative result: operationally valid, but not sufficient to close the fairness gap. |
-| O2 | [ ] | **Learned calibration head** | Train a small per-group linear calibration layer jointly with distillation (`y_final = W_group * y_student + b_group`). Bakes Fix B into model weights — no inference-time lookup needed. Joint training ensures calibration doesn't hurt RMSE. | Inference-simple. Avoids post-hoc step. |
+| O2 | [x] | **Learned calibration head** | Trained a small per-group linear calibration layer jointly with distillation (`y_final = W_group * y_student + b_group`) on top of the fair teacher. The learned head is persisted alongside the student checkpoint and applied automatically at inference time. | Best completed student-side method so far. Improves both RMSE and EO Gap materially relative to T1-only and T1+O1. |
 | O3 | [ ] | **Adversarial group erasure** | Add a gradient-reversal discriminator head that tries to predict gender from the student's hidden states. Penalize the student for being gender-predictable at the representation level. | Prevents encoding group information entirely. Strong fairness guarantee. Risk of underfitting. |
 
 ---
@@ -63,6 +63,7 @@
 
 - [ ] **T1 + K1**: Fair teacher + calibrated soft labels → still unrun as a completeness check only
 - [x] **T1 + O1**: Fair teacher + projected dual-ascent EO constraint → completed, but still critical on raw EO Gap
+- [x] **T1 + O2**: Fair teacher + learned calibration head → completed, best student-side fairness result so far
 - [x] Compare completed Phase 2+3 runs on RMSE vs EO Gap tradeoff curve
 
 ### Current Combined Findings
@@ -72,22 +73,24 @@
 - Baseline KD student: RMSE 23.361, EO_raw 0.2171, leakage-free EO_cal 0.0766
 - T1 distilled student: RMSE 23.828, EO_raw 0.2089, leakage-free EO_cal 0.0579
 - T1 + O1 distilled student: RMSE 23.141, EO_raw 0.2135, leakage-free EO_cal 0.0656
+- T1 + O2 distilled student: RMSE 22.645, EO_raw 0.1189, leakage-free EO_cal 0.0286
 
-Interpretation: T1 is effective at the teacher stage, but knowledge distillation does not preserve the full teacher fairness/accuracy gain. O1 improved RMSE relative to baseline KD and T1-only distillation, but it still failed to reduce the raw EO Gap below the critical range. The current evidence is that the fairness bottleneck is not only in teacher quality, but also in the transfer process and the underlying prevalence imbalance.
+Interpretation: T1 is effective at the teacher stage, but most KD variants still fail to preserve the full teacher fairness/accuracy gain. O1 improved RMSE relative to baseline KD and T1-only distillation, but it still failed to reduce the raw EO Gap below the critical range. O2 is the first completed student-side method that materially improves both fairness and accuracy at once, lowering the raw EO Gap to 0.1189 and the leakage-free calibrated EO Gap to 0.0286 while keeping RMSE near the fair teacher. The current evidence is that teacher quality matters, but the transfer mechanism itself must also encode group-aware calibration to recover a substantial fairness gain.
 
 ### Recommended Next Experiments
 
-1. Run `O2` as the highest-value remaining method experiment if you want one more method contribution.
+1. Run a small multi-seed robustness check on baseline KD, T1, and T1+O2.
 2. Treat `T1 + K1` as low priority unless you need a complete combinational grid for the paper.
-3. Run a small multi-seed robustness check on baseline KD, T1, and T1+O1.
+3. If you want one stronger follow-on method beyond O2, prioritize `T2` or `K3` rather than more output-level penalties.
 
 ### Paper Narrative
 
-> "Standard fairness regularization fails in clinical knowledge distillation under real
+> "Standard fairness regularization mostly fails in clinical knowledge distillation under real
 > subgroup prevalence imbalance. Fair-teacher retraining improves the teacher materially,
-> but only part of that gain transfers to the student. Even a projected dual-ascent EO
-> constraint remains a negative result at training time. Leakage-free post-hoc calibration
-> remains effective as a deployment-time mitigation, but not as a trivial zero-gap solution."
+> but only part of that gain transfers to the student through ordinary KD. A projected
+> dual-ascent EO constraint remains a negative training-time result, while a jointly learned
+> group calibration head is the first student-side intervention that substantially improves
+> both raw and leakage-free calibrated fairness without sacrificing accuracy."
 
 ---
 
@@ -115,6 +118,14 @@ Interpretation: T1 is effective at the teacher stage, but knowledge distillation
 - Student checkpoint: `logs/logs_2026-06-15_09-20-01/student_distilled.pth`
 - Outcome: RMSE 23.141, EO_raw 0.2135, leakage-free EO_cal 0.0656
 - Training note: the run completed stably, but the fairness term did not materially pull the student out of the raw-gap regime
+
+### O2: Learned Calibration Head
+
+- Completed artifact: `phase_3_distillation/bert_to_bert-tiny_all_patients_o2_gender_fair_teacher/`
+- Student checkpoint: `logs/logs_2026-06-15_16-10-49/student_distilled.pth`
+- Calibration sidecar: `logs/logs_2026-06-15_16-10-49/student_calibration_head.json`
+- Outcome: RMSE 22.645, EO_raw 0.1189, leakage-free EO_cal 0.0286
+- Training note: this is the strongest completed student result so far and is the main positive method result from the current roadmap
 
 ---
 

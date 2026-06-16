@@ -312,6 +312,8 @@ def main():
          phase3 / "bert_to_bert-tiny_all_patients_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
         ("Distilled from Fair Teacher + O1 Constraint",
          phase3 / "bert_to_bert-tiny_all_patients_o1_gender_fair_teacher_o1" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
+        ("Distilled from Fair Teacher + O2 Calibration Head",
+         phase3 / "bert_to_bert-tiny_all_patients_o2_gender_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
         ("Distilled + K1 Calibrated Soft Labels",
          phase3 / "bert_to_bert-tiny_all_patients_k1cal_gender" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
     ]

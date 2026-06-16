@@ -1,6 +1,8 @@
 import logging
 import os
 import random
+import json
+import re
 import torch
 import time
 import numpy as np
@@ -18,6 +20,28 @@ from utils.timefeatures import decode_manual_time_features, decode_time_features
 
 from llms.ts_llm import TimeSeriesLLM
 from models import time_llm as TimeLLMModel
+
+try:
+    from fairness.utils.analyzer_utils import get_ohiot1dm_default_data
+    _OHIOT1DM_PATIENT_DATA = get_ohiot1dm_default_data()
+except ImportError:
+    _OHIOT1DM_PATIENT_DATA = {}
+
+
+def _group_label_from_patient(patient_id, feature):
+    info = _OHIOT1DM_PATIENT_DATA.get(str(patient_id), {})
+    value = info.get(feature)
+    if feature == "gender":
+        return 1 if value == "Male" else 0
+    if feature == "age":
+        return 1 if value == "60-80" else 0
+    if feature == "pump":
+        return 1 if value == "630G" else 0
+    if feature == "sensor":
+        return 1 if value == "Basis" else 0
+    if feature == "cohort":
+        return 1 if value == "2020" else 0
+    return None
 
 
 class TimeLLM(TimeSeriesLLM):
@@ -53,8 +77,50 @@ class TimeLLM(TimeSeriesLLM):
         self._llm_settings["content"] = load_txt_content(
             self._data_settings["prompt_path"]
         )
+        self._student_calibration_metadata = None
         # Capture logs from the accelerator and other libraries like DeepSpeed
         self._setup_external_loggers()
+
+    def _load_optional_student_calibration(self, checkpoint_path):
+        calibration_path = os.path.join(
+            os.path.dirname(checkpoint_path),
+            "student_calibration_head.json",
+        )
+        if not os.path.exists(calibration_path):
+            self._student_calibration_metadata = None
+            return
+        with open(calibration_path, "r", encoding="utf-8") as f:
+            self._student_calibration_metadata = json.load(f)
+        logging.info(f"Loaded student calibration metadata from {calibration_path}")
+
+    def _infer_patient_id_from_test_path(self):
+        test_path = self._data_settings.get("path_to_test_data", "")
+        match = re.search(r"/(\d+)-ws-testing\.csv$", test_path)
+        if match:
+            return match.group(1)
+        return None
+
+    def _apply_student_calibration(self, outputs):
+        metadata = self._student_calibration_metadata
+        if metadata is None:
+            return outputs
+
+        patient_id = self._infer_patient_id_from_test_path()
+        if patient_id is None:
+            logging.warning("Student calibration metadata loaded, but patient_id could not be inferred from test path. Skipping O2 calibration.")
+            return outputs
+
+        feature = metadata.get("feature", "gender")
+        group_label = _group_label_from_patient(patient_id, feature)
+        if group_label is None:
+            logging.warning(f"Student calibration metadata loaded, but no group label found for patient {patient_id}. Skipping O2 calibration.")
+            return outputs
+
+        scales = metadata.get("group_scales", [1.0, 1.0])
+        biases = metadata.get("group_biases", [0.0, 0.0])
+        scale = float(scales[group_label])
+        bias = float(biases[group_label])
+        return outputs * scale + bias
 
     def _setup_external_loggers(self):
         """
@@ -94,6 +160,7 @@ class TimeLLM(TimeSeriesLLM):
         :param is_inference: Whether the model is being loaded in inference mode (True for inference, False for training).
         """
         logging.info(f"Loading model checkpoint from {checkpoint_path}")
+        self._load_optional_student_calibration(checkpoint_path)
 
         if os.path.exists(checkpoint_path):
             try:
@@ -349,6 +416,7 @@ class TimeLLM(TimeSeriesLLM):
                 outputs = self.llm_model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 f_dim = -1 if self._llm_settings["features"] == "MS" else 0
                 outputs = outputs[:, -self._llm_settings["prediction_length"] :, f_dim:]
+                outputs = self._apply_student_calibration(outputs)
 
                 predictions.append(outputs.cpu().numpy())
                 # print(outputs.cpu().numpy().shape)

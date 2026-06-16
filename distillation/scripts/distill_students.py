@@ -30,6 +30,8 @@ class DistillationTrainer:
                  fairness_weight=0.0, fairness_feature=None,
                  target_threshold=70.0, pred_threshold=70.0,
                  hypo_oversample=False,
+                 student_calibration_enabled=False,
+                 student_calibration_feature="gender",
                  fairness_constraint_enabled=False,
                  fairness_constraint_epsilon=0.05,
                  fairness_dual_lr=0.01,
@@ -52,6 +54,8 @@ class DistillationTrainer:
         self.target_threshold = target_threshold
         self.pred_threshold = pred_threshold
         self.hypo_oversample = hypo_oversample
+        self.student_calibration_enabled = student_calibration_enabled
+        self.student_calibration_feature = student_calibration_feature
         self.fairness_constraint_enabled = fairness_constraint_enabled
         self.fairness_constraint_epsilon = fairness_constraint_epsilon
         self.fairness_dual_lr = fairness_dual_lr
@@ -234,6 +238,14 @@ class DistillationTrainer:
             self.distillation_params["fairness_feature"] = self.fairness_feature
             self.distillation_params["target_threshold"] = self.target_threshold
             self.distillation_params["hypo_oversample"] = True
+
+        # O2: learned per-group student calibration head
+        if self.student_calibration_enabled:
+            self.distillation_params["student_calibration_enabled"] = True
+            self.distillation_params["student_calibration_feature"] = self.student_calibration_feature
+            if self.fairness_feature:
+                self.distillation_params["fairness_feature"] = self.fairness_feature
+                self.distillation_params["target_threshold"] = self.target_threshold
 
         # O1: constrained fairness optimization
         if self.fairness_constraint_enabled:
@@ -456,6 +468,8 @@ class DistillationTrainer:
             fairness_suffix = f"_fairness_{self.fairness_feature}"
         elif self.hypo_oversample and self.fairness_feature:
             fairness_suffix = f"_oversample_{self.fairness_feature}"
+        elif self.student_calibration_enabled and self.student_calibration_feature:
+            fairness_suffix = f"_o2_{self.student_calibration_feature}"
         elif self.fairness_constraint_enabled and self.fairness_feature:
             fairness_suffix = f"_o1_{self.fairness_feature}"
         elif self.teacher_calibration_enabled and self.teacher_calibration_feature:
@@ -808,6 +822,11 @@ def main():
     parser.add_argument("--hypo-oversample", action="store_true", default=False,
                         help="Fix A: Oversample minority-group hypoglycemia windows during training "
                              "to equalize hypo prevalence across demographic groups")
+    parser.add_argument("--student-calibration-head", action="store_true", default=False,
+                        help="O2: jointly learn a per-group affine calibration head on student outputs")
+    parser.add_argument("--student-calibration-feature", default="gender",
+                        choices=["gender", "age", "pump", "sensor", "cohort"],
+                        help="Demographic feature used for the O2 student calibration head")
     parser.add_argument("--fairness-constraint", action="store_true", default=False,
                         help="O1: enforce fairness as a constraint with projected dual ascent")
     parser.add_argument("--fairness-constraint-epsilon", type=float, default=0.05,
@@ -856,6 +875,8 @@ def main():
         target_threshold=args.target_threshold,
         pred_threshold=args.pred_threshold,
         hypo_oversample=args.hypo_oversample,
+        student_calibration_enabled=args.student_calibration_head,
+        student_calibration_feature=args.student_calibration_feature,
         fairness_constraint_enabled=args.fairness_constraint,
         fairness_constraint_epsilon=args.fairness_constraint_epsilon,
         fairness_dual_lr=args.fairness_dual_lr,

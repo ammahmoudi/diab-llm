@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import json
 from pathlib import Path
 import torch
 import torch.nn as nn
@@ -72,6 +73,8 @@ class DistillationWrapper:
         self.teacher_calibration_feature = settings.get('teacher_calibration_feature', None)
         self.teacher_calibration_group0_offset = float(settings.get('teacher_calibration_group0_offset', 0.0))
         self.teacher_calibration_group1_offset = float(settings.get('teacher_calibration_group1_offset', 0.0))
+        self.student_calibration_enabled = bool(settings.get('student_calibration_enabled', False))
+        self.student_calibration_feature = settings.get('student_calibration_feature', None)
 
         logging.info(f"🎓 Initializing Distillation Wrapper")
         logging.info(f"  📍 Log Directory: {log_dir}")
@@ -88,12 +91,51 @@ class DistillationWrapper:
                 f"group0_offset={self.teacher_calibration_group0_offset:+.3f}, "
                 f"group1_offset={self.teacher_calibration_group1_offset:+.3f}"
             )
+        if self.student_calibration_enabled:
+            logging.info(
+                f"  🎯 O2 Student Calibration Head: feature={self.student_calibration_feature}"
+            )
         if self.fairness_constraint_enabled:
             logging.info(
                 f"  📏 O1 Fairness Constraint: eps={self.fairness_constraint_epsilon:.4f}, "
                 f"dual_lr={self.fairness_dual_lr:.4f}, dual_init={self.fairness_dual_init:.4f}, "
                 f"feature={self.fairness_feature}"
             )
+
+    def _student_calibration_metadata_path(self):
+        return os.path.join(self.log_dir, "student_calibration_head.json")
+
+    def _save_student_calibration_metadata(self, metadata):
+        if metadata is None:
+            return
+        metadata_path = self._student_calibration_metadata_path()
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        logging.info(f"🎯 Student calibration head saved to: {metadata_path}")
+
+    def _load_student_calibration_metadata(self):
+        metadata_path = self._student_calibration_metadata_path()
+        if not os.path.exists(metadata_path):
+            return None
+        with open(metadata_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def _apply_student_calibration_tensor(self, outputs, batch_groups, metadata):
+        if metadata is None or batch_groups is None:
+            return outputs
+        scales = metadata.get('group_scales', [1.0, 1.0])
+        biases = metadata.get('group_biases', [0.0, 0.0])
+        scales_t = torch.where(
+            batch_groups == 0,
+            torch.tensor(scales[0], device=outputs.device, dtype=outputs.dtype),
+            torch.tensor(scales[1], device=outputs.device, dtype=outputs.dtype),
+        )
+        biases_t = torch.where(
+            batch_groups == 0,
+            torch.tensor(biases[0], device=outputs.device, dtype=outputs.dtype),
+            torch.tensor(biases[1], device=outputs.device, dtype=outputs.dtype),
+        )
+        return outputs * scales_t.view(-1, 1, 1) + biases_t.view(-1, 1, 1)
         
     def _create_model_config(self, is_student=False):
         """Create model configuration based on settings"""
@@ -291,10 +333,11 @@ class DistillationWrapper:
             (self.fairness_weight > 0 and self.fairness_feature) or
             (self.hypo_oversample and self.fairness_feature) or
             (self.teacher_calibration_enabled and self.teacher_calibration_feature) or
+            (self.student_calibration_enabled and self.student_calibration_feature) or
             (self.fairness_constraint_enabled and self.fairness_feature)
         )
         if _need_group_labels:
-            label_feature = self.fairness_feature or self.teacher_calibration_feature
+            label_feature = self.fairness_feature or self.teacher_calibration_feature or self.student_calibration_feature
             group_labels = self._build_group_labels(train_loader.dataset, label_feature)
             if group_labels is not None:
                 from data_processing.data_sets import GroupLabeledDataset
@@ -374,6 +417,8 @@ class DistillationWrapper:
             teacher_calibration_feature=self.teacher_calibration_feature,
             teacher_calibration_group0_offset=self.teacher_calibration_group0_offset,
             teacher_calibration_group1_offset=self.teacher_calibration_group1_offset,
+            student_calibration_enabled=self.student_calibration_enabled,
+            student_calibration_feature=self.student_calibration_feature,
             fairness_constraint_enabled=self.fairness_constraint_enabled,
             fairness_constraint_epsilon=self.fairness_constraint_epsilon,
             fairness_dual_lr=self.fairness_dual_lr,
@@ -390,6 +435,7 @@ class DistillationWrapper:
         # Save the trained student model
         checkpoint_path = os.path.join(self.log_dir, "student_distilled.pth")
         torch.save(student_model.state_dict(), checkpoint_path)
+        self._save_student_calibration_metadata(trainer.export_student_calibration_metadata())
 
         logging.info(f"✅ Knowledge Distillation completed!")
         logging.info(f"📁 Student checkpoint saved to: {checkpoint_path}")
@@ -408,6 +454,14 @@ class DistillationWrapper:
         student_model = self._create_student_model()
         student_model.load_state_dict(torch.load(checkpoint_path, map_location=self.device))
         student_model.eval()
+        calibration_metadata = self._load_student_calibration_metadata()
+        batch_group_labels = None
+        batch_group_offset = 0
+        if calibration_metadata is not None:
+            feature = calibration_metadata.get('feature')
+            batch_group_labels = self._build_group_labels(test_loader.dataset, feature)
+            if batch_group_labels is None:
+                logging.warning("Student calibration metadata found, but test group labels could not be built.")
         
         predictions = []
         targets = []
@@ -422,6 +476,12 @@ class DistillationWrapper:
                 dec_inp = torch.cat([batch_y[:, :self.settings['context_length'], :], dec_inp], dim=1)
                 
                 outputs = student_model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                if calibration_metadata is not None and batch_group_labels is not None:
+                    batch_size = outputs.shape[0]
+                    groups_slice = batch_group_labels[batch_group_offset:batch_group_offset + batch_size]
+                    batch_groups = torch.tensor(groups_slice, dtype=torch.long, device=self.device)
+                    outputs = self._apply_student_calibration_tensor(outputs, batch_groups, calibration_metadata)
+                    batch_group_offset += batch_size
                 
                 predictions.append(outputs.detach().cpu().numpy())
                 targets.append(batch_y[:, -self.settings['prediction_length']:, :].detach().cpu().numpy())
