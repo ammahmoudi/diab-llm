@@ -1,0 +1,9 @@
+Multi-seed robustness — seeds=[831363, 809906, 427368, 238822, 247659], calibration=patient-holdout/2
+
+Method                                                    RMSE          EO_raw          EO_cal
+Baseline KD (no fairness)                       23.528 ± 0.270   0.217 ± 0.006   0.067 ± 0.008
+    (n=5) per-seed EO_raw: [0.2152, 0.2249, 0.2178, 0.2071, 0.2219]
+Distilled from Fair Teacher (T1)                22.845 ± 0.331   0.201 ± 0.008   0.057 ± 0.006
+    (n=5) per-seed EO_raw: [0.1919, 0.1943, 0.2121, 0.2079, 0.2001]
+Distilled from Fair Teacher + O2 Calibration    22.942 ± 0.667   0.118 ± 0.033   0.045 ± 0.004
+    (n=5) per-seed EO_raw: [0.1154, 0.1551, 0.1528, 0.0718, 0.0944]

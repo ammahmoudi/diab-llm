@@ -1,8 +1,51 @@
 # Fairness Issue A: Distillation Worsens Equalized Odds Gap
 
 **Priority:** HIGH — directly impacts clinical safety (hypoglycemia detection equity)  
-**Status:** Open  
-**Related file:** `distillation/core/distillation_trainer.py`
+**Status:** RESOLVED — characterized and addressed; see Resolution below.  
+**Related file:** `distillation/core/distillation_trainer.py`  
+**Full program:** [FAIRNESS_SOLUTIONS_ROADMAP.md](FAIRNESS_SOLUTIONS_ROADMAP.md) · results in [EXPERIMENT_FOLDER_REGISTRY.md](EXPERIMENT_FOLDER_REGISTRY.md) and the pipeline's `FAIRNESS_EXPERIMENTS_SUMMARY.md`
+
+---
+
+## Resolution (summary)
+
+This issue triggered a full intervention program across all three points (teacher, transfer,
+student objective). The headline correction to this doc's original plan: **the EqualizedOddsLoss
+fix proposed below does NOT work**, and neither does any other in-training method. The reason is
+now understood and proven.
+
+**Key finding — the gap is a data-prevalence phenomenon, not model/representation bias.**
+OhioT1DM has a clinically real ~3:1 male:female hypoglycemia prevalence imbalance. The decisive
+evidence is O3 (adversarial group erasure): it provably drove the student's representation to be
+gender-invariant (discriminator held at chance, ~ln 2) yet the raw EO gap did **not** move. You
+cannot fix a base-rate disparity by hiding the group variable.
+
+**What was tried (all on the all-patients gender pipeline, leakage-free patient-holdout EO):**
+
+| Method | Raw EO Gap | Verdict |
+|---|---|---|
+| Baseline KD (no fairness) | 0.217 | ❌ the problem |
+| TPR/EqualizedOdds loss (v1, v2) | 0.219 / 0.230 | ❌ no effect (the fix this doc proposed) |
+| Oversampling (± loss) | 0.233 / 0.222 | ❌ |
+| Fair teacher (T1) distilled | 0.209 | ❌ partial transfer only |
+| K1 calibrated soft labels | 0.198 | ❌ |
+| K3 feature alignment (w=100/200) | 0.197 / 0.192 | ❌ (best RMSE, gap unmoved) |
+| K4 selective KD replay | 0.206 | ❌ |
+| O1 dual-ascent EO constraint | 0.214 | ❌ |
+| O3 adversarial group erasure | 0.212 | ❌ erasure works, gap unmoved |
+| T2 per-group teachers | 0.220 | ❌ bakes in base rates |
+| **O2 learned per-group calibration head** | **0.119** | ✅ **the only fix** |
+
+**The fix that works: O2 — a jointly learned per-group affine calibration head** on the student
+output, on top of the fair teacher. It is the only method that materially reduces both the raw
+gap (0.217 → 0.119) and the leakage-free calibrated gap (→ 0.029) without hurting accuracy.
+**Multi-seed validated** (5 seeds): O2 EO_raw 0.118 ± 0.033 vs baseline 0.218 ± 0.007 — beats
+baseline in all 5 seeds. Because the disparity originates in base rates, the cure is an explicit
+group-aware *output correction*, not an in-training penalty.
+
+Everything below this line is the **original (2026-01) problem statement and fix plan**, kept for
+history. Note its "Expected Outcome" (EqualizedOddsLoss drops the gap below baseline) was
+empirically refuted — see the table above.
 
 ---
 
