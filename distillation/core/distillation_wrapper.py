@@ -76,6 +76,32 @@ class DistillationWrapper:
         self.student_calibration_enabled = bool(settings.get('student_calibration_enabled', False))
         self.student_calibration_feature = settings.get('student_calibration_feature', None)
 
+        # K3: fairness-aware feature alignment (group-invariant student hidden states)
+        self.feature_alignment_enabled = bool(settings.get('feature_alignment_enabled', False))
+        self.feature_alignment_feature = settings.get('feature_alignment_feature', None)
+        self.feature_alignment_weight = float(settings.get('feature_alignment_weight', 0.0))
+        self.feature_alignment_divergence = settings.get('feature_alignment_divergence', 'coral')
+        self.feature_alignment_layer = int(settings.get('feature_alignment_layer', -1))
+
+        # K4: selective KD replay (upweight minority-group hypo windows in KD loss)
+        self.kd_replay_enabled = bool(settings.get('kd_replay_enabled', False))
+        self.kd_replay_feature = settings.get('kd_replay_feature', None)
+        self.kd_replay_minority_group = int(settings.get('kd_replay_minority_group', 0))
+        self.kd_replay_factor = float(settings.get('kd_replay_factor', 4.0))
+
+        # O3: adversarial group erasure (gradient-reversal discriminator on hidden states)
+        self.adv_erasure_enabled = bool(settings.get('adv_erasure_enabled', False))
+        self.adv_erasure_feature = settings.get('adv_erasure_feature', None)
+        self.adv_erasure_lambda = float(settings.get('adv_erasure_lambda', 1.0))
+        self.adv_erasure_layer = int(settings.get('adv_erasure_layer', -1))
+
+        # T2: per-group teachers (multi-teacher KD). The primary teacher_checkpoint_path
+        # is the group-1 (e.g. Male) teacher; this second path is the group-0 (Female) teacher.
+        self.multi_teacher_enabled = bool(settings.get('multi_teacher_enabled', False))
+        self.multi_teacher_feature = settings.get('multi_teacher_feature', None)
+        self.second_teacher_checkpoint_path = settings.get('second_teacher_checkpoint_path', None)
+        self.multi_teacher_group0 = int(settings.get('multi_teacher_group0', 0))
+
         logging.info(f"🎓 Initializing Distillation Wrapper")
         logging.info(f"  📍 Log Directory: {log_dir}")
         logging.info(f"  👨‍🏫 Teacher Checkpoint: {teacher_checkpoint_path}")
@@ -100,6 +126,27 @@ class DistillationWrapper:
                 f"  📏 O1 Fairness Constraint: eps={self.fairness_constraint_epsilon:.4f}, "
                 f"dual_lr={self.fairness_dual_lr:.4f}, dual_init={self.fairness_dual_init:.4f}, "
                 f"feature={self.fairness_feature}"
+            )
+        if self.feature_alignment_enabled and self.feature_alignment_weight > 0:
+            logging.info(
+                f"  🧬 K3 Feature Alignment: weight={self.feature_alignment_weight}, "
+                f"divergence={self.feature_alignment_divergence}, "
+                f"layer={self.feature_alignment_layer}, feature={self.feature_alignment_feature}"
+            )
+        if self.kd_replay_enabled:
+            logging.info(
+                f"  🔁 K4 Selective KD Replay: factor={self.kd_replay_factor}, "
+                f"minority_group={self.kd_replay_minority_group}, feature={self.kd_replay_feature}"
+            )
+        if self.adv_erasure_enabled and self.adv_erasure_lambda > 0:
+            logging.info(
+                f"  🛡️ O3 Adversarial Group Erasure: lambda={self.adv_erasure_lambda}, "
+                f"layer={self.adv_erasure_layer}, feature={self.adv_erasure_feature}"
+            )
+        if self.multi_teacher_enabled and self.second_teacher_checkpoint_path:
+            logging.info(
+                f"  👥 T2 Per-Group Teachers: feature={self.multi_teacher_feature}, "
+                f"group0_teacher={self.second_teacher_checkpoint_path}"
             )
 
     def _student_calibration_metadata_path(self):
@@ -193,15 +240,16 @@ class DistillationWrapper:
         }
         return config
     
-    def _load_teacher_model(self):
-        """Load the teacher model from checkpoint"""
+    def _load_teacher_model(self, checkpoint_path=None):
+        """Load the teacher model from checkpoint (defaults to the primary teacher)."""
         logging.info("👨‍🏫 Loading teacher model...")
-        
+
         teacher_config = self._create_model_config(is_student=False)
         teacher_model = TimeLLMModel.Model(teacher_config)
-        
+
         # Load teacher checkpoint
-        checkpoint = torch.load(self.teacher_checkpoint_path, map_location=self.device)
+        ckpt_path = checkpoint_path or self.teacher_checkpoint_path
+        checkpoint = torch.load(ckpt_path, map_location=self.device)
         teacher_model.load_state_dict(checkpoint)
         teacher_model.to(self.device)
         teacher_model.eval()  # Freeze teacher model
@@ -334,10 +382,22 @@ class DistillationWrapper:
             (self.hypo_oversample and self.fairness_feature) or
             (self.teacher_calibration_enabled and self.teacher_calibration_feature) or
             (self.student_calibration_enabled and self.student_calibration_feature) or
-            (self.fairness_constraint_enabled and self.fairness_feature)
+            (self.fairness_constraint_enabled and self.fairness_feature) or
+            (self.feature_alignment_enabled and self.feature_alignment_weight > 0 and self.feature_alignment_feature) or
+            (self.kd_replay_enabled and self.kd_replay_feature) or
+            (self.adv_erasure_enabled and self.adv_erasure_lambda > 0 and self.adv_erasure_feature) or
+            (self.multi_teacher_enabled and self.second_teacher_checkpoint_path and self.multi_teacher_feature)
         )
         if _need_group_labels:
-            label_feature = self.fairness_feature or self.teacher_calibration_feature or self.student_calibration_feature
+            label_feature = (
+                self.fairness_feature
+                or self.teacher_calibration_feature
+                or self.student_calibration_feature
+                or self.feature_alignment_feature
+                or self.kd_replay_feature
+                or self.adv_erasure_feature
+                or self.multi_teacher_feature
+            )
             group_labels = self._build_group_labels(train_loader.dataset, label_feature)
             if group_labels is not None:
                 from data_processing.data_sets import GroupLabeledDataset
@@ -399,6 +459,12 @@ class DistillationWrapper:
         # Setup optimizer
         optimizer = Adam(student_model.parameters(), lr=self.settings.get('learning_rate', 0.001))
 
+        # T2: load the group-0 (e.g. Female) teacher; primary teacher serves group 1.
+        second_teacher = None
+        if self.multi_teacher_enabled and self.second_teacher_checkpoint_path:
+            logging.info(f"👥 Loading second (group-0) teacher: {self.second_teacher_checkpoint_path}")
+            second_teacher = self._load_teacher_model(self.second_teacher_checkpoint_path)
+
         # Create trainer
         trainer = DistillationTrainer(
             teacher=teacher_model,
@@ -423,6 +489,21 @@ class DistillationWrapper:
             fairness_constraint_epsilon=self.fairness_constraint_epsilon,
             fairness_dual_lr=self.fairness_dual_lr,
             fairness_dual_init=self.fairness_dual_init,
+            feature_alignment_enabled=self.feature_alignment_enabled,
+            feature_alignment_feature=self.feature_alignment_feature,
+            feature_alignment_weight=self.feature_alignment_weight,
+            feature_alignment_divergence=self.feature_alignment_divergence,
+            feature_alignment_layer=self.feature_alignment_layer,
+            kd_replay_enabled=self.kd_replay_enabled,
+            kd_replay_feature=self.kd_replay_feature,
+            kd_replay_minority_group=self.kd_replay_minority_group,
+            kd_replay_factor=self.kd_replay_factor,
+            adv_erasure_enabled=self.adv_erasure_enabled,
+            adv_erasure_feature=self.adv_erasure_feature,
+            adv_erasure_lambda=self.adv_erasure_lambda,
+            adv_erasure_layer=self.adv_erasure_layer,
+            second_teacher=second_teacher,
+            multi_teacher_group0=self.multi_teacher_group0,
         )
 
         # Add context_len and pred_len to trainer (needed for training loop)

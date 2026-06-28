@@ -41,6 +41,23 @@ class DistillationTrainer:
                  teacher_calibration_group0_offset=0.0,
                  teacher_calibration_group1_offset=0.0,
                  teacher_calibration_json=None,
+                 feature_alignment_enabled=False,
+                 feature_alignment_feature="gender",
+                 feature_alignment_weight=0.0,
+                 feature_alignment_divergence="coral",
+                 feature_alignment_layer=-1,
+                 kd_replay_enabled=False,
+                 kd_replay_feature="gender",
+                 kd_replay_minority_group=0,
+                 kd_replay_factor=4.0,
+                 adv_erasure_enabled=False,
+                 adv_erasure_feature="gender",
+                 adv_erasure_lambda=1.0,
+                 adv_erasure_layer=-1,
+                 multi_teacher_enabled=False,
+                 multi_teacher_feature="gender",
+                 second_teacher_checkpoint_path=None,
+                 multi_teacher_group0=0,
                  dir_suffix=""):
         if base_dir is None:
             base_dir = get_project_root()
@@ -64,6 +81,23 @@ class DistillationTrainer:
         self.teacher_calibration_feature = teacher_calibration_feature
         self.teacher_calibration_group0_offset = teacher_calibration_group0_offset
         self.teacher_calibration_group1_offset = teacher_calibration_group1_offset
+        self.feature_alignment_enabled = feature_alignment_enabled
+        self.feature_alignment_feature = feature_alignment_feature
+        self.feature_alignment_weight = feature_alignment_weight
+        self.feature_alignment_divergence = feature_alignment_divergence
+        self.feature_alignment_layer = feature_alignment_layer
+        self.kd_replay_enabled = kd_replay_enabled
+        self.kd_replay_feature = kd_replay_feature
+        self.kd_replay_minority_group = kd_replay_minority_group
+        self.kd_replay_factor = kd_replay_factor
+        self.adv_erasure_enabled = adv_erasure_enabled
+        self.adv_erasure_feature = adv_erasure_feature
+        self.adv_erasure_lambda = adv_erasure_lambda
+        self.adv_erasure_layer = adv_erasure_layer
+        self.multi_teacher_enabled = multi_teacher_enabled
+        self.multi_teacher_feature = multi_teacher_feature
+        self.second_teacher_checkpoint_path = second_teacher_checkpoint_path
+        self.multi_teacher_group0 = multi_teacher_group0
 
         # Optional JSON source of K1 offsets
         if teacher_calibration_json:
@@ -263,7 +297,36 @@ class DistillationTrainer:
             self.distillation_params["teacher_calibration_feature"] = self.teacher_calibration_feature
             self.distillation_params["teacher_calibration_group0_offset"] = self.teacher_calibration_group0_offset
             self.distillation_params["teacher_calibration_group1_offset"] = self.teacher_calibration_group1_offset
-        
+
+        # K3: fairness-aware feature alignment (group-invariant student hidden states)
+        if self.feature_alignment_enabled and self.feature_alignment_weight > 0:
+            self.distillation_params["feature_alignment_enabled"] = True
+            self.distillation_params["feature_alignment_feature"] = self.feature_alignment_feature
+            self.distillation_params["feature_alignment_weight"] = float(self.feature_alignment_weight)
+            self.distillation_params["feature_alignment_divergence"] = self.feature_alignment_divergence
+            self.distillation_params["feature_alignment_layer"] = int(self.feature_alignment_layer)
+
+        # K4: selective KD replay (upweight minority-group hypo windows in KD loss)
+        if self.kd_replay_enabled:
+            self.distillation_params["kd_replay_enabled"] = True
+            self.distillation_params["kd_replay_feature"] = self.kd_replay_feature
+            self.distillation_params["kd_replay_minority_group"] = int(self.kd_replay_minority_group)
+            self.distillation_params["kd_replay_factor"] = float(self.kd_replay_factor)
+
+        # O3: adversarial group erasure (gradient-reversal discriminator)
+        if self.adv_erasure_enabled and self.adv_erasure_lambda > 0:
+            self.distillation_params["adv_erasure_enabled"] = True
+            self.distillation_params["adv_erasure_feature"] = self.adv_erasure_feature
+            self.distillation_params["adv_erasure_lambda"] = float(self.adv_erasure_lambda)
+            self.distillation_params["adv_erasure_layer"] = int(self.adv_erasure_layer)
+
+        # T2: per-group teachers (multi-teacher KD)
+        if self.multi_teacher_enabled and self.second_teacher_checkpoint_path:
+            self.distillation_params["multi_teacher_enabled"] = True
+            self.distillation_params["multi_teacher_feature"] = self.multi_teacher_feature
+            self.distillation_params["second_teacher_checkpoint_path"] = self.second_teacher_checkpoint_path
+            self.distillation_params["multi_teacher_group0"] = int(self.multi_teacher_group0)
+
         # Base distillation configuration template - paths will be set dynamically
         self.base_config = {
             "data_settings": {
@@ -474,6 +537,14 @@ class DistillationTrainer:
             fairness_suffix = f"_o1_{self.fairness_feature}"
         elif self.teacher_calibration_enabled and self.teacher_calibration_feature:
             fairness_suffix = f"_k1cal_{self.teacher_calibration_feature}"
+        elif self.feature_alignment_enabled and self.feature_alignment_weight > 0 and self.feature_alignment_feature:
+            fairness_suffix = f"_k3align_{self.feature_alignment_feature}"
+        elif self.kd_replay_enabled and self.kd_replay_feature:
+            fairness_suffix = f"_k4replay_{self.kd_replay_feature}"
+        elif self.adv_erasure_enabled and self.adv_erasure_lambda > 0 and self.adv_erasure_feature:
+            fairness_suffix = f"_o3adv_{self.adv_erasure_feature}"
+        elif self.multi_teacher_enabled and self.second_teacher_checkpoint_path and self.multi_teacher_feature:
+            fairness_suffix = f"_t2pergroup_{self.multi_teacher_feature}"
         else:
             fairness_suffix = ""
         if self.pipeline_dir:
@@ -846,6 +917,41 @@ def main():
                         help="K1 offset (mg/dL) applied to teacher outputs for group 1")
     parser.add_argument("--teacher-calibration-json", default=None,
                         help="Optional JSON file produced by compute_k1_teacher_offsets.py")
+    parser.add_argument("--feature-alignment", action="store_true", default=False,
+                        help="K3: enable fairness-aware feature alignment across groups")
+    parser.add_argument("--feature-alignment-feature", default="gender",
+                        help="Protected feature for K3 alignment (default: gender)")
+    parser.add_argument("--feature-alignment-weight", type=float, default=0.0,
+                        help="Weight on the K3 alignment penalty (must be >0 to take effect)")
+    parser.add_argument("--feature-alignment-divergence", default="coral",
+                        choices=["coral", "mmd"],
+                        help="K3 divergence measure between group features (default: coral)")
+    parser.add_argument("--feature-alignment-layer", type=int, default=-1,
+                        help="Student LLM hidden-state layer index to align; -1 uses the last hidden state")
+    parser.add_argument("--kd-replay", action="store_true", default=False,
+                        help="K4: enable selective KD replay (upweight minority-group hypo windows in KD loss)")
+    parser.add_argument("--kd-replay-feature", default="gender",
+                        help="Protected feature for K4 replay (default: gender)")
+    parser.add_argument("--kd-replay-minority-group", type=int, default=0,
+                        help="Group index treated as the minority for K4 (default: 0 = Female)")
+    parser.add_argument("--kd-replay-factor", type=float, default=4.0,
+                        help="Upweight factor applied to minority-group hypo windows in the KD loss")
+    parser.add_argument("--adv-erasure", action="store_true", default=False,
+                        help="O3: enable adversarial group erasure (gradient-reversal discriminator)")
+    parser.add_argument("--adv-erasure-feature", default="gender",
+                        help="Protected feature for O3 erasure (default: gender)")
+    parser.add_argument("--adv-erasure-lambda", type=float, default=1.0,
+                        help="Gradient-reversal strength for O3 (student-side de-bias weight)")
+    parser.add_argument("--adv-erasure-layer", type=int, default=-1,
+                        help="Student LLM hidden-state layer to erase from; -1 uses the last hidden state")
+    parser.add_argument("--multi-teacher", action="store_true", default=False,
+                        help="T2: enable per-group (multi-teacher) KD. Primary --teacher-checkpoint-path is the group-1 teacher.")
+    parser.add_argument("--multi-teacher-feature", default="gender",
+                        help="Protected feature for T2 per-group routing (default: gender)")
+    parser.add_argument("--second-teacher-checkpoint-path", default=None,
+                        help="T2: checkpoint for the group-0 (e.g. Female) teacher")
+    parser.add_argument("--multi-teacher-group0", type=int, default=0,
+                        help="Group index served by the second teacher (default: 0 = Female)")
     parser.add_argument("--dir-suffix", default="",
                         help="Extra suffix appended to the output directory name (e.g. '_fair_teacher')")
     # NOTE: teacher-epochs and student-epochs removed - this script only does distillation!
@@ -886,6 +992,23 @@ def main():
         teacher_calibration_group0_offset=args.teacher_calibration_group0_offset,
         teacher_calibration_group1_offset=args.teacher_calibration_group1_offset,
         teacher_calibration_json=args.teacher_calibration_json,
+        feature_alignment_enabled=args.feature_alignment,
+        feature_alignment_feature=args.feature_alignment_feature,
+        feature_alignment_weight=args.feature_alignment_weight,
+        feature_alignment_divergence=args.feature_alignment_divergence,
+        feature_alignment_layer=args.feature_alignment_layer,
+        kd_replay_enabled=args.kd_replay,
+        kd_replay_feature=args.kd_replay_feature,
+        kd_replay_minority_group=args.kd_replay_minority_group,
+        kd_replay_factor=args.kd_replay_factor,
+        adv_erasure_enabled=args.adv_erasure,
+        adv_erasure_feature=args.adv_erasure_feature,
+        adv_erasure_lambda=args.adv_erasure_lambda,
+        adv_erasure_layer=args.adv_erasure_layer,
+        multi_teacher_enabled=args.multi_teacher,
+        multi_teacher_feature=args.multi_teacher_feature,
+        second_teacher_checkpoint_path=args.second_teacher_checkpoint_path,
+        multi_teacher_group0=args.multi_teacher_group0,
         dir_suffix=args.dir_suffix,
     )
     

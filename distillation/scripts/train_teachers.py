@@ -20,12 +20,15 @@ from utils.path_utils import get_project_root, get_configs_path
 class TeacherTrainer:
     """Class to handle automated training of teacher models."""
     
-    def __init__(self, base_dir=None, output_dir=None, config_dir=None, dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32, remove_checkpoints=False, fair_teacher=False, fair_teacher_feature="gender"):
+    def __init__(self, base_dir=None, output_dir=None, config_dir=None, dataset_name="ohiot1dm", seed=238822, lr=0.001, batch_size=32, remove_checkpoints=False, fair_teacher=False, fair_teacher_feature="gender", train_data_override=None, test_data_override=None):
         if base_dir is None:
             base_dir = get_project_root()
         self.base_dir = Path(base_dir)
         self.dataset_name = dataset_name
         self.data_path = f"./data/{dataset_name}"  # Auto-detect data path
+        # T2: explicit train/test CSV overrides (e.g. male-only / female-only splits)
+        self.train_data_override = train_data_override
+        self.test_data_override = test_data_override
         self.seed = seed
         self.lr = lr
         self.batch_size = batch_size
@@ -280,6 +283,11 @@ class TeacherTrainer:
             train_file = f"{data_dir}/all_patients_training.csv"
             test_file = f"{data_dir}/all_patients_testing.csv"
             prompt_file = f"{clean_data_path}/raw_standardized/t1dm_prompt.txt"
+            # T2: override the train/test CSVs with group-filtered splits when provided
+            if self.train_data_override:
+                train_file = self.train_data_override
+            if self.test_data_override:
+                test_file = self.test_data_override
         else:
             data_dir = f"{clean_data_path}/raw_standardized"
             train_file = f"{data_dir}/{dataset}-ws-training.csv"
@@ -587,11 +595,15 @@ def main():
     parser.add_argument("--fair-teacher-feature", default="gender",
                        choices=["gender", "age", "pump", "sensor", "cohort"],
                        help="Demographic feature for fair teacher sampling (default: gender)")
-    
+    parser.add_argument("--train-data-override", default=None,
+                       help="T2: explicit training CSV (e.g. a group-filtered split); used with --all-patients")
+    parser.add_argument("--test-data-override", default=None,
+                       help="T2: explicit testing CSV; used with --all-patients")
+
     args = parser.parse_args()
-    
+
     trainer = TeacherTrainer(
-        output_dir=args.output_dir, 
+        output_dir=args.output_dir,
         config_dir=args.config_dir,
         dataset_name=args.dataset,
         seed=args.seed,
@@ -600,6 +612,8 @@ def main():
         remove_checkpoints=args.remove_checkpoints,
         fair_teacher=args.fair_teacher,
         fair_teacher_feature=args.fair_teacher_feature,
+        train_data_override=args.train_data_override,
+        test_data_override=args.test_data_override,
     )
     
     if args.list_checkpoints:

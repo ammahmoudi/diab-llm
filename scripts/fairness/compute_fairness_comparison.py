@@ -11,6 +11,7 @@ Usage:
         --pipeline-dir distillation_experiments/all_patients_pipeline/pipeline_2025-10-28_14-20-17
 """
 
+import re
 import sys
 import argparse
 import numpy as np
@@ -316,9 +317,47 @@ def main():
          phase3 / "bert_to_bert-tiny_all_patients_k1cal_gender_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
         ("Distilled from Fair Teacher + O2 Calibration Head",
          phase3 / "bert_to_bert-tiny_all_patients_o2_gender_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
-        ("Distilled + K1 Calibrated Soft Labels",
-         phase3 / "bert_to_bert-tiny_all_patients_k1cal_gender" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm"),
     ]
+
+    # K3 feature alignment: one run directory per alignment weight
+    # (..._k3align_gender_w<weight>_fair_teacher). Discover them all and add a
+    # labeled row per weight, sorted by weight, so a weight sweep self-populates
+    # the table. The older unweighted dir (if present) is included as "w?".
+    def _k3_weight_key(run_dir):
+        m = re.search(r"_w([0-9p]+)_fair_teacher$", run_dir.name)
+        if not m:
+            return float("inf")  # legacy unweighted dir sorts last
+        return float(m.group(1).replace("p", "."))
+
+    k3_dirs = sorted(
+        list(phase3.glob("bert_to_bert-tiny_all_patients_k3align_gender_w*_fair_teacher"))
+        + list(phase3.glob("bert_to_bert-tiny_all_patients_k3align_gender_fair_teacher")),
+        key=_k3_weight_key,
+    )
+    for d in k3_dirs:
+        m = re.search(r"_w([0-9p]+)_fair_teacher$", d.name)
+        weight_str = m.group(1).replace("p", ".") if m else "?"
+        runs.append((
+            f"Distilled from Fair Teacher + K3 Feature Alignment (w={weight_str})",
+            d / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm",
+        ))
+
+    runs.append((
+        "Distilled from Fair Teacher + K4 Selective KD Replay",
+        phase3 / "bert_to_bert-tiny_all_patients_k4replay_gender_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm",
+    ))
+    runs.append((
+        "Distilled from Fair Teacher + O3 Adversarial Erasure",
+        phase3 / "bert_to_bert-tiny_all_patients_o3adv_gender_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm",
+    ))
+    runs.append((
+        "Distilled from Per-Group Teachers (T2)",
+        phase3 / "bert_to_bert-tiny_all_patients_t2pergroup_gender_fair_teacher" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm",
+    ))
+    runs.append((
+        "Distilled + K1 Calibrated Soft Labels",
+        phase3 / "bert_to_bert-tiny_all_patients_k1cal_gender" / "per_patient_inference" / "time_llm_per_patient_inference_ohiot1dm",
+    ))
 
     print("\n" + "="*70)
     print("FAIRNESS COMPARISON TABLE")

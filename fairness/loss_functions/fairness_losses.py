@@ -333,6 +333,180 @@ class HypoglycemiaTPREqualityLoss(FairnessAwareLoss):
         return base_loss_value + self.fairness_weight * fairness_penalty
 
 
+class FeatureAlignmentLoss(nn.Module):
+    """K3: fairness-aware feature alignment across protected groups.
+
+    Penalizes the divergence between the *intermediate hidden-state
+    distributions* of two groups (e.g. male vs female), forcing the student to
+    learn group-invariant representations. Unlike the output-level losses above,
+    this operates on the model's internal features, which makes it a stronger,
+    representation-level fairness constraint.
+
+    Two divergence measures are supported:
+
+    - ``coral`` (default): CORAL aligns the second-order statistics (feature
+      covariance matrices) of the two groups. It is cheap, has no bandwidth
+      hyperparameter, and is stable on small / imbalanced batches — a good fit
+      when one group's hypoglycemia windows are rare.
+    - ``mmd``: a linear-time, multi-kernel (RBF) Maximum Mean Discrepancy
+      between the two groups' pooled features. More sensitive to differences in
+      distribution shape, but noisier when a group is underrepresented in a
+      batch.
+
+    The loss compares the two groups in the *same* representation space (e.g.
+    student-male vs student-female), so no cross-model projection is needed even
+    when teacher and student have different hidden dims.
+    """
+
+    def __init__(self, divergence: str = "coral",
+                 mmd_kernel_muls: Optional[List[float]] = None):
+        """
+        Args:
+            divergence:      'coral' (covariance matching) or 'mmd' (kernel MMD).
+            mmd_kernel_muls: Bandwidth multipliers for the multi-kernel MMD,
+                             relative to the median pairwise distance. Only used
+                             when divergence == 'mmd'.
+        """
+        super().__init__()
+        divergence = divergence.lower()
+        if divergence not in ("coral", "mmd"):
+            raise ValueError(f"Unknown divergence '{divergence}' (expected 'coral' or 'mmd')")
+        self.divergence = divergence
+        self.mmd_kernel_muls = mmd_kernel_muls or [0.5, 1.0, 2.0]
+
+    @staticmethod
+    def _coral(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Scale-invariant CORAL: mean squared difference of *correlation*
+        matrices between the two groups.
+
+        source, target: [n_s, d] and [n_t, d] pooled feature matrices.
+
+        We standardize each feature dimension by the pooled per-dim std before
+        computing covariances, so the resulting matrices are correlation-like
+        (unit diagonal) and the loss is intrinsically O(1) regardless of the
+        raw feature magnitude. This is deliberate: the textbook 1/(4 d^2)
+        absolute-covariance form produced a raw value of ~1e-4 on the BERT-tiny
+        hidden states (covariance gap is tiny in absolute terms), which left the
+        penalty ~1e5× too small to affect training even at weight=100. With this
+        normalization a weight of ~1-10 is meaningful.
+        """
+        both = torch.cat([source, target], dim=0)
+        # Pooled per-dimension std (detached: it's a normalizing scale, not a
+        # parameter we want gradients to flow through as a target).
+        std = both.std(dim=0, keepdim=True).clamp_min(1e-6).detach()
+        s = source / std
+        t = target / std
+
+        def _cov(x):
+            x_centered = x - x.mean(dim=0, keepdim=True)
+            n = x.shape[0]
+            return (x_centered.t() @ x_centered) / max(n - 1, 1)
+
+        cs = _cov(s)
+        ct = _cov(t)
+        # Mean over the d×d entries keeps magnitude comparable across hidden dims.
+        return ((cs - ct) ** 2).mean()
+
+    def _mmd(self, source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Multi-kernel RBF MMD^2 between two pooled feature sets."""
+        s_n, t_n = source.shape[0], target.shape[0]
+        total = torch.cat([source, target], dim=0)
+        # Pairwise squared distances
+        dists = torch.cdist(total, total) ** 2
+        # Median heuristic for the base bandwidth (detached — it's a scale, not a param)
+        with torch.no_grad():
+            median = torch.median(dists[dists > 0]) if (dists > 0).any() else torch.tensor(1.0, device=total.device)
+            median = torch.clamp(median, min=1e-6)
+
+        kernel = torch.zeros_like(dists)
+        for mul in self.mmd_kernel_muls:
+            kernel = kernel + torch.exp(-dists / (median * mul + 1e-8))
+
+        k_ss = kernel[:s_n, :s_n].mean()
+        k_tt = kernel[s_n:, s_n:].mean()
+        k_st = kernel[:s_n, s_n:].mean()
+        return k_ss + k_tt - 2.0 * k_st
+
+    def forward(self, features: torch.Tensor,
+                group_labels: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            features:     [B, d] pooled per-sample feature vectors.
+            group_labels: [B] integer group index per sample (expects two groups).
+
+        Returns:
+            Scalar alignment penalty (0 when a group is absent from the batch).
+        """
+        unique_groups = torch.unique(group_labels)
+        if len(unique_groups) != 2:
+            return torch.tensor(0.0, device=features.device)
+
+        g0 = features[group_labels == unique_groups[0]]
+        g1 = features[group_labels == unique_groups[1]]
+        # CORAL needs ≥2 samples per group for a covariance; MMD needs ≥1.
+        min_required = 2 if self.divergence == "coral" else 1
+        if g0.shape[0] < min_required or g1.shape[0] < min_required:
+            return torch.tensor(0.0, device=features.device)
+
+        if self.divergence == "coral":
+            return self._coral(g0, g1)
+        return self._mmd(g0, g1)
+
+
+class _GradientReversalFn(torch.autograd.Function):
+    """Identity forward; negates (and scales) the gradient on backward."""
+
+    @staticmethod
+    def forward(ctx, x, lambda_):
+        ctx.lambda_ = lambda_
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return -ctx.lambda_ * grad_output, None
+
+
+def gradient_reversal(x, lambda_=1.0):
+    """Apply a gradient-reversal layer with strength ``lambda_``."""
+    return _GradientReversalFn.apply(x, lambda_)
+
+
+class GroupAdversary(nn.Module):
+    """O3: adversarial group-erasure discriminator.
+
+    A small MLP that tries to predict the protected group from the student's
+    pooled hidden representation. It is placed behind a gradient-reversal layer,
+    so minimizing the discriminator's cross-entropy w.r.t. its own parameters
+    trains it to predict the group, while the reversed gradient simultaneously
+    pushes the student's representation to be group-*invariant* (group-erased).
+
+    Returns the discriminator cross-entropy loss. With gradient reversal applied
+    to the input, the same loss term trains the adversary and de-biases the
+    student in a single backward pass.
+    """
+
+    def __init__(self, feature_dim: int, num_groups: int = 2, hidden_dim: int = 64):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, num_groups),
+        )
+        self.ce = nn.CrossEntropyLoss()
+
+    def forward(self, features: torch.Tensor, group_labels: torch.Tensor,
+                lambda_: float = 1.0) -> torch.Tensor:
+        """
+        Args:
+            features:     [B, d] pooled per-sample student features.
+            group_labels: [B] integer group index per sample.
+            lambda_:      gradient-reversal strength (student-side de-bias weight).
+        """
+        reversed_feats = gradient_reversal(features, lambda_)
+        logits = self.net(reversed_feats)
+        return self.ce(logits, group_labels.long())
+
+
 class AdversarialFairnessLoss(nn.Module):
     """Adversarial fairness loss function."""
     
