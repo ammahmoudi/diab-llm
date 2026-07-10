@@ -23,6 +23,7 @@ from llms.chronos import ChronosLLM
 from llms.student_llm import StudentLLM
 from llms.time_llm_ecg import TimeLLMECGClassifier
 from llms.time_llm import TimeLLM
+from distillation.core.ecg_classification_wrapper import ECGClassificationDistillationWrapper
 from distillation.core.distillation_wrapper import DistillationWrapper
 from utils.logger import setup_logging
 import logging
@@ -778,6 +779,72 @@ def run(
                         json.dump(llm.classification_report_dict(targets, preds), f, indent=2)
         else:
             logging.error(f"Unsupported mode for ECG classifier: {llm_settings['mode']}")
+            raise NotImplementedError
+
+    elif llm_settings["method"] == "distillation_ecg_classifier":
+        data_loader = EcgTimeLLMDataHandler(
+            settings={
+                "dataset_dir": data_settings["dataset_dir"],
+                "window_size": llm_settings.get("sequence_length", 256),
+                "batch_size": llm_settings.get("train_batch_size", 64),
+                "num_workers": llm_settings.get("num_workers", 0),
+                "include_duplicate_202": data_settings.get("include_duplicate_202", False),
+                "beat_index_csv": data_settings.get("beat_index_csv"),
+                "metadata_csv": data_settings.get("metadata_csv"),
+            }
+        )
+
+        train_data, train_loader = data_loader.load_from_index(
+            split="train", batch_size=llm_settings.get("train_batch_size", 64)
+        )
+        val_data, val_loader = data_loader.load_from_index(
+            split="val", batch_size=llm_settings.get("train_batch_size", 64), shuffle=False
+        )
+        test_data, test_loader = data_loader.load_from_index(
+            split="test", batch_size=llm_settings.get("prediction_batch_size", 64), shuffle=False
+        )
+
+        distillation_driver = ECGClassificationDistillationWrapper(
+            settings=llm_settings,
+            data_settings=data_settings,
+            log_dir=log_dir,
+            teacher_checkpoint_path=llm_settings["teacher_checkpoint_path"],
+        )
+
+        if llm_settings["mode"] == "training+inference":
+            checkpoint_path, train_loss, val_loss = distillation_driver.distill_knowledge(
+                train_loader=train_loader,
+                val_loader=val_loader,
+                epochs=llm_settings.get("train_epochs", 5),
+            )
+            with open(log_dir + "/loss.pkl", "wb") as f:
+                pickle.dump((train_loss, val_loss), f)
+
+            preds, targets, _pred_df = distillation_driver.predict(test_loader, output_dir=log_dir)
+            metric_results = distillation_driver.evaluate(
+                preds,
+                targets,
+                llm_settings.get("eval_metrics", ["accuracy", "macro_f1", "weighted_f1"]),
+            )
+            logging.info(f"ECG distilled classifier metrics: {metric_results}")
+            with open(os.path.join(log_dir, "classification_report.json"), "w") as f:
+                json.dump(distillation_driver.classification_report_dict(targets, preds), f, indent=2)
+
+        elif llm_settings["mode"] == "inference":
+            distillation_driver.student.load_state_dict(
+                torch.load(llm_settings["restore_checkpoint_path"], map_location=distillation_driver.device, weights_only=True)
+            )
+            preds, targets, _pred_df = distillation_driver.predict(test_loader, output_dir=log_dir)
+            metric_results = distillation_driver.evaluate(
+                preds,
+                targets,
+                llm_settings.get("eval_metrics", ["accuracy", "macro_f1", "weighted_f1"]),
+            )
+            logging.info(f"ECG distilled classifier metrics: {metric_results}")
+            with open(os.path.join(log_dir, "classification_report.json"), "w") as f:
+                json.dump(distillation_driver.classification_report_dict(targets, preds), f, indent=2)
+        else:
+            logging.error(f"Unsupported mode for ECG classification distillation: {llm_settings['mode']}")
             raise NotImplementedError
 
     elif llm_settings["method"] == "student_llm":
