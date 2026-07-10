@@ -163,6 +163,24 @@ Reason:
 - cleaner gender subgroup counts
 - no duplicate-subject overweighting in fairness analysis
 
+### Dataset build commands
+
+Curated fairness mode, default 47-record set:
+
+```bash
+python scripts/mitbih/build_metadata.py
+python scripts/mitbih/build_demographics.py
+python scripts/mitbih/prepare_beat_dataset.py
+```
+
+Full 48-record mode, explicit opt-in:
+
+```bash
+python scripts/mitbih/build_metadata.py --include-duplicate-202
+python scripts/mitbih/build_demographics.py --include-duplicate-202
+python scripts/mitbih/prepare_beat_dataset.py --include-duplicate-202
+```
+
 ### Split policy
 
 Split by record, never by beat.

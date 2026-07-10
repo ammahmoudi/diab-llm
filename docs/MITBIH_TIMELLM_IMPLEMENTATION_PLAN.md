@@ -133,6 +133,20 @@ Optional output:
 
 - `beat_index.csv`
 
+Example build commands:
+
+```bash
+# Curated fairness mode: 47 records
+python scripts/mitbih/build_metadata.py
+python scripts/mitbih/build_demographics.py
+python scripts/mitbih/prepare_beat_dataset.py
+
+# Full dataset mode: 48 records
+python scripts/mitbih/build_metadata.py --include-duplicate-202
+python scripts/mitbih/build_demographics.py --include-duplicate-202
+python scripts/mitbih/prepare_beat_dataset.py --include-duplicate-202
+```
+
 ---
 
 ## 3. Time-LLM classification model tasks

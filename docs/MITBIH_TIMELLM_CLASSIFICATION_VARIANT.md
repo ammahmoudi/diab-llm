@@ -55,6 +55,24 @@ So the ECG task should support the same high-level pattern as the BG project:
 For the current fairness protocol, use the curated 47-record subset rather than
 all 48 records, because records `201` and `202` come from the same subject.
 
+### Dataset build modes
+
+Curated fairness mode, default:
+
+```bash
+python scripts/mitbih/build_metadata.py
+python scripts/mitbih/build_demographics.py
+python scripts/mitbih/prepare_beat_dataset.py
+```
+
+Full 48-record mode, explicit opt-in:
+
+```bash
+python scripts/mitbih/build_metadata.py --include-duplicate-202
+python scripts/mitbih/build_demographics.py --include-duplicate-202
+python scripts/mitbih/prepare_beat_dataset.py --include-duplicate-202
+```
+
 ---
 
 ## 2. Time-LLM: which variant should we use?
