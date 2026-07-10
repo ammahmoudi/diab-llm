@@ -31,7 +31,7 @@ def resolve_excluded_record_ids(include_duplicate_202: bool = False) -> set[str]
 
 
 _HEADER_DEMOGRAPHICS_RE = re.compile(
-    r"^#\s*(?P<age>\d+|\?)\s+(?P<sex>[MF\?])\b(?P<rest>.*)$"
+    r"^#\s*(?P<age>\d+|\?|\-1)\s+(?P<sex>[MF\?])\b(?P<rest>.*)$"
 )
 
 
@@ -112,9 +112,6 @@ class MitBihMetadataParser:
                 age = int(age_raw) if age_raw.isdigit() else None
                 sex_raw = demo_match.group("sex")
                 sex = {"M": "M", "F": "F"}.get(sex_raw, "unknown")
-                trailing = demo_match.group("rest").strip()
-                if trailing:
-                    notes_lines.append(trailing)
                 continue
 
             content = stripped.lstrip("#").strip()
