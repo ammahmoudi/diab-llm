@@ -17,10 +17,11 @@ import gin
 import numpy as np
 import torch
 import datetime
-from data_processing.data_loader import ChronosDataHandler, TimeLLMDataHandler
+from data_processing.data_loader import ChronosDataHandler, EcgTimeLLMDataHandler, TimeLLMDataHandler
 from absl import app, flags
 from llms.chronos import ChronosLLM
 from llms.student_llm import StudentLLM
+from llms.time_llm_ecg import TimeLLMECGClassifier
 from llms.time_llm import TimeLLM
 from distillation.core.distillation_wrapper import DistillationWrapper
 from utils.logger import setup_logging
@@ -722,6 +723,63 @@ def run(
         else:
             logging.error(f"Unsupported mode: {llm_settings['mode']}")
             raise NotImplementedError
+    elif llm_settings["method"] == "time_llm_ecg_classifier":
+        data_loader = EcgTimeLLMDataHandler(
+            settings={
+                "dataset_dir": data_settings["dataset_dir"],
+                "window_size": llm_settings.get("sequence_length", 256),
+                "batch_size": llm_settings.get("train_batch_size", 64),
+                "num_workers": llm_settings.get("num_workers", 0),
+                "include_duplicate_202": data_settings.get("include_duplicate_202", False),
+                "beat_index_csv": data_settings.get("beat_index_csv"),
+                "metadata_csv": data_settings.get("metadata_csv"),
+            }
+        )
+
+        train_data, train_loader = data_loader.load_from_index(
+            split="train", batch_size=llm_settings.get("train_batch_size", 64)
+        )
+        val_data, val_loader = data_loader.load_from_index(
+            split="val", batch_size=llm_settings.get("train_batch_size", 64), shuffle=False
+        )
+        test_data, test_loader = data_loader.load_from_index(
+            split="test", batch_size=llm_settings.get("prediction_batch_size", 64), shuffle=False
+        )
+
+        llm = TimeLLMECGClassifier(
+            name=llm_settings.get("model_comment", "time_llm_ecg_classifier"),
+            settings=llm_settings,
+            data_settings=data_settings,
+            log_dir=log_dir,
+        )
+
+        if llm_settings["mode"] == "inference":
+            if llm_settings.get("restore_from_checkpoint", False):
+                llm.load_model(llm_settings["restore_checkpoint_path"])
+            preds, targets, pred_df = llm.predict(test_loader, output_dir=log_dir)
+            if preds is not None:
+                metric_results = llm.evaluate(preds, targets, llm_settings.get("eval_metrics", ["accuracy", "macro_f1", "weighted_f1"]))
+                logging.info(f"ECG classifier metrics: {metric_results}")
+                with open(os.path.join(log_dir, "classification_report.json"), "w") as f:
+                    json.dump(llm.classification_report_dict(targets, preds), f, indent=2)
+
+        elif llm_settings["mode"] in ["training", "training+inference"]:
+            checkpoint_path, train_loss, val_loss = llm.train(train_data, train_loader, val_loader)
+            with open(log_dir + "/loss.pkl", "wb") as f:
+                pickle.dump((train_loss, val_loss), f)
+
+            if llm_settings["mode"] == "training+inference":
+                llm.load_model(checkpoint_path)
+                preds, targets, pred_df = llm.predict(test_loader, output_dir=log_dir)
+                if preds is not None:
+                    metric_results = llm.evaluate(preds, targets, llm_settings.get("eval_metrics", ["accuracy", "macro_f1", "weighted_f1"]))
+                    logging.info(f"ECG classifier metrics: {metric_results}")
+                    with open(os.path.join(log_dir, "classification_report.json"), "w") as f:
+                        json.dump(llm.classification_report_dict(targets, preds), f, indent=2)
+        else:
+            logging.error(f"Unsupported mode for ECG classifier: {llm_settings['mode']}")
+            raise NotImplementedError
+
     elif llm_settings["method"] == "student_llm":
         # Initialize TimeLLM-compatible data loader
         data_loader = TimeLLMDataHandler(
