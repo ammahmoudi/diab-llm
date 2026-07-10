@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -16,7 +17,12 @@ from fairness.analyzers.ecg_classifier_fairness_analyzer import ECGClassifierFai
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run MIT-BIH ECG classifier fairness analysis")
-    parser.add_argument("--prediction-csv", required=True, type=Path)
+    parser.add_argument("--prediction-csv", default=None, type=Path)
+    parser.add_argument(
+        "--prediction-csvs",
+        default=None,
+        help="Comma-separated list of named CSVs in the form name=path,name2=path2 for teacher/student/distilled comparison",
+    )
     parser.add_argument("--group-column", default="sex")
     parser.add_argument("--output-json", default=None, type=Path)
     return parser.parse_args()
@@ -24,7 +30,22 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    analyzer = ECGClassifierFairnessAnalyzer(args.prediction_csv, group_column=args.group_column)
-    output_json = args.output_json or args.prediction_csv.parent / f"fairness_{args.group_column}.json"
-    path = analyzer.save_json(output_json)
-    print(f"Saved fairness report to {path}")
+    if args.prediction_csvs:
+        outputs = {}
+        pairs = [item.strip() for item in args.prediction_csvs.split(",") if item.strip()]
+        for pair in pairs:
+            name, path_str = pair.split("=", 1)
+            analyzer = ECGClassifierFairnessAnalyzer(Path(path_str), group_column=args.group_column)
+            outputs[name] = analyzer.analyze()
+        output_json = args.output_json or Path("./fairness_mitbih_comparison.json")
+        output_json.parent.mkdir(parents=True, exist_ok=True)
+        with output_json.open("w") as f:
+            json.dump(outputs, f, indent=2)
+        print(f"Saved fairness comparison report to {output_json}")
+    else:
+        if args.prediction_csv is None:
+            raise ValueError("Provide --prediction-csv or --prediction-csvs")
+        analyzer = ECGClassifierFairnessAnalyzer(args.prediction_csv, group_column=args.group_column)
+        output_json = args.output_json or args.prediction_csv.parent / f"fairness_{args.group_column}.json"
+        path = analyzer.save_json(output_json)
+        print(f"Saved fairness report to {path}")

@@ -4,13 +4,12 @@
 from __future__ import annotations
 
 import json
-from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import f1_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, recall_score
 
 
 class ECGClassifierFairnessAnalyzer:
@@ -29,10 +28,12 @@ class ECGClassifierFairnessAnalyzer:
     def analyze(self) -> Dict[str, object]:
         grouped = self._group_metrics()
         classwise = self._classwise_one_vs_rest(grouped)
+        summary = self._overall_summary(grouped, classwise)
         return {
             "group_column": self.group_column,
             "overall": grouped,
             "classwise_one_vs_rest": classwise,
+            "summary": summary,
         }
 
     def save_json(self, output_path: str | Path) -> Path:
@@ -49,6 +50,7 @@ class ECGClassifierFairnessAnalyzer:
             y_pred = group_df["y_pred"].to_numpy()
             metrics[str(group_value)] = {
                 "count": int(len(group_df)),
+                "accuracy": float(accuracy_score(y_true, y_pred)),
                 "macro_f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
                 "weighted_f1": float(f1_score(y_true, y_pred, average="weighted", zero_division=0)),
             }
@@ -67,15 +69,42 @@ class ECGClassifierFairnessAnalyzer:
             recalls = [grouped_metrics[group][f"recall_class_{class_id}"] for group in group_names]
             if not recalls:
                 continue
+            positive_rates = []
+            accuracies = []
+            for group_name in group_names:
+                group_df = self.df[self.df[self.group_column] == group_name]
+                y_true = (group_df["y_true"].to_numpy() == class_id).astype(int)
+                y_pred = (group_df["y_pred"].to_numpy() == class_id).astype(int)
+                positive_rates.append(float(np.mean(y_pred)) if len(y_pred) else 0.0)
+                accuracies.append(float(accuracy_score(y_true, y_pred)) if len(y_true) else 0.0)
             classwise[str(class_id)] = {
+                "eo_gap": float(max(recalls) - min(recalls)),
+                "dp_gap": float(max(positive_rates) - min(positive_rates)) if positive_rates else 0.0,
+                "fvo": float(max(accuracies) - min(accuracies)) if accuracies else 0.0,
                 "max_recall_gap": float(max(recalls) - min(recalls)),
                 "worst_group_recall": float(min(recalls)),
                 "best_group_recall": float(max(recalls)),
             }
         if len(group_names) >= 2:
             macro_values = [grouped_metrics[group]["macro_f1"] for group in group_names]
+            accuracy_values = [grouped_metrics[group]["accuracy"] for group in group_names]
             classwise["summary"] = {
                 "macro_f1_gap": float(max(macro_values) - min(macro_values)),
+                "accuracy_gap": float(max(accuracy_values) - min(accuracy_values)),
                 "groups_compared": group_names,
             }
         return classwise
+
+    def _overall_summary(self, grouped_metrics: Dict[str, Dict[str, float]], classwise: Dict[str, Dict[str, float]]) -> Dict[str, object]:
+        class_entries = [value for key, value in classwise.items() if key != "summary"]
+        if not class_entries:
+            return {}
+        return {
+            "avg_eo_gap": float(np.mean([entry["eo_gap"] for entry in class_entries])),
+            "avg_dp_gap": float(np.mean([entry["dp_gap"] for entry in class_entries])),
+            "avg_fvo": float(np.mean([entry["fvo"] for entry in class_entries])),
+            "worst_class_eo_gap": float(max(entry["eo_gap"] for entry in class_entries)),
+            "worst_class_dp_gap": float(max(entry["dp_gap"] for entry in class_entries)),
+            "worst_class_fvo": float(max(entry["fvo"] for entry in class_entries)),
+            "groups": list(grouped_metrics.keys()),
+        }
