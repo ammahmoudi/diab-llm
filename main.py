@@ -14,6 +14,7 @@ Usage:
 import os
 import random
 import gin
+import json
 import numpy as np
 import torch
 import datetime
@@ -840,6 +841,11 @@ def run(
             distillation_driver.student.load_state_dict(
                 torch.load(llm_settings["restore_checkpoint_path"], map_location=distillation_driver.device, weights_only=True)
             )
+            if distillation_driver.student_calibration_enabled:
+                calibration_dir = os.path.dirname(llm_settings["restore_checkpoint_path"])
+                distillation_driver.load_student_calibration(
+                    os.path.join(calibration_dir, "student_calibration_head.json")
+                )
             preds, targets, _pred_df = distillation_driver.predict(test_loader, output_dir=log_dir)
             metric_results = distillation_driver.evaluate(
                 preds,

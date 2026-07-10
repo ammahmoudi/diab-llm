@@ -128,7 +128,8 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
         return classification_report(y_true, y_pred, zero_division=0, output_dict=True)
 
     def _compute_class_weights(self, dataset) -> torch.Tensor:
-        labels = [sample.class_id for sample in dataset.samples]
+        underlying = getattr(dataset, "_dataset", dataset)
+        labels = [sample.class_id for sample in underlying.samples]
         counts = np.bincount(labels, minlength=self._llm_settings.get("num_classes", 5))
         counts = np.maximum(counts, 1)
         weights = counts.sum() / (len(counts) * counts)

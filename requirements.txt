@@ -22,6 +22,7 @@ autogluon.timeseries
 peft
 seaborn
 scikit-learn>=1.0.0
+wfdb
 
 # System Dependencies (Ubuntu/Debian):
 # For plotting functionality with Kaleido/Chrome, install these system packages:
