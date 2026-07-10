@@ -295,6 +295,8 @@ Produce a clear research story across systems.
 - `models/` or `llms/` adaptation for a classification head
 - `main.py` using `llm_settings["method"] == "time_llm_ecg_classifier"`
 - shared evaluation through `main.py` outputs and fairness analyzers
+- `scripts/time_llm/config_generator_mitbih.py` for MIT-BIH config generation
+- existing `scripts/time_llm/run_experiments.py` for execution
 
 ### Distillation
 

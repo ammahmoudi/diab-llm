@@ -19,7 +19,10 @@ So implementation should follow these rules:
 
 Use new or clearly separated files such as:
 
-- `data_processing/ecg_*`
+- `data_processing/ecg/*`
+- `scripts/mitbih/*`
+- `llms/time_llm_ecg.py`
+- `models/ecg/*`
 - `distillation/scripts/distill_mitbih_*`
 - `fairness/analyzers/ecg_*`
 
@@ -370,6 +373,8 @@ After the core pipeline works, add mitigation experiments.
 
 1. Time-LLM classification head adaptation
 2. `main.py` using `llm_settings["method"] == "time_llm_ecg_classifier"`
+3. `scripts/time_llm/config_generator_mitbih.py`
+4. existing `scripts/time_llm/run_experiments.py` discovery flow
 
 ### Third batch
 
