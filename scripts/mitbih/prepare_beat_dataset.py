@@ -15,12 +15,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from data_processing.ecg_metadata_parser import (
+from data_processing.ecg.metadata import (
     DEFAULT_MITBIH_DIR,
     MitBihMetadataParser,
     resolve_excluded_record_ids,
 )
-from data_processing.ecg_mitbih_dataset import (
+from data_processing.ecg.dataset import (
     MitBihBeatDataset,
     build_record_level_split_assignments,
 )

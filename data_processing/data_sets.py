@@ -458,7 +458,7 @@ class Dataset_MITBIH_ECG(Dataset):
         metadata_csv=None,
         include_duplicate_202=False,
     ):
-        from data_processing.ecg_mitbih_dataset import MitBihBeatDataset
+        from data_processing.ecg.dataset import MitBihBeatDataset
 
         self._dataset = MitBihBeatDataset(
             dataset_dir=dataset_dir,

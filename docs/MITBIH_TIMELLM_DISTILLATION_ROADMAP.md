@@ -286,9 +286,9 @@ Produce a clear research story across systems.
 
 ### Data layer
 
-- `data_processing/ecg_metadata_parser.py`
-- `data_processing/ecg_label_map.py`
-- `data_processing/ecg_mitbih_dataset.py`
+- `data_processing/ecg/metadata.py`
+- `data_processing/ecg/label_map.py`
+- `data_processing/ecg/dataset.py`
 
 ### Time-LLM classification
 

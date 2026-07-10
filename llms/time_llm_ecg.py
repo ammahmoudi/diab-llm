@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score, classification_report, f1_score
 from torch.optim.adam import Adam
 
 from llms.ts_llm import TimeSeriesLLM
-from models.time_llm_ecg_classifier import TimeLLMEcgClassifier
+from models.ecg.time_llm_classifier import TimeLLMEcgClassifier
 
 
 class TimeLLMECGClassifier(TimeSeriesLLM):

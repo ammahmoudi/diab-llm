@@ -60,7 +60,7 @@ We need four connected subsystems:
 
 Create:
 
-- `data_processing/ecg_metadata_parser.py`
+- `data_processing/ecg/metadata.py`
 
 Responsibilities:
 
@@ -76,7 +76,7 @@ Output:
 
 Create:
 
-- `data_processing/ecg_label_map.py`
+- `data_processing/ecg/label_map.py`
 
 Responsibilities:
 
@@ -93,7 +93,7 @@ Responsibilities:
 
 Create:
 
-- `data_processing/ecg_mitbih_dataset.py`
+- `data_processing/ecg/dataset.py`
 
 Responsibilities:
 
@@ -363,9 +363,9 @@ After the core pipeline works, add mitigation experiments.
 
 ### First batch
 
-1. `data_processing/ecg_metadata_parser.py`
-2. `data_processing/ecg_label_map.py`
-3. `data_processing/ecg_mitbih_dataset.py`
+1. `data_processing/ecg/metadata.py`
+2. `data_processing/ecg/label_map.py`
+3. `data_processing/ecg/dataset.py`
 
 ### Second batch
 

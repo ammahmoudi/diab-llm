@@ -16,8 +16,8 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 
-from data_processing.ecg_label_map import MitBihAamiMapper
-from data_processing.ecg_metadata_parser import (
+from data_processing.ecg.label_map import MitBihAamiMapper
+from data_processing.ecg.metadata import (
     DEFAULT_MITBIH_DIR,
     MitBihMetadataParser,
     resolve_excluded_record_ids,

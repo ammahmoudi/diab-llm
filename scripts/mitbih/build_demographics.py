@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from data_processing.ecg_metadata_parser import DEFAULT_MITBIH_DIR, build_demographics_csv
+from data_processing.ecg.metadata import DEFAULT_MITBIH_DIR, build_demographics_csv
 
 
 def parse_args() -> argparse.Namespace:
