@@ -743,6 +743,8 @@ def run(
             batch_size=llm_settings.get("train_batch_size", 64),
             fair_sampling=data_settings.get("fair_teacher_sampling", False),
             fair_feature=data_settings.get("fair_teacher_feature", "sex"),
+            class_balanced_sampling=data_settings.get("class_balanced_sampling", False),
+            class_balanced_max_oversample=data_settings.get("class_balanced_max_oversample", 50.0),
         )
         val_data, val_loader = data_loader.load_from_index(
             split="val", batch_size=llm_settings.get("train_batch_size", 64), shuffle=False
@@ -819,6 +821,8 @@ def run(
             batch_size=llm_settings.get("train_batch_size", 64),
             fair_sampling=data_settings.get("fair_teacher_sampling", False),
             fair_feature=data_settings.get("fair_teacher_feature", "sex"),
+            class_balanced_sampling=data_settings.get("class_balanced_sampling", False),
+            class_balanced_max_oversample=data_settings.get("class_balanced_max_oversample", 50.0),
         )
         val_data, val_loader = data_loader.load_from_index(
             split="val", batch_size=llm_settings.get("train_batch_size", 64), shuffle=False

@@ -55,3 +55,44 @@ def build_group_class_sampler(
         "mean_weight": float(weights.mean()),
     }
     return sampler, info
+
+
+def build_class_balanced_sampler(
+    dataset,
+    max_oversample: float = 50.0,
+) -> Tuple[WeightedRandomSampler, Dict[str, object]]:
+    """Create a sampler that upweights rare AAMI classes only (no demographic
+    grouping). Intended for teacher/student baseline training, where MIT-BIH's
+    extreme class imbalance (e.g. class F is ~0.07% of beats, ~1000x rarer
+    than class N) can otherwise cause the model to collapse to always
+    predicting the majority class, even with class-weighted loss alone.
+
+    `max_oversample` defaults higher than the group-aware `max_oversample=4.0`
+    used for T1 fairness sampling, since class imbalance here is far more
+    extreme than the demographic imbalance T1 was designed for.
+    """
+    class_ids = np.asarray([sample.class_id for sample in dataset.samples], dtype=int)
+    class_counter = Counter(int(class_id) for class_id in class_ids)
+    mean_count = float(np.mean(list(class_counter.values()))) if class_counter else 1.0
+
+    weights = []
+    for class_id in class_ids:
+        class_count = class_counter[int(class_id)]
+        raw_weight = mean_count / max(1.0, float(class_count))
+        weights.append(min(max_oversample, raw_weight))
+
+    weights = np.asarray(weights, dtype=np.float32)
+    weights = weights / weights.mean()
+
+    sampler = WeightedRandomSampler(
+        weights=torch.as_tensor(weights, dtype=torch.double),
+        num_samples=len(weights),
+        replacement=True,
+    )
+
+    info = {
+        "class_counts": {str(class_id): count for class_id, count in class_counter.items()},
+        "max_oversample": float(max_oversample),
+        "mean_weight": float(weights.mean()),
+    }
+    return sampler, info

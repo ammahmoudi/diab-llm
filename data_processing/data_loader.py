@@ -306,6 +306,8 @@ class EcgTimeLLMDataHandler:
         fair_sampling=False,
         fair_feature="sex",
         fair_max_oversample=4.0,
+        class_balanced_sampling=False,
+        class_balanced_max_oversample=50.0,
     ):
         dataset = self.load_dataset(split=split)
         if batch_size is None:
@@ -333,6 +335,20 @@ class EcgTimeLLMDataHandler:
                 shuffle = False
             except Exception as e:
                 logging.warning(f"ECG fair sampling setup failed: {e}. Falling back to standard shuffle.")
+        elif class_balanced_sampling and split == "train":
+            try:
+                from fairness.utils.ecg_sampling import build_class_balanced_sampler
+
+                sampler, info = build_class_balanced_sampler(
+                    dataset._dataset,
+                    max_oversample=class_balanced_max_oversample,
+                )
+                logging.info(
+                    f"⚖️  ECG class-balanced sampling active: max_oversample={info['max_oversample']}x"
+                )
+                shuffle = False
+            except Exception as e:
+                logging.warning(f"ECG class-balanced sampling setup failed: {e}. Falling back to standard shuffle.")
         data_loader = DataLoader(
             dataset,
             batch_size=batch_size,

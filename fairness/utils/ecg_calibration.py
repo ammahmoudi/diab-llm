@@ -20,11 +20,19 @@ def fit_groupwise_logit_bias(
     num_classes: int,
     steps: int = 200,
     lr: float = 0.1,
+    class_weights: np.ndarray | None = None,
 ) -> Dict[str, object]:
     """Fit a small additive logit bias per group on validation data.
 
     The fitted parameters can later be applied as:
         adjusted_logits = logits + group_bias[group]
+
+    `class_weights` (length `num_classes`, e.g. inverse class frequency) is
+    strongly recommended for imbalanced multi-class problems like MIT-BIH
+    AAMI classification: fitting with plain (unweighted) cross-entropy on a
+    dataset where one class is >100x more frequent than others causes the
+    bias to chase majority-class accuracy, actively re-collapsing the model
+    toward the majority class instead of calibrating it fairly.
     """
     logits_t = torch.tensor(logits, dtype=torch.float32)
     labels_t = torch.tensor(labels, dtype=torch.long)
@@ -33,12 +41,16 @@ def fit_groupwise_logit_bias(
     group_to_idx = {group: idx for idx, group in enumerate(unique_groups)}
     group_idx = torch.tensor([group_to_idx[str(g)] for g in group_labels], dtype=torch.long)
 
+    class_weight_t = None
+    if class_weights is not None:
+        class_weight_t = torch.tensor(class_weights, dtype=torch.float32)
+
     bias = torch.zeros((len(unique_groups), num_classes), dtype=torch.float32, requires_grad=True)
     optimizer = torch.optim.Adam([bias], lr=lr)
 
     for _ in range(steps):
         adjusted = logits_t + bias[group_idx]
-        loss = F.cross_entropy(adjusted, labels_t)
+        loss = F.cross_entropy(adjusted, labels_t, weight=class_weight_t)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -49,6 +61,7 @@ def fit_groupwise_logit_bias(
         "num_classes": num_classes,
         "steps": steps,
         "lr": lr,
+        "class_weighted": class_weights is not None,
     }
 
 

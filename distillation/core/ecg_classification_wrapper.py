@@ -428,11 +428,20 @@ class ECGClassificationDistillationWrapper:
 
         logits = np.concatenate(all_logits, axis=0)
         num_classes = logits.shape[1]
+        labels_arr = np.asarray(all_labels)
+        # Fit with class-balanced weighting: on MIT-BIH's extreme imbalance
+        # (e.g. class F is ~0.07% of beats), plain unweighted cross-entropy
+        # would let the bias chase majority-class accuracy and re-collapse
+        # the calibrated model toward the majority class.
+        class_counts = np.bincount(labels_arr, minlength=num_classes)
+        class_counts = np.maximum(class_counts, 1)
+        class_weights = class_counts.sum() / (len(class_counts) * class_counts)
         metadata = fit_groupwise_logit_bias(
             logits=logits,
-            labels=np.asarray(all_labels),
+            labels=labels_arr,
             group_labels=all_groups,
             num_classes=num_classes,
+            class_weights=class_weights,
         )
         metadata["feature"] = self.student_calibration_feature
         self._calibration_metadata = metadata

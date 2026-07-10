@@ -51,13 +51,20 @@ def get_length_sets(mode):
 
 def generate_config_content(mode, seed, llm_config, length_set, train_epochs=10,
                             checkpoint_path=None, torch_dtype="float32",
-                            include_duplicate_202=False):
+                            include_duplicate_202=False,
+                            class_balanced=False, class_balanced_max_oversample=50.0):
     """Generate the configuration content based on parameters."""
     log_folder_placeholder = "LOGS_PLACEHOLDER"
 
     mode_str = "training+inference" if mode != "inference" else "inference"
     batch_sizes = get_model_batch_sizes(llm_config["llm_model"])
     restore_flag = mode == "inference" and checkpoint_path is not None
+
+    class_balanced_line = (
+        f",\n     'class_balanced_sampling': True,"
+        f"\n     'class_balanced_max_oversample': {class_balanced_max_oversample}"
+        if class_balanced else ""
+    )
 
     config_content = f'''# Parameters for run:
 # ==============================================================================
@@ -66,7 +73,7 @@ run.data_settings = \\
      'metadata_csv': './data/mit-bih-arrhythmia/metadata_records.csv',
      'demographics_csv': './data/mit-bih-arrhythmia/demographics_records.csv',
      'beat_index_csv': './data/mit-bih-arrhythmia/beat_index.csv',
-     'include_duplicate_202': {str(include_duplicate_202)}}}
+     'include_duplicate_202': {str(include_duplicate_202)}{class_balanced_line}}}
 
 run.llm_settings = \\
     {{'activation': 'gelu',
@@ -139,6 +146,12 @@ def main():
                        help="Path to checkpoint for inference mode (required for inference)")
     parser.add_argument("--include-duplicate-202", action="store_true",
                        help="Include duplicate record 202 instead of using the curated 47-record set")
+    parser.add_argument("--class-balanced", action="store_true",
+                       help="Enable class-balanced oversampling for training (recommended: MIT-BIH's "
+                            "extreme AAMI class imbalance can otherwise cause the model to collapse "
+                            "to always predicting the majority class N)")
+    parser.add_argument("--class-balanced-max-oversample", type=float, default=50.0,
+                       help="Max oversample multiplier for rare classes when --class-balanced is set (default: 50.0)")
 
     args = parser.parse_args()
 
@@ -196,6 +209,8 @@ def main():
             checkpoint_path=args.checkpoint_path,
             torch_dtype=torch_dtype,
             include_duplicate_202=args.include_duplicate_202,
+            class_balanced=args.class_balanced,
+            class_balanced_max_oversample=args.class_balanced_max_oversample,
         )
 
         config_content = config_content.replace("LOGS_PLACEHOLDER", log_folder)

@@ -66,10 +66,19 @@ PIPELINE_DIR="${PIPELINE_DIR:-experiments/mitbih_fairness_pipeline}"
 RUN_ALL_FIXES="${RUN_ALL_FIXES:-0}"                    # 1 = also run K1/O1/K3/K4/O3 individually
 SETUP_ENV="${SETUP_ENV:-0}"                            # 1 = create venv + pip install first
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
+CLASS_BALANCED="${CLASS_BALANCED:-1}"                   # 1 = class-balanced oversampling for teacher/student
+                                                        # training (default ON: MIT-BIH's extreme AAMI class
+                                                        # imbalance otherwise causes majority-class collapse)
+CLASS_BALANCED_MAX_OVERSAMPLE="${CLASS_BALANCED_MAX_OVERSAMPLE:-50.0}"
 
 DUP_202_FLAG=""
 if [[ "$INCLUDE_DUPLICATE_202" == "1" ]]; then
     DUP_202_FLAG="--include-duplicate-202"
+fi
+
+CLASS_BALANCED_FLAG=""
+if [[ "$CLASS_BALANCED" == "1" ]]; then
+    CLASS_BALANCED_FLAG="--class-balanced --class-balanced-max-oversample $CLASS_BALANCED_MAX_OVERSAMPLE"
 fi
 
 mkdir -p "$PIPELINE_DIR"
@@ -120,6 +129,7 @@ echo "   Teacher model: $TEACHER_MODEL (epochs=$TEACHER_EPOCHS)"
 echo "   Student model: $STUDENT_MODEL (epochs=$STUDENT_EPOCHS, distill_epochs=$DISTILL_EPOCHS)"
 echo "   Fair feature:  $FAIR_FEATURE"
 echo "   Run all fixes: $RUN_ALL_FIXES"
+echo "   Class-balanced sampling (teacher/student): $CLASS_BALANCED (max_oversample=$CLASS_BALANCED_MAX_OVERSAMPLE)"
 echo "   Seeds:         ${SEED_LIST[*]} (${#SEED_LIST[@]} total)"
 echo "========================================================================"
 echo ""
@@ -217,7 +227,7 @@ run_pipeline_for_seed() {
     local teacher_gen_dir="$seed_dir/teacher_gen"
     python scripts/time_llm/config_generator_mitbih.py \
         --mode train_inference --llm_models "$TEACHER_MODEL" --seeds "$seed" \
-        --epochs "$TEACHER_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG \
+        --epochs "$TEACHER_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG $CLASS_BALANCED_FLAG \
         --output_dir "$teacher_gen_dir"
     local teacher_exp_dir
     teacher_exp_dir=$(locate_seq256_experiment_dir "$teacher_gen_dir")
@@ -237,7 +247,7 @@ run_pipeline_for_seed() {
     local student_gen_dir="$seed_dir/student_baseline_gen"
     python scripts/time_llm/config_generator_mitbih.py \
         --mode train_inference --llm_models "$STUDENT_MODEL" --seeds "$seed" \
-        --epochs "$STUDENT_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG \
+        --epochs "$STUDENT_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG $CLASS_BALANCED_FLAG \
         --output_dir "$student_gen_dir"
     local student_exp_dir
     student_exp_dir=$(locate_seq256_experiment_dir "$student_gen_dir")
