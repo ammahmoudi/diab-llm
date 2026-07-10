@@ -69,7 +69,7 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
             json.dump(train_history, f, indent=2)
         return best_path, [row["train_loss"] for row in train_history], [row["val_loss"] for row in train_history]
 
-    def predict(self, test_loader, output_dir=None):
+    def predict(self, test_loader, output_dir=None, filename: str = "test_predictions.csv"):
         self.llm_model.eval()
         rows: List[Dict[str, object]] = []
         all_true: List[int] = []
@@ -105,7 +105,7 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
         predictions_df = pd.DataFrame(rows)
         if output_dir is not None:
             os.makedirs(output_dir, exist_ok=True)
-            predictions_df.to_csv(os.path.join(output_dir, "test_predictions.csv"), index=False)
+            predictions_df.to_csv(os.path.join(output_dir, filename), index=False)
         predictions = np.asarray(all_pred)
         targets = np.asarray(all_true)
         return predictions, targets, predictions_df

@@ -453,7 +453,7 @@ class ECGClassificationDistillationWrapper:
         self.student_calibration_feature = self._calibration_metadata.get("feature", self.student_calibration_feature)
         self.logger.info(f"Loaded O2 ECG student calibration head from {calibration_path}")
 
-    def predict(self, test_loader, output_dir=None):
+    def predict(self, test_loader, output_dir=None, filename: str = "test_predictions.csv"):
         # Mirrors the BG DistillationWrapper: if calibration is enabled but no
         # metadata has been fit/loaded yet in this instance, try to auto-load
         # it from log_dir so standalone predict() calls stay correct.
@@ -497,7 +497,7 @@ class ECGClassificationDistillationWrapper:
         predictions_df = pd.DataFrame(rows)
         if output_dir is not None:
             os.makedirs(output_dir, exist_ok=True)
-            predictions_df.to_csv(os.path.join(output_dir, "test_predictions.csv"), index=False)
+            predictions_df.to_csv(os.path.join(output_dir, filename), index=False)
         return np.asarray(all_pred), np.asarray(all_true), predictions_df
 
     def evaluate(self, predictions, targets, metrics=None):

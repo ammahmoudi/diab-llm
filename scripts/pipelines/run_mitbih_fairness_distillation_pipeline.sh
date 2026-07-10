@@ -6,16 +6,16 @@
 # scripts/pipelines/run_fairness_distillation_experiments.sh (the BG pipeline).
 #
 # Runs, end to end, on a fresh checkout / fresh machine:
-#   Phase 0: data prep        (metadata/demographics/beat-index CSVs)
-#   Phase 1: teacher training (time_llm_ecg_classifier, e.g. BERT)
-#   Phase 2: student baseline (time_llm_ecg_classifier, no distillation)
-#   Phase 3: distillation variants (distillation_ecg_classifier):
-#              - baseline (no fixes)
-#              - T1 fair teacher sampling
-#              - O2 student calibration
-#              - T1 + O2 (best combo in the BG work)
-#              - optionally (RUN_ALL_FIXES=1): K1, O1, K3, K4, O3 individually
-#   Phase 4: fairness comparison across every trained variant
+#   Phase 0: data prep        (metadata/demographics/beat-index CSVs) — once
+#   Phase 1: teacher training (time_llm_ecg_classifier, e.g. BERT)     \
+#   Phase 2: student baseline (time_llm_ecg_classifier, no distillation) } per seed
+#   Phase 3: distillation variants (distillation_ecg_classifier):       |
+#              - baseline (no fixes)                                   |
+#              - T1 fair teacher sampling                              |
+#              - O2 student calibration                                |
+#              - T1 + O2 (best combo in the BG work)                   |
+#              - optionally (RUN_ALL_FIXES=1): K1, O1, K3, K4, O3      |
+#   Phase 4: fairness comparison across every trained variant         /
 #
 # Every phase is skipped automatically if its checkpoint + predictions already
 # exist, so the script is safe to re-run/resume after an interruption.
@@ -28,6 +28,13 @@
 # defaults below). Example overriding a few:
 #   TEACHER_MODEL=BERT STUDENT_MODEL=BERT-tiny TEACHER_EPOCHS=15 \
 #     bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+#
+# Seed sweeps: by default a single SEED=42 is used. To sweep across seeds:
+#   SEEDS=42,123,456 bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+# Or to use every seed from scripts/utilities/seeds.py::fixed_seeds:
+#   ALL_SEEDS=1 bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+# Each seed gets its own subdirectory under PIPELINE_DIR (seed_<value>/), with
+# its own checkpoints/predictions/fairness report, so results are not mixed.
 #
 # To bootstrap a brand-new machine (create venv + install requirements) before
 # running the pipeline, set SETUP_ENV=1:
@@ -47,6 +54,8 @@ cd "$PROJECT_ROOT"
 TEACHER_MODEL="${TEACHER_MODEL:-BERT}"
 STUDENT_MODEL="${STUDENT_MODEL:-TinyBERT}"
 SEED="${SEED:-42}"
+SEEDS="${SEEDS:-}"                                     # comma-separated seed list, overrides SEED
+ALL_SEEDS="${ALL_SEEDS:-0}"                            # 1 = use every seed in utilities/seeds.py::fixed_seeds
 TEACHER_EPOCHS="${TEACHER_EPOCHS:-10}"
 STUDENT_EPOCHS="${STUDENT_EPOCHS:-10}"
 DISTILL_EPOCHS="${DISTILL_EPOCHS:-10}"
@@ -66,19 +75,6 @@ fi
 mkdir -p "$PIPELINE_DIR"
 LOG_FILE="$PIPELINE_DIR/pipeline_$(date +%Y%m%d_%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
-
-echo "========================================================================"
-echo "🔬 MIT-BIH ECG Fairness Distillation Pipeline"
-echo "   Started: $(date)"
-echo "   Project root: $PROJECT_ROOT"
-echo "   Pipeline dir:  $PIPELINE_DIR"
-echo "   Log file:      $LOG_FILE"
-echo "   Teacher model: $TEACHER_MODEL (epochs=$TEACHER_EPOCHS)"
-echo "   Student model: $STUDENT_MODEL (epochs=$STUDENT_EPOCHS, distill_epochs=$DISTILL_EPOCHS)"
-echo "   Fair feature:  $FAIR_FEATURE"
-echo "   Run all fixes: $RUN_ALL_FIXES"
-echo "========================================================================"
-echo ""
 
 # ── Optional environment bootstrap for a brand-new machine ──────────────────
 if [[ "$SETUP_ENV" == "1" ]]; then
@@ -101,7 +97,31 @@ if [[ -z "${VIRTUAL_ENV:-}" ]]; then
         source .venv/bin/activate
     fi
 fi
-echo "✅ venv: ${VIRTUAL_ENV:-<none, using system python>}"
+
+# ── Resolve which seed(s) to run ────────────────────────────────────────────
+SEED_LIST=()
+if [[ "$ALL_SEEDS" == "1" ]]; then
+    ALL_SEEDS_CSV=$(cd "$PROJECT_ROOT/scripts" && python3 -c "from utilities.seeds import fixed_seeds; print(','.join(map(str, fixed_seeds)))")
+    IFS=',' read -r -a SEED_LIST <<< "$ALL_SEEDS_CSV"
+elif [[ -n "$SEEDS" ]]; then
+    IFS=',' read -r -a SEED_LIST <<< "$SEEDS"
+else
+    SEED_LIST=("$SEED")
+fi
+
+echo "========================================================================"
+echo "🔬 MIT-BIH ECG Fairness Distillation Pipeline"
+echo "   Started: $(date)"
+echo "   Project root: $PROJECT_ROOT"
+echo "   Pipeline dir:  $PIPELINE_DIR"
+echo "   Log file:      $LOG_FILE"
+echo "   venv:          ${VIRTUAL_ENV:-<none, using system python>}"
+echo "   Teacher model: $TEACHER_MODEL (epochs=$TEACHER_EPOCHS)"
+echo "   Student model: $STUDENT_MODEL (epochs=$STUDENT_EPOCHS, distill_epochs=$DISTILL_EPOCHS)"
+echo "   Fair feature:  $FAIR_FEATURE"
+echo "   Run all fixes: $RUN_ALL_FIXES"
+echo "   Seeds:         ${SEED_LIST[*]} (${#SEED_LIST[@]} total)"
+echo "========================================================================"
 echo ""
 
 # ── Helper: run a single generated config if not already trained ───────────
@@ -164,9 +184,9 @@ locate_seq256_experiment_dir() {
     dirname "$(dirname "$config_path")"
 }
 
-# ── Phase 0: data prep (idempotent) ─────────────────────────────────────────
+# ── Phase 0: data prep (idempotent, shared across all seeds) ───────────────
 echo "========================================================================"
-echo "▶ Phase 0/4: MIT-BIH data preparation"
+echo "▶ Phase 0: MIT-BIH data preparation"
 echo "========================================================================"
 DATA_DIR="data/mit-bih-arrhythmia"
 if [[ -f "$DATA_DIR/metadata_records.csv" && -f "$DATA_DIR/demographics_records.csv" && -f "$DATA_DIR/beat_index.csv" ]]; then
@@ -179,123 +199,153 @@ fi
 echo "✅ Phase 0 complete — $(date)"
 echo ""
 
-# ── Phase 1: teacher training ────────────────────────────────────────────────
-echo "========================================================================"
-echo "▶ Phase 1/4: Teacher training ($TEACHER_MODEL)"
-echo "========================================================================"
-TEACHER_GEN_DIR="$PIPELINE_DIR/teacher_gen"
-python scripts/time_llm/config_generator_mitbih.py \
-    --mode train_inference --llm_models "$TEACHER_MODEL" --seeds "$SEED" \
-    --epochs "$TEACHER_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG \
-    --output_dir "$TEACHER_GEN_DIR"
-TEACHER_EXP_DIR=$(locate_seq256_experiment_dir "$TEACHER_GEN_DIR")
-run_experiment_if_needed "$TEACHER_EXP_DIR" "teacher ($TEACHER_MODEL)"
-TEACHER_CKPT=$(latest_checkpoint_path "$TEACHER_EXP_DIR")
-TEACHER_PREDICTIONS=$(latest_predictions_path "$TEACHER_EXP_DIR")
-echo "   Teacher checkpoint:  $TEACHER_CKPT"
-echo "   Teacher predictions: $TEACHER_PREDICTIONS"
-echo ""
+# ── Phases 1-4, run once per seed ───────────────────────────────────────────
+run_pipeline_for_seed() {
+    local seed="$1"
+    local seed_dir="$PIPELINE_DIR/seed_${seed}"
+    mkdir -p "$seed_dir"
 
-# ── Phase 2: student baseline (no distillation) ─────────────────────────────
-echo "========================================================================"
-echo "▶ Phase 2/4: Student baseline training ($STUDENT_MODEL, no distillation)"
-echo "========================================================================"
-STUDENT_GEN_DIR="$PIPELINE_DIR/student_baseline_gen"
-python scripts/time_llm/config_generator_mitbih.py \
-    --mode train_inference --llm_models "$STUDENT_MODEL" --seeds "$SEED" \
-    --epochs "$STUDENT_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG \
-    --output_dir "$STUDENT_GEN_DIR"
-STUDENT_EXP_DIR=$(locate_seq256_experiment_dir "$STUDENT_GEN_DIR")
-run_experiment_if_needed "$STUDENT_EXP_DIR" "student baseline ($STUDENT_MODEL)"
-STUDENT_PREDICTIONS=$(latest_predictions_path "$STUDENT_EXP_DIR")
-echo "   Student baseline predictions: $STUDENT_PREDICTIONS"
-echo ""
+    echo "########################################################################"
+    echo "# Seed $seed  (output: $seed_dir)"
+    echo "########################################################################"
+    echo ""
 
-# ── Phase 3: distillation variants ──────────────────────────────────────────
-echo "========================================================================"
-echo "▶ Phase 3/4: Distillation variants ($TEACHER_MODEL -> $STUDENT_MODEL)"
-echo "========================================================================"
+    # Phase 1: teacher training
+    echo "========================================================================"
+    echo "▶ Phase 1/4 [seed $seed]: Teacher training ($TEACHER_MODEL)"
+    echo "========================================================================"
+    local teacher_gen_dir="$seed_dir/teacher_gen"
+    python scripts/time_llm/config_generator_mitbih.py \
+        --mode train_inference --llm_models "$TEACHER_MODEL" --seeds "$seed" \
+        --epochs "$TEACHER_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG \
+        --output_dir "$teacher_gen_dir"
+    local teacher_exp_dir
+    teacher_exp_dir=$(locate_seq256_experiment_dir "$teacher_gen_dir")
+    run_experiment_if_needed "$teacher_exp_dir" "teacher ($TEACHER_MODEL) [seed $seed]"
+    local teacher_ckpt
+    teacher_ckpt=$(latest_checkpoint_path "$teacher_exp_dir")
+    local teacher_predictions
+    teacher_predictions=$(latest_predictions_path "$teacher_exp_dir")
+    echo "   Teacher checkpoint:  $teacher_ckpt"
+    echo "   Teacher predictions: $teacher_predictions"
+    echo ""
 
-declare -A DISTILL_PREDICTIONS
+    # Phase 2: student baseline (no distillation)
+    echo "========================================================================"
+    echo "▶ Phase 2/4 [seed $seed]: Student baseline training ($STUDENT_MODEL, no distillation)"
+    echo "========================================================================"
+    local student_gen_dir="$seed_dir/student_baseline_gen"
+    python scripts/time_llm/config_generator_mitbih.py \
+        --mode train_inference --llm_models "$STUDENT_MODEL" --seeds "$seed" \
+        --epochs "$STUDENT_EPOCHS" --torch-dtype "$TORCH_DTYPE" $DUP_202_FLAG \
+        --output_dir "$student_gen_dir"
+    local student_exp_dir
+    student_exp_dir=$(locate_seq256_experiment_dir "$student_gen_dir")
+    run_experiment_if_needed "$student_exp_dir" "student baseline ($STUDENT_MODEL) [seed $seed]"
+    local student_predictions
+    student_predictions=$(latest_predictions_path "$student_exp_dir")
+    echo "   Student baseline predictions: $student_predictions"
+    echo ""
 
-run_distillation_variant() {
-    local label="$1"; shift
-    local extra_flags=("$@")
-    local gen_dir="$PIPELINE_DIR/distill_${label}_gen"
+    # Phase 3: distillation variants
+    echo "========================================================================"
+    echo "▶ Phase 3/4 [seed $seed]: Distillation variants ($TEACHER_MODEL -> $STUDENT_MODEL)"
+    echo "========================================================================"
 
-    python scripts/time_llm/config_generator_mitbih_distillation.py \
-        --mode train_inference --teacher-model "$TEACHER_MODEL" \
-        --student-models "$STUDENT_MODEL" --teacher-checkpoint-path "$TEACHER_CKPT" \
-        --seeds "$SEED" --epochs "$DISTILL_EPOCHS" --torch-dtype "$TORCH_DTYPE" \
-        $DUP_202_FLAG --output_dir "$gen_dir" "${extra_flags[@]}"
+    declare -A distill_predictions
 
-    local exp_dir
-    exp_dir=$(locate_seq256_experiment_dir "$gen_dir")
-    run_experiment_if_needed "$exp_dir" "distillation: $label"
-    DISTILL_PREDICTIONS["$label"]=$(latest_predictions_path "$exp_dir")
+    _run_distillation_variant() {
+        local label="$1"; shift
+        local extra_flags=("$@")
+        local gen_dir="$seed_dir/distill_${label}_gen"
+
+        python scripts/time_llm/config_generator_mitbih_distillation.py \
+            --mode train_inference --teacher-model "$TEACHER_MODEL" \
+            --student-models "$STUDENT_MODEL" --teacher-checkpoint-path "$teacher_ckpt" \
+            --seeds "$seed" --epochs "$DISTILL_EPOCHS" --torch-dtype "$TORCH_DTYPE" \
+            $DUP_202_FLAG --output_dir "$gen_dir" "${extra_flags[@]}"
+
+        local exp_dir
+        exp_dir=$(locate_seq256_experiment_dir "$gen_dir")
+        run_experiment_if_needed "$exp_dir" "distillation: $label [seed $seed]"
+        distill_predictions["$label"]=$(latest_predictions_path "$exp_dir")
+    }
+
+    _run_distillation_variant "baseline"
+    _run_distillation_variant "t1" --fair-teacher --fair-teacher-feature "$FAIR_FEATURE"
+    _run_distillation_variant "o2" --student-calibration --student-calibration-feature "$FAIR_FEATURE"
+    _run_distillation_variant "t1_o2" \
+        --fair-teacher --fair-teacher-feature "$FAIR_FEATURE" \
+        --student-calibration --student-calibration-feature "$FAIR_FEATURE"
+
+    if [[ "$RUN_ALL_FIXES" == "1" ]]; then
+        echo "🧪 RUN_ALL_FIXES=1 — also running K1, O1, K3, K4, O3 individually"
+        _run_distillation_variant "k1" \
+            --teacher-calibration --teacher-calibration-feature "$FAIR_FEATURE" \
+            --teacher-calibration-offsets '{"M": [0,0,0,0,0], "F": [0,0.3,0.3,0.3,0.3]}'
+        _run_distillation_variant "o1" \
+            --fairness-constraint --fairness-constraint-feature "$FAIR_FEATURE"
+        _run_distillation_variant "k3" \
+            --feature-alignment --feature-alignment-feature "$FAIR_FEATURE"
+        _run_distillation_variant "k4" \
+            --kd-replay --kd-replay-feature "$FAIR_FEATURE" --kd-replay-minority-group F
+        _run_distillation_variant "o3" \
+            --adv-erasure --adv-erasure-feature "$FAIR_FEATURE"
+        # T2 (multi-teacher) needs a second, group-specialized teacher checkpoint,
+        # which this pipeline does not train by default. Skipped unless you supply
+        # SECOND_TEACHER_CHECKPOINT_PATH explicitly.
+        if [[ -n "${SECOND_TEACHER_CHECKPOINT_PATH:-}" ]]; then
+            _run_distillation_variant "t2" \
+                --multi-teacher --multi-teacher-feature "$FAIR_FEATURE" --multi-teacher-group0 F \
+                --second-teacher-checkpoint-path "$SECOND_TEACHER_CHECKPOINT_PATH"
+        else
+            echo "⏭️  Skipping T2 (multi-teacher) — set SECOND_TEACHER_CHECKPOINT_PATH to enable"
+        fi
+    fi
+
+    echo "✅ Phase 3 complete [seed $seed] — $(date)"
+    echo ""
+
+    # Phase 4: fairness comparison across every trained variant
+    echo "========================================================================"
+    echo "▶ Phase 4/4 [seed $seed]: Fairness comparison"
+    echo "========================================================================"
+
+    local pred_csv_arg="teacher=$teacher_predictions,student_baseline=$student_predictions"
+    for label in "${!distill_predictions[@]}"; do
+        pred_csv_arg="$pred_csv_arg,distilled_${label}=${distill_predictions[$label]}"
+    done
+
+    local fairness_report="$seed_dir/fairness_comparison_${FAIR_FEATURE}.json"
+    python scripts/fairness/run_mitbih_classifier_fairness.py \
+        --prediction-csvs "$pred_csv_arg" \
+        --group-column "$FAIR_FEATURE" \
+        --output-json "$fairness_report"
+
+    echo "✅ Phase 4 complete [seed $seed] — $(date)"
+    echo ""
+
+    echo "------------------------------------------------------------------------"
+    echo "🎉 Seed $seed complete — $(date)"
+    echo "   Teacher checkpoint:      $teacher_ckpt"
+    echo "   Student baseline preds:  $student_predictions"
+    for label in "${!distill_predictions[@]}"; do
+        echo "   Distilled ($label) preds: ${distill_predictions[$label]}"
+    done
+    echo "   Fairness comparison:     $fairness_report"
+    echo "------------------------------------------------------------------------"
+    echo ""
+
+    unset -f _run_distillation_variant
 }
 
-run_distillation_variant "baseline"
-run_distillation_variant "t1" --fair-teacher --fair-teacher-feature "$FAIR_FEATURE"
-run_distillation_variant "o2" --student-calibration --student-calibration-feature "$FAIR_FEATURE"
-run_distillation_variant "t1_o2" \
-    --fair-teacher --fair-teacher-feature "$FAIR_FEATURE" \
-    --student-calibration --student-calibration-feature "$FAIR_FEATURE"
-
-if [[ "$RUN_ALL_FIXES" == "1" ]]; then
-    echo "🧪 RUN_ALL_FIXES=1 — also running K1, O1, K3, K4, O3 individually"
-    run_distillation_variant "k1" \
-        --teacher-calibration --teacher-calibration-feature "$FAIR_FEATURE" \
-        --teacher-calibration-offsets '{"M": [0,0,0,0,0], "F": [0,0.3,0.3,0.3,0.3]}'
-    run_distillation_variant "o1" \
-        --fairness-constraint --fairness-constraint-feature "$FAIR_FEATURE"
-    run_distillation_variant "k3" \
-        --feature-alignment --feature-alignment-feature "$FAIR_FEATURE"
-    run_distillation_variant "k4" \
-        --kd-replay --kd-replay-feature "$FAIR_FEATURE" --kd-replay-minority-group F
-    run_distillation_variant "o3" \
-        --adv-erasure --adv-erasure-feature "$FAIR_FEATURE"
-    # T2 (multi-teacher) needs a second, group-specialized teacher checkpoint,
-    # which this pipeline does not train by default. Skipped unless you supply
-    # SECOND_TEACHER_CHECKPOINT_PATH explicitly.
-    if [[ -n "${SECOND_TEACHER_CHECKPOINT_PATH:-}" ]]; then
-        run_distillation_variant "t2" \
-            --multi-teacher --multi-teacher-feature "$FAIR_FEATURE" --multi-teacher-group0 F \
-            --second-teacher-checkpoint-path "$SECOND_TEACHER_CHECKPOINT_PATH"
-    else
-        echo "⏭️  Skipping T2 (multi-teacher) — set SECOND_TEACHER_CHECKPOINT_PATH to enable"
-    fi
-fi
-
-echo "✅ Phase 3 complete — $(date)"
-echo ""
-
-# ── Phase 4: fairness comparison across every trained variant ──────────────
-echo "========================================================================"
-echo "▶ Phase 4/4: Fairness comparison"
-echo "========================================================================"
-
-PRED_CSV_ARG="teacher=$TEACHER_PREDICTIONS,student_baseline=$STUDENT_PREDICTIONS"
-for label in "${!DISTILL_PREDICTIONS[@]}"; do
-    PRED_CSV_ARG="$PRED_CSV_ARG,distilled_${label}=${DISTILL_PREDICTIONS[$label]}"
+for seed in "${SEED_LIST[@]}"; do
+    run_pipeline_for_seed "$seed"
 done
 
-FAIRNESS_REPORT="$PIPELINE_DIR/fairness_comparison_${FAIR_FEATURE}.json"
-python scripts/fairness/run_mitbih_classifier_fairness.py \
-    --prediction-csvs "$PRED_CSV_ARG" \
-    --group-column "$FAIR_FEATURE" \
-    --output-json "$FAIRNESS_REPORT"
-
-echo "✅ Phase 4 complete — $(date)"
-echo ""
-
 echo "========================================================================"
-echo "🎉 Pipeline complete — $(date)"
-echo "   Teacher checkpoint:      $TEACHER_CKPT"
-echo "   Student baseline preds:  $STUDENT_PREDICTIONS"
-for label in "${!DISTILL_PREDICTIONS[@]}"; do
-    echo "   Distilled ($label) preds: ${DISTILL_PREDICTIONS[$label]}"
-done
-echo "   Fairness comparison:     $FAIRNESS_REPORT"
-echo "   Full log:                $LOG_FILE"
+echo "🎉🎉 All seeds complete — $(date)"
+echo "   Seeds run: ${SEED_LIST[*]}"
+echo "   Per-seed outputs under: $PIPELINE_DIR/seed_<seed>/"
+echo "   Full log: $LOG_FILE"
 echo "========================================================================"

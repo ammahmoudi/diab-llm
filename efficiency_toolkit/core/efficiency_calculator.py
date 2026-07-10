@@ -426,6 +426,8 @@ class EfficiencyCalculator:
                 timing_metrics.update(self._measure_timellm_inference(model, config))
             elif model_name == "chronos":
                 timing_metrics.update(self._measure_chronos_inference(model, config))
+            elif model_name in ("time_llm_ecg_classifier", "distillation_ecg_classifier"):
+                timing_metrics.update(self._measure_ecg_inference(model, config))
             else:
                 timing_metrics["note"] = f"Inference timing not implemented for {model_name}"
                 
@@ -525,6 +527,85 @@ class EfficiencyCalculator:
         
         return timing_results
     
+    def _measure_ecg_inference(self, model, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Safe inference timing for the ECG (MIT-BIH) Time-LLM classifier.
+
+        Unlike BG's TimeLLM (which takes x, x_mark, dec_inp, y_mark), the ECG
+        classifier's forward signature is just `forward(x)`, so this mirrors
+        `_measure_timellm_inference` with a simpler dummy batch.
+        """
+        timing_results = {}
+
+        try:
+            # Prefer whichever attribute actually accepts a raw [B, T, C]
+            # tensor: the classifier itself (has `.patch_embedding`) or, if
+            # `model.llm_model` is that classifier (as for the plain ECG
+            # wrapper), use that instead.
+            if hasattr(model, "patch_embedding"):
+                pytorch_model = model
+            elif hasattr(model, "llm_model") and hasattr(model.llm_model, "patch_embedding"):
+                pytorch_model = model.llm_model
+            else:
+                pytorch_model = model
+
+            pytorch_model.eval()
+
+            llm_settings = config.get('llm_settings', {})
+            seq_len = llm_settings.get('sequence_length', 256)
+            enc_in = llm_settings.get('enc_in', 1)
+
+            batch_size = 1
+            dummy_x = torch.randn(batch_size, seq_len, enc_in)
+
+            device = next(pytorch_model.parameters()).device
+            dummy_x = dummy_x.to(device)
+
+            model_dtype = next(pytorch_model.parameters()).dtype
+            if model_dtype == torch.bfloat16:
+                dummy_x = dummy_x.to(dtype=torch.bfloat16)
+
+            # Warm-up run
+            with torch.no_grad():
+                try:
+                    _ = pytorch_model(dummy_x)
+                except Exception as e:
+                    timing_results["warmup_error"] = str(e)
+                    return timing_results
+
+            # Measure actual timing
+            num_runs = 5
+            times = []
+            for _ in range(num_runs):
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+
+                start_time = time.perf_counter()
+
+                with torch.no_grad():
+                    _ = pytorch_model(dummy_x)
+
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+
+                end_time = time.perf_counter()
+                times.append((end_time - start_time) * 1000)  # Convert to ms
+
+            timing_results["inference_times_ms"] = times
+            timing_results["average_inference_time_ms"] = sum(times) / len(times)
+            timing_results["min_inference_time_ms"] = min(times)
+            timing_results["max_inference_time_ms"] = max(times)
+            timing_results["batch_size"] = batch_size
+            timing_results["sequence_length"] = seq_len
+            timing_results["measurement_runs"] = num_runs
+            timing_results["model_dtype"] = str(model_dtype)
+            timing_results["device"] = str(device)
+
+        except Exception as e:
+            timing_results["error"] = str(e)
+            timing_results["note"] = "ECG classifier inference timing failed"
+
+        return timing_results
+
     def _measure_chronos_inference(self, model, config: Dict[str, Any]) -> Dict[str, Any]:
         """Safe inference timing for Chronos."""
         timing_results = {}

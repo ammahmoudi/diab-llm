@@ -758,6 +758,19 @@ def run(
             log_dir=log_dir,
         )
 
+        # 🚀 AUTOMATIC EFFICIENCY CALCULATION
+        logging.info("🔍 Calculating efficiency metrics for ECG classifier...")
+        try:
+            efficiency_results = auto_calculate_efficiency(
+                model=llm,
+                model_name="time_llm_ecg_classifier",
+                config={"llm_settings": llm_settings, "data_settings": data_settings},
+                log_dir=log_dir,
+            )
+            logging.info("✅ Efficiency metrics calculated and saved successfully!")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not calculate efficiency metrics: {e}")
+
         if llm_settings["mode"] == "inference":
             if llm_settings.get("restore_from_checkpoint", False):
                 llm.load_model(llm_settings["restore_checkpoint_path"])
@@ -773,8 +786,11 @@ def run(
             with open(log_dir + "/loss.pkl", "wb") as f:
                 pickle.dump((train_loss, val_loss), f)
 
+            llm.load_model(checkpoint_path)
+            if val_loader is not None and len(val_loader) > 0:
+                llm.predict(val_loader, output_dir=log_dir, filename="val_predictions.csv")
+
             if llm_settings["mode"] == "training+inference":
-                llm.load_model(checkpoint_path)
                 preds, targets, pred_df = llm.predict(test_loader, output_dir=log_dir)
                 if preds is not None:
                     metric_results = llm.evaluate(preds, targets, llm_settings.get("eval_metrics", ["accuracy", "macro_f1", "weighted_f1"]))
@@ -818,6 +834,28 @@ def run(
             teacher_checkpoint_path=llm_settings["teacher_checkpoint_path"],
         )
 
+        # 🚀 AUTOMATIC EFFICIENCY CALCULATION (for the distilled student)
+        logging.info("🔍 Calculating efficiency metrics for distilled ECG student...")
+        try:
+            class _EcgStudentEfficiencyAdapter:
+                """Lightweight adapter so auto_calculate_efficiency's generic
+                `model.llm_model` convention works uniformly for the bare
+                student TimeLLMEcgClassifier (matches the wrapper convention
+                used by time_llm_ecg_classifier's TimeLLMECGClassifier)."""
+
+                def __init__(self, classifier):
+                    self.llm_model = classifier
+
+            efficiency_results = auto_calculate_efficiency(
+                model=_EcgStudentEfficiencyAdapter(distillation_driver.student),
+                model_name="distillation_ecg_classifier",
+                config={"llm_settings": llm_settings, "data_settings": data_settings},
+                log_dir=log_dir,
+            )
+            logging.info("✅ Efficiency metrics calculated and saved successfully!")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not calculate efficiency metrics: {e}")
+
         if llm_settings["mode"] == "training+inference":
             checkpoint_path, train_loss, val_loss = distillation_driver.distill_knowledge(
                 train_loader=train_loader,
@@ -826,6 +864,9 @@ def run(
             )
             with open(log_dir + "/loss.pkl", "wb") as f:
                 pickle.dump((train_loss, val_loss), f)
+
+            if val_loader is not None and len(val_loader) > 0:
+                distillation_driver.predict(val_loader, output_dir=log_dir, filename="val_predictions.csv")
 
             preds, targets, _pred_df = distillation_driver.predict(test_loader, output_dir=log_dir)
             metric_results = distillation_driver.evaluate(
