@@ -8,7 +8,7 @@ construction and fairness analysis.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 import csv
 import re
@@ -144,6 +144,40 @@ class MitBihMetadataParser:
                 writer.writerow(asdict(row))
         return output_path
 
+    def export_demographics_csv(
+        self,
+        output_path: Path | str,
+        record_ids: Optional[Iterable[str]] = None,
+    ) -> Path:
+        output_path = Path(output_path)
+        rows = self.parse_all(record_ids=record_ids)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        demographic_rows = [
+            {
+                "record_id": row.record_id,
+                "sex": row.sex,
+                "age": row.age,
+                "age_group": row.age_group,
+                "lead_1": row.lead_1,
+                "lead_2": row.lead_2,
+                "primary_lead_used": row.primary_lead_used,
+                "paced_group": row.paced_group,
+                "difficulty_group": row.difficulty_group,
+                "medications": row.medications,
+                "notes": row.notes,
+            }
+            for row in rows
+        ]
+
+        with output_path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(demographic_rows[0].keys()))
+            writer.writeheader()
+            for row in demographic_rows:
+                writer.writerow(row)
+
+        return output_path
+
     @staticmethod
     def _choose_primary_lead(lead_names: List[Optional[str]]) -> Optional[str]:
         if "MLII" in lead_names:
@@ -183,3 +217,11 @@ def build_metadata_csv(
 ) -> Path:
     parser = MitBihMetadataParser(dataset_dir=dataset_dir)
     return parser.export_csv(output_path=output_path)
+
+
+def build_demographics_csv(
+    dataset_dir: Path | str = DEFAULT_MITBIH_DIR,
+    output_path: Path | str = DEFAULT_MITBIH_DIR / "demographics_records.csv",
+) -> Path:
+    parser = MitBihMetadataParser(dataset_dir=dataset_dir)
+    return parser.export_demographics_csv(output_path=output_path)
