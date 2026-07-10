@@ -293,8 +293,8 @@ Produce a clear research story across systems.
 ### Time-LLM classification
 
 - `models/` or `llms/` adaptation for a classification head
-- `experiments/mitbih/train_timellm_ecg_classifier.py`
-- `experiments/mitbih/eval_timellm_ecg_classifier.py`
+- `main.py` using `llm_settings["method"] == "time_llm_ecg_classifier"`
+- shared evaluation through `main.py` outputs and fairness analyzers
 
 ### Distillation
 

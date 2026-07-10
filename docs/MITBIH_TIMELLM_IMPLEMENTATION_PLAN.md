@@ -20,7 +20,6 @@ So implementation should follow these rules:
 Use new or clearly separated files such as:
 
 - `data_processing/ecg_*`
-- `experiments/mitbih/*`
 - `distillation/scripts/distill_mitbih_*`
 - `fairness/analyzers/ecg_*`
 
@@ -201,7 +200,7 @@ Not forecast windows.
 
 Create:
 
-- `experiments/mitbih/train_timellm_ecg_classifier.py`
+- `main.py` using `llm_settings["method"] == "time_llm_ecg_classifier"`
 
 Responsibilities:
 
@@ -370,7 +369,7 @@ After the core pipeline works, add mitigation experiments.
 ### Second batch
 
 1. Time-LLM classification head adaptation
-2. `experiments/mitbih/train_timellm_ecg_classifier.py`
+2. `main.py` using `llm_settings["method"] == "time_llm_ecg_classifier"`
 
 ### Third batch
 
