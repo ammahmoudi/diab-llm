@@ -29,6 +29,7 @@ A generic CNN classifier can still be added as an external comparison baseline, 
 - One ECG window centered on an annotated beat.
 - Single lead first, preferably `MLII`.
 - Fixed length, default `256` samples.
+- Curated one-record-per-patient set: keep `201`, exclude duplicate record `202`.
 
 ### Output
 
@@ -50,6 +51,9 @@ So the ECG task should support the same high-level pattern as the BG project:
 - Distillation.
 - Fairness audit.
 - Fairness mitigation.
+
+For the current fairness protocol, use the curated 47-record subset rather than
+all 48 records, because records `201` and `202` come from the same subject.
 
 ---
 

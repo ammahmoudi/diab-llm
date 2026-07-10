@@ -32,6 +32,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Output CSV path. Defaults to <dataset-dir>/metadata_records.csv",
     )
+    parser.add_argument(
+        "--include-duplicate-202",
+        action="store_true",
+        help="Include duplicate record 202 instead of using the default curated 47-record set.",
+    )
     return parser.parse_args()
 
 
@@ -40,5 +45,6 @@ if __name__ == "__main__":
     output = build_metadata_csv(
         dataset_dir=args.dataset_dir,
         output_path=args.output_path or Path(args.dataset_dir) / "metadata_records.csv",
+        include_duplicate_202=args.include_duplicate_202,
     )
     print(f"Saved metadata CSV to {output}")

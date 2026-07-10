@@ -146,11 +146,31 @@ Use MIT-BIH waveform, header, and annotation files to build:
 - record-level metadata
 - subgroup assignments
 
+### Duplicate-subject policy
+
+MIT-BIH contains 48 records from 47 subjects. Records `201` and `202` come
+from the same subject.
+
+Current project policy is:
+
+- keep a one-record-per-patient protocol for fairness work
+- retain record `201`
+- exclude record `202`
+
+Reason:
+
+- simpler patient accounting
+- cleaner gender subgroup counts
+- no duplicate-subject overweighting in fairness analysis
+
 ### Split policy
 
 Split by record, never by beat.
 
 This is required to prevent leakage across training, validation, and test sets.
+
+Under the current one-record-per-patient policy, this means splitting across
+the curated 47-record set after excluding duplicate record `202`.
 
 ### Metadata to retain
 

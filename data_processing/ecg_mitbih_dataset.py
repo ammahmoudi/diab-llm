@@ -15,7 +15,11 @@ import pandas as pd
 from torch.utils.data import Dataset
 
 from data_processing.ecg_label_map import MitBihAamiMapper
-from data_processing.ecg_metadata_parser import DEFAULT_MITBIH_DIR, MitBihMetadataParser
+from data_processing.ecg_metadata_parser import (
+    DEFAULT_MITBIH_DIR,
+    MitBihMetadataParser,
+    resolve_excluded_record_ids,
+)
 
 
 try:
@@ -62,6 +66,7 @@ class MitBihBeatDataset(Dataset):
         beat_index_csv: Optional[Path | str] = None,
         normalize: bool = True,
         split_assignments: Optional[Dict[str, str]] = None,
+        include_duplicate_202: bool = False,
     ):
         if split not in {"train", "val", "test", "all"}:
             raise ValueError("split must be one of train/val/test/all")
@@ -75,6 +80,7 @@ class MitBihBeatDataset(Dataset):
         self.metadata_csv = Path(metadata_csv) if metadata_csv is not None else self.dataset_dir / "metadata_records.csv"
         self.beat_index_csv = Path(beat_index_csv) if beat_index_csv is not None else self.dataset_dir / "beat_index.csv"
         self.split_assignments = split_assignments or {}
+        self.include_duplicate_202 = include_duplicate_202
 
         self.metadata = self._load_metadata()
         self.samples: List[EcgBeatSample] = []
@@ -105,7 +111,16 @@ class MitBihBeatDataset(Dataset):
     def _load_metadata(self) -> pd.DataFrame:
         if self.metadata_csv.exists():
             return pd.read_csv(self.metadata_csv)
-        rows = [vars(row) for row in self.metadata_parser.parse_all()]
+        rows = [
+            vars(row)
+            for row in self.metadata_parser.parse_all(
+                record_ids=self.metadata_parser.load_record_ids(
+                    exclude_record_ids=resolve_excluded_record_ids(
+                        include_duplicate_202=self.include_duplicate_202
+                    )
+                )
+            )
+        ]
         return pd.DataFrame(rows)
 
     def _load_from_index(self, index_path: Path) -> List[EcgBeatSample]:
@@ -138,7 +153,11 @@ class MitBihBeatDataset(Dataset):
             raise ImportError("wfdb is required to build MIT-BIH beat windows. Install with `pip install wfdb`.")
 
         output_path = Path(output_path) if output_path is not None else self.beat_index_csv
-        records = self.metadata_parser.load_record_ids()
+        records = self.metadata_parser.load_record_ids(
+            exclude_record_ids=resolve_excluded_record_ids(
+                include_duplicate_202=self.include_duplicate_202
+            )
+        )
         rows: List[Dict[str, object]] = []
         half_left = self.window_size // 2
         half_right = self.window_size - half_left

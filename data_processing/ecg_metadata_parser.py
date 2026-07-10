@@ -17,6 +17,18 @@ from typing import Iterable, List, Optional
 
 DEFAULT_MITBIH_DIR = Path("/home/amma/LLM-TIME/data/mit-bih-arrhythmia")
 
+# MIT-BIH contains 48 records from 47 subjects. Records 201 and 202 come from
+# the same subject. Current project policy keeps one-record-per-patient for
+# fairness accounting, so record 202 is excluded by default.
+DEFAULT_EXCLUDED_RECORD_IDS = {"202"}
+
+
+def resolve_excluded_record_ids(include_duplicate_202: bool = False) -> set[str]:
+    """Return excluded MIT-BIH record IDs under the current protocol."""
+    if include_duplicate_202:
+        return set()
+    return set(DEFAULT_EXCLUDED_RECORD_IDS)
+
 
 _HEADER_DEMOGRAPHICS_RE = re.compile(
     r"^#\s*(?P<age>\d+|\?)\s+(?P<sex>[MF\?])\b(?P<rest>.*)$"
@@ -47,11 +59,20 @@ class MitBihMetadataParser:
     def __init__(self, dataset_dir: Path | str = DEFAULT_MITBIH_DIR):
         self.dataset_dir = Path(dataset_dir)
 
-    def load_record_ids(self) -> List[str]:
+    def load_record_ids(self, exclude_record_ids: Optional[Iterable[str]] = None) -> List[str]:
         records_file = self.dataset_dir / "RECORDS"
         if not records_file.exists():
             raise FileNotFoundError(f"RECORDS file not found: {records_file}")
-        return [line.strip() for line in records_file.read_text().splitlines() if line.strip()]
+        excluded = {
+            str(record_id).strip()
+            for record_id in (exclude_record_ids if exclude_record_ids is not None else DEFAULT_EXCLUDED_RECORD_IDS)
+            if str(record_id).strip()
+        }
+        return [
+            line.strip()
+            for line in records_file.read_text().splitlines()
+            if line.strip() and line.strip() not in excluded
+        ]
 
     def parse_record(self, record_id: str) -> MitBihRecordMetadata:
         header_path = self.dataset_dir / f"{record_id}.hea"
@@ -214,14 +235,30 @@ class MitBihMetadataParser:
 def build_metadata_csv(
     dataset_dir: Path | str = DEFAULT_MITBIH_DIR,
     output_path: Path | str = DEFAULT_MITBIH_DIR / "metadata_records.csv",
+    include_duplicate_202: bool = False,
 ) -> Path:
     parser = MitBihMetadataParser(dataset_dir=dataset_dir)
-    return parser.export_csv(output_path=output_path)
+    return parser.export_csv(
+        output_path=output_path,
+        record_ids=parser.load_record_ids(
+            exclude_record_ids=resolve_excluded_record_ids(
+                include_duplicate_202=include_duplicate_202
+            )
+        ),
+    )
 
 
 def build_demographics_csv(
     dataset_dir: Path | str = DEFAULT_MITBIH_DIR,
     output_path: Path | str = DEFAULT_MITBIH_DIR / "demographics_records.csv",
+    include_duplicate_202: bool = False,
 ) -> Path:
     parser = MitBihMetadataParser(dataset_dir=dataset_dir)
-    return parser.export_demographics_csv(output_path=output_path)
+    return parser.export_demographics_csv(
+        output_path=output_path,
+        record_ids=parser.load_record_ids(
+            exclude_record_ids=resolve_excluded_record_ids(
+                include_duplicate_202=include_duplicate_202
+            )
+        ),
+    )

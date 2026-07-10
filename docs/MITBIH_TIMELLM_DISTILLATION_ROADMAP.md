@@ -67,7 +67,8 @@ Prepare a distillation-ready and fairness-ready ECG classification dataset.
 5. Extract beat-centered windows.
 6. Map raw symbols to AAMI 5 classes.
 7. Attach subgroup metadata.
-8. Create record-level splits.
+8. Exclude duplicate subject record `202` to keep one-record-per-patient accounting.
+9. Create record-level splits.
 
 ### Phase 1 output artifacts
 

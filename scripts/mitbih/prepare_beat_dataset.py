@@ -39,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Output CSV path. Defaults to <dataset-dir>/beat_index.csv",
     )
+    parser.add_argument(
+        "--include-duplicate-202",
+        action="store_true",
+        help="Include duplicate record 202 instead of using the default curated 47-record set.",
+    )
     return parser.parse_args()
 
 
@@ -48,6 +53,7 @@ if __name__ == "__main__":
         dataset_dir=args.dataset_dir,
         split="all",
         window_size=args.window_size,
+        include_duplicate_202=args.include_duplicate_202,
     )
     output = dataset.build_index(
         output_path=args.output_path or Path(args.dataset_dir) / "beat_index.csv"

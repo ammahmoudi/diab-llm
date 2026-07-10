@@ -103,6 +103,7 @@ Responsibilities:
 - Extract beat-centered windows
 - Attach class label and subgroup metadata
 - Support record-level split
+- Exclude duplicate subject record `202` by default
 
 Expected sample output:
 
@@ -126,6 +127,7 @@ Implement record-level split builder:
 - Train / val / test
 - Seed-controlled
 - No beat-level leakage
+- Operate on the curated one-record-per-patient set, excluding `202`
 
 Optional output:
 
