@@ -738,7 +738,10 @@ def run(
         )
 
         train_data, train_loader = data_loader.load_from_index(
-            split="train", batch_size=llm_settings.get("train_batch_size", 64)
+            split="train",
+            batch_size=llm_settings.get("train_batch_size", 64),
+            fair_sampling=data_settings.get("fair_teacher_sampling", False),
+            fair_feature=data_settings.get("fair_teacher_feature", "sex"),
         )
         val_data, val_loader = data_loader.load_from_index(
             split="val", batch_size=llm_settings.get("train_batch_size", 64), shuffle=False
@@ -795,7 +798,10 @@ def run(
         )
 
         train_data, train_loader = data_loader.load_from_index(
-            split="train", batch_size=llm_settings.get("train_batch_size", 64)
+            split="train",
+            batch_size=llm_settings.get("train_batch_size", 64),
+            fair_sampling=data_settings.get("fair_teacher_sampling", False),
+            fair_feature=data_settings.get("fair_teacher_feature", "sex"),
         )
         val_data, val_loader = data_loader.load_from_index(
             split="val", batch_size=llm_settings.get("train_batch_size", 64), shuffle=False

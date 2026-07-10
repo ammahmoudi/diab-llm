@@ -298,16 +298,46 @@ class EcgTimeLLMDataHandler:
             include_duplicate_202=self._settings.get("include_duplicate_202", False),
         )
 
-    def load_from_index(self, split="train", batch_size=None, shuffle=None):
+    def load_from_index(
+        self,
+        split="train",
+        batch_size=None,
+        shuffle=None,
+        fair_sampling=False,
+        fair_feature="sex",
+        fair_max_oversample=4.0,
+    ):
         dataset = self.load_dataset(split=split)
         if batch_size is None:
             batch_size = self._settings.get("batch_size", 64)
         if shuffle is None:
             shuffle = split == "train"
+        sampler = None
+        if fair_sampling and split == "train":
+            try:
+                from fairness.utils.ecg_sampling import (
+                    build_group_class_sampler,
+                    build_group_labels_from_samples,
+                )
+
+                group_labels = build_group_labels_from_samples(dataset._dataset, fair_feature)
+                sampler, info = build_group_class_sampler(
+                    dataset._dataset,
+                    group_labels,
+                    max_oversample=fair_max_oversample,
+                )
+                logging.info(
+                    f"⚖️  ECG fair teacher sampling active: feature='{fair_feature}', "
+                    f"max_oversample={info['max_oversample']}x"
+                )
+                shuffle = False
+            except Exception as e:
+                logging.warning(f"ECG fair sampling setup failed: {e}. Falling back to standard shuffle.")
         data_loader = DataLoader(
             dataset,
             batch_size=batch_size,
-            shuffle=shuffle,
+            shuffle=shuffle if sampler is None else False,
+            sampler=sampler,
             num_workers=self._settings.get("num_workers", 0),
             drop_last=False,
         )
