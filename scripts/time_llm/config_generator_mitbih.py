@@ -51,7 +51,7 @@ def get_length_sets(mode):
 
 def generate_config_content(mode, seed, llm_config, length_set, train_epochs=10,
                             checkpoint_path=None, torch_dtype="float32",
-                            include_duplicate_202=False, freeze_llm=True):
+                            include_duplicate_202=False):
     """Generate the configuration content based on parameters."""
     log_folder_placeholder = "LOGS_PLACEHOLDER"
 
@@ -82,8 +82,7 @@ run.llm_settings = \\
      'embed': 'timeF',
      'enc_in': 1,
      'eval_metrics': ['accuracy', 'macro_f1', 'weighted_f1'],
-     'factor': 1,
-     'freeze_llm': {str(freeze_llm)},
+    'factor': 1,
      'learning_rate': 0.0001,
      'llm_dim': {llm_config["llm_dim"]},
      'llm_layers': {llm_config["llm_layers"]},
@@ -140,8 +139,6 @@ def main():
                        help="Path to checkpoint for inference mode (required for inference)")
     parser.add_argument("--include-duplicate-202", action="store_true",
                        help="Include duplicate record 202 instead of using the curated 47-record set")
-    parser.add_argument("--unfreeze-llm", action="store_true",
-                       help="Fine-tune the LLM backbone instead of the default frozen setting")
 
     args = parser.parse_args()
 
@@ -167,15 +164,12 @@ def main():
 
     length_sets = get_length_sets(args.mode)
     torch_dtypes = [args.torch_dtype]
-    freeze_llm = not args.unfreeze_llm
-
     print(f"🚀 Starting {args.mode} config generation...")
     print(f"📁 Output directory: {base_output_dir}")
     print("🗃️  Dataset: mitbih")
     print(f"🤖 LLM Models: {llm_models}")
     print(f"🎲 Seeds: {seeds}")
     print(f"📈 Epochs: {train_epochs}")
-    print(f"🧊 Freeze backbone: {freeze_llm}")
     if args.mode == "inference":
         print(f"📦 Checkpoint: {args.checkpoint_path}")
 
@@ -202,7 +196,6 @@ def main():
             checkpoint_path=args.checkpoint_path,
             torch_dtype=torch_dtype,
             include_duplicate_202=args.include_duplicate_202,
-            freeze_llm=freeze_llm,
         )
 
         config_content = config_content.replace("LOGS_PLACEHOLDER", log_folder)
