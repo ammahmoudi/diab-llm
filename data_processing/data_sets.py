@@ -440,3 +440,37 @@ class GroupLabeledDataset(Dataset):
     def __getitem__(self, idx):
         items = self.dataset[idx]
         return (*items, self.group_labels[idx])
+
+
+class Dataset_MITBIH_ECG(Dataset):
+    """Compatibility wrapper for MIT-BIH ECG classification datasets.
+
+    This mirrors the role of Dataset_T1DM inside the repository while keeping the
+    ECG classification path separate from the BG forecasting logic.
+    """
+
+    def __init__(
+        self,
+        dataset_dir,
+        flag="train",
+        window_size=256,
+        beat_index_csv=None,
+        metadata_csv=None,
+        include_duplicate_202=False,
+    ):
+        from data_processing.ecg_mitbih_dataset import MitBihBeatDataset
+
+        self._dataset = MitBihBeatDataset(
+            dataset_dir=dataset_dir,
+            split=flag,
+            window_size=window_size,
+            beat_index_csv=beat_index_csv,
+            metadata_csv=metadata_csv,
+            include_duplicate_202=include_duplicate_202,
+        )
+
+    def __len__(self):
+        return len(self._dataset)
+
+    def __getitem__(self, idx):
+        return self._dataset[idx]

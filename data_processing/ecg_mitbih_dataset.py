@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+import random
+
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
@@ -229,3 +231,53 @@ class MitBihBeatDataset(Dataset):
         if clipped.size == 0:
             clipped = np.zeros((0,), dtype=np.float32)
         return np.pad(clipped, (pad_left, pad_right), mode="reflect" if clipped.size > 1 else "constant")[: left + right]
+
+
+def build_record_level_split_assignments(
+    record_ids: Sequence[str],
+    seed: int = 42,
+    train_ratio: float = 0.6,
+    val_ratio: float = 0.2,
+) -> Dict[str, str]:
+    """Create a simple deterministic record-level split map.
+
+    This keeps the ECG path separate from the BG pipeline and provides a
+    leakage-safe default split for MIT-BIH classification experiments.
+    """
+    if not 0 < train_ratio < 1:
+        raise ValueError("train_ratio must be in (0, 1)")
+    if not 0 <= val_ratio < 1:
+        raise ValueError("val_ratio must be in [0, 1)")
+    if train_ratio + val_ratio >= 1:
+        raise ValueError("train_ratio + val_ratio must be < 1")
+
+    ids = list(dict.fromkeys(str(record_id) for record_id in record_ids))
+    rng = random.Random(seed)
+    rng.shuffle(ids)
+
+    n_total = len(ids)
+    n_train = max(1, int(round(n_total * train_ratio)))
+    n_val = max(1, int(round(n_total * val_ratio))) if n_total >= 3 else 0
+
+    if n_train + n_val >= n_total:
+        n_val = max(0, n_total - n_train - 1)
+
+    train_ids = set(ids[:n_train])
+    val_ids = set(ids[n_train:n_train + n_val])
+    test_ids = set(ids[n_train + n_val:])
+
+    if not test_ids and ids:
+        moved = ids[-1]
+        train_ids.discard(moved)
+        test_ids.add(moved)
+
+    split_map: Dict[str, str] = {}
+    for record_id in ids:
+        if record_id in train_ids:
+            split_map[record_id] = "train"
+        elif record_id in val_ids:
+            split_map[record_id] = "val"
+        else:
+            split_map[record_id] = "test"
+
+    return split_map

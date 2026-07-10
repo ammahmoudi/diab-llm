@@ -263,3 +263,52 @@ class TimeLLMDataHandler:
             self.scaler = data_set.scaler
 
         return data_set, data_loader
+
+
+class EcgTimeLLMDataHandler:
+    """MIT-BIH ECG data handler aligned with the existing loader structure.
+
+    This keeps the API style similar to TimeLLMDataHandler while serving the new
+    ECG classification path.
+    """
+
+    def __init__(
+        self,
+        settings={
+            "dataset_dir": "./data/mit-bih-arrhythmia",
+            "window_size": 256,
+            "batch_size": 64,
+            "num_workers": 0,
+            "include_duplicate_202": False,
+            "beat_index_csv": None,
+            "metadata_csv": None,
+        },
+    ):
+        self._settings = settings
+
+    def load_dataset(self, split="train"):
+        from data_processing.data_sets import Dataset_MITBIH_ECG
+
+        return Dataset_MITBIH_ECG(
+            dataset_dir=self._settings["dataset_dir"],
+            flag=split,
+            window_size=self._settings["window_size"],
+            beat_index_csv=self._settings.get("beat_index_csv"),
+            metadata_csv=self._settings.get("metadata_csv"),
+            include_duplicate_202=self._settings.get("include_duplicate_202", False),
+        )
+
+    def load_from_index(self, split="train", batch_size=None, shuffle=None):
+        dataset = self.load_dataset(split=split)
+        if batch_size is None:
+            batch_size = self._settings.get("batch_size", 64)
+        if shuffle is None:
+            shuffle = split == "train"
+        data_loader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=self._settings.get("num_workers", 0),
+            drop_last=False,
+        )
+        return dataset, data_loader
