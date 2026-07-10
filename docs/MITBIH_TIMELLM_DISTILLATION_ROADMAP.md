@@ -302,6 +302,7 @@ Produce a clear research story across systems.
 
 - `distillation/` extensions for classification mode
 - `distillation/scripts/distill_mitbih_classifier.py`
+- `scripts/time_llm/config_generator_mitbih_distillation.py`
 
 ### Baselines
 

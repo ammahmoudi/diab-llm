@@ -385,6 +385,7 @@ After the core pipeline works, add mitigation experiments.
 
 1. `distillation/scripts/distill_mitbih_classifier.py`
 2. Fairness mitigation experiment scripts
+3. `scripts/time_llm/config_generator_mitbih_distillation.py`
 
 ---
 
