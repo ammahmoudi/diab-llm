@@ -259,12 +259,18 @@ pipeline_2025-10-28_14-20-17/multiseed_robustness_results.csv  ← machine-reada
 
 ## Remaining Method Experiments
 
-None for the committed paper scope. See [FAIRNESS_SOLUTIONS_ROADMAP.md](FAIRNESS_SOLUTIONS_ROADMAP.md) for the completed intervention grid and out-of-scope ideas.
+Method implementation and the single-seed intervention grid are complete, but the stronger
+article scope requires confirmatory repeats. See
+[FAIRNESS_KD_ARTICLE_EVIDENCE_PLAN.md](research/FAIRNESS_KD_ARTICLE_EVIDENCE_PLAN.md)
+for the evidence gates, required five-seed BG matrix, statistical analysis, and stop rules.
+See [FAIRNESS_SOLUTIONS_ROADMAP.md](FAIRNESS_SOLUTIONS_ROADMAP.md) for the completed method
+grid and out-of-scope ideas.
 
 Closed scope:
 - Completed: T1, T2, K1, K3, K4, O1, O2, O3, plus baseline KD and teacher/student baselines.
 - Excluded by rationale: K2 (not meaningful for regression) and T3 (counterfactual/GAN augmentation is a separate project).
-- Next step: write the report, not run more experiments.
+- Next step: build the manifest-driven BG confirmatory suite, reuse completed artifacts, and run
+  only the missing method-by-seed cells before writing the article.
 
 ---
 

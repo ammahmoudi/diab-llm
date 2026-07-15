@@ -173,9 +173,13 @@ in all 5 seeds** — even O2's worst seed (0.155) is below baseline's best (0.20
 is 5/5 consistent. Run artifacts now include both `multiseed_robustness_results.txt` and
 `multiseed_robustness_results.csv`, with all 15 method×seed per-patient/window outputs present.
 
-**No experiments remain.** O2 (validated) + the eight mechanistically-diverse negatives — capped
-by O3 (erasure succeeds, gap unmoved) and T2 (source specialization makes it worse) jointly
-proving the gap is base-rate-driven — form a complete, strong paper. Next step is writing.
+**Method development is complete, but article-level confirmation is not.** O2 has five-seed
+validation, while most mechanistically diverse negative methods remain single-seed results.
+Before manuscript drafting, repeat the representative BG method families and mechanism checks
+under the evidence gates in
+[`research/FAIRNESS_KD_ARTICLE_EVIDENCE_PLAN.md`](research/FAIRNESS_KD_ARTICLE_EVIDENCE_PLAN.md).
+Until then, the full grid is exploratory evidence and should not be described as robust proof
+that every intervention fails or that the gap is caused only by base rates.
 
 ### Paper Narrative
 
