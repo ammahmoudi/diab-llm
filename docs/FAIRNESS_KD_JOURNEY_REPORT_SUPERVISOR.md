@@ -502,6 +502,28 @@ O2 EO_raw by seed:
 
 O2 beats baseline KD on EO_raw in all five seeds. The improvement size varies, but the direction is stable.
 
+### 11.1 Cross-Domain ECG Stress Test
+
+MIT-BIH ECG provides a cross-domain stress test of the fairness-aware KD
+framework. It is not an additional BG forecasting cohort, and absolute utility
+or EO values are not compared across tasks.
+
+| Task | Best reportable direction | Utility delta vs KD | EO delta vs KD | EO wins |
+|---|---|---:|---:|---:|
+| BG forecasting | T1+O2 | RMSE -0.5864 | -0.0995 | 5/5 |
+| ECG AAMI-5 | T1 | macro-F1 -0.0041 | -0.0191 | 3/5 |
+| ECG binary ectopy | O2 | macro-F1 +0.0127 | -0.0357 | 3/5 |
+| ECG binary ectopy | T1+O2 | macro-F1 +0.0264 | -0.0248 | 4/5 |
+
+The binary locked test supports the portability of output-level correction:
+T1+O2 improves macro-F1 in 5/5 seeds and ectopy EO in 4/5. This is supportive,
+not confirmatory, because Baseline KD remains strongest on the five-seed
+validation averages, the fairness deltas are not statistically conclusive, and
+one high-gap Baseline KD seed influences the mean improvement. AAMI-5 remains
+mixed, with persistent S-class failure. BG O2 calibrates continuous forecasts;
+ECG O2 is a jointly trained group-conditional affine logit head, so this is a
+conceptual transfer rather than an identical estimator.
+
 ## 12. Interpretation
 
 The result is not simply that the teacher contains bias and the student copies it. The evidence points to subgroup event prevalence and thresholded regression behavior:
@@ -532,6 +554,8 @@ This explains why hiding the group, reweighting samples, or aligning hidden stat
 
 - The main fairness analysis focuses on OhioT1DM and gender EO Gap.
 - OhioT1DM has only 12 patients, so subgroup estimates can be noisy.
+- MIT-BIH is a different classification task, not an independent BG cohort, and cannot resolve the limited OhioT1DM patient sample.
+- ECG transfer is endpoint- and seed-dependent; all ECG seeds evaluate the same fixed test records.
 - O2 uses group labels at inference, which may raise deployment and privacy questions.
 - O2 corrects output behavior but does not remove underlying clinical prevalence imbalance.
 - Counterfactual augmentation was not run because physiologically valid CGM generation is outside the scope of this study.
@@ -544,3 +568,11 @@ The original DiabLLM work showed that Time-LLM can forecast BG accurately and th
 Standard BERT -> TinyBERT KD worsened hypoglycemia EO Gap relative to the trained non-distilled student baseline. Most generic fairness interventions did not solve the raw gap. The strongest solution was O2, a learned per-group calibration head that directly adjusts the final predicted BG values before hypoglycemia classification.
 
 For clinical KD in BG forecasting, the recommended reporting set is: teacher baseline, trained student baseline, baseline KD, EO_raw, EO_cal, and percent change. Accuracy alone is insufficient.
+
+## Source Artifacts
+
+- BG five-seed results: `distillation_experiments/all_patients_pipeline/pipeline_2025-10-28_14-20-17/multiseed_robustness_results.csv`
+- AAMI-5 five-seed analysis: `experiments/mitbih_fairness_pipeline_protocol_fixed_all_seeds_20260712/MULTISEED_ANALYSIS.md`
+- Binary-ectopy five-seed analysis: `experiments/mitbih_binary_ectopy_five_seed/MULTISEED_ANALYSIS.md`
+- Canonical three-task comparison: `experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`
+- Binary protocol and split: `experiments/mitbih_binary_ectopy_five_seed/protocol_manifest.json` and `experiments/mitbih_binary_ectopy_five_seed/data_split_manifest.json`

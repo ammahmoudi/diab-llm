@@ -12,6 +12,16 @@ The two approaches are:
 Approach 2 is the better choice for clinically meaningful fairness evaluation.
 Approach 1 is still useful because it matches the current Time-LLM forecasting pipeline more directly.
 
+## Implementation Update — 2026-07-15
+
+Approach 2 was implemented with AAMI-5 as the primary endpoint and binary
+ectopy (N versus S/V/F, Q excluded) as a locked secondary endpoint. Both use
+record-disjoint splits and five-seed teacher/student/KD comparisons. The
+binary result includes previous/next RR features and is summarized in
+`experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`.
+It supports task-specific fairness-aware KD evaluation but is not an external
+BG forecasting replication.
+
 ---
 
 ## 1. Quick Summary
@@ -19,7 +29,7 @@ Approach 1 is still useful because it matches the current Time-LLM forecasting p
 | Approach | Raw sample unit | Input window | Output window / target | Model type | Closest to current DiabLLM setup? | Fairness is checked on | Main problems |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1. ECG waveform forecasting | continuous ECG timeline | past ECG samples, e.g. 256 points | future ECG samples, e.g. next 32 / 64 / 128 points | forecasting | **Yes** | predictive system that forecasts future ECG waveform | strong pipeline reuse, but weak direct clinical meaning for arrhythmia fairness |
-| 2. Beat-centered ECG classification | annotated heartbeat | fixed beat-centered segment, e.g. 256 samples around one beat | class label: normal vs abnormal | classification | **No, not directly** | classification system that predicts beat abnormality | clinically meaningful fairness, but not the same task family as Time-LLM forecasting |
+| 2. Beat-centered ECG classification | annotated heartbeat | fixed beat-centered segment, e.g. 256 samples around one beat | AAMI-5 class, or locked N-vs-S/V/F secondary label | classification | **No, not directly** | class-wise or ectopy-recall subgroup gaps | clinically meaningful fairness, but not the same task family as Time-LLM forecasting |
 
 ### Quick interpretation
 

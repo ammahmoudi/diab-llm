@@ -1,6 +1,10 @@
 # Experiment Folder Registry
 
-All completed experiments are under the canonical pipeline directory:
+This registry covers the canonical BG fairness pipeline and the completed
+MIT-BIH ECG fairness pipelines. Generated reports should be regenerated from
+their scripts rather than edited without updating the generator.
+
+## Canonical BG Pipeline
 
 ```
 distillation_experiments/all_patients_pipeline/pipeline_2025-10-28_14-20-17/
@@ -261,3 +265,76 @@ Closed scope:
 - Completed: T1, T2, K1, K3, K4, O1, O2, O3, plus baseline KD and teacher/student baselines.
 - Excluded by rationale: K2 (not meaningful for regression) and T3 (counterfactual/GAN augmentation is a separate project).
 - Next step: write the report, not run more experiments.
+
+---
+
+## MIT-BIH AAMI-5 Five-Seed Pipeline
+
+Canonical directory:
+
+```text
+experiments/mitbih_fairness_pipeline_protocol_fixed_all_seeds_20260712/
+```
+
+Key artifacts:
+
+- `MULTISEED_ANALYSIS.md`: AAMI-5 utility/fairness analysis;
+- `multiseed_aggregate_summary.csv`: five-seed model aggregates;
+- `multiseed_per_seed_summary.csv`: paired seed-level results;
+- `BG_ECG_CROSS_DOMAIN_COMPARISON.md`: detailed BG/AAMI-5 report, now including the completed binary secondary endpoint;
+- `alternate_group_fairness_aggregate.csv`: sex-trained model audits for age, pacing, and signal difficulty.
+
+AAMI-5 remains the primary ECG endpoint. Its fairness result is mixed: T1 has
+the strongest directional N/V EO change (`-0.0191`, 3/5 wins), but no paired
+fairness comparison is statistically significant and distilled S recall is
+near zero.
+
+## MIT-BIH Binary-Ectopy KD Selection
+
+Development screen:
+
+```text
+experiments/mitbih_binary_ectopy_kd_grid/
+```
+
+Key artifacts:
+
+- `selected_kd_protocol.json`: validation-only KD lock;
+- `KD_SELECTION.md`: six-candidate one-seed screen and caveat;
+- selected objective: alpha `0.5`, beta `0.5`, temperature `1.0`.
+
+This is screening evidence, not independent multi-seed tuning evidence.
+
+## MIT-BIH Binary-Ectopy Five-Seed Pipeline
+
+Canonical directory:
+
+```text
+experiments/mitbih_binary_ectopy_five_seed/
+```
+
+Protocol: five fixed seeds, ten epochs, frozen BERT teacher and TinyBERT
+student, 256/16 waveform context, previous/next RR features, N versus S/V/F,
+Q excluded, validation-only checkpoint selection.
+
+Key artifacts:
+
+- `protocol_manifest.json` and `data_split_manifest.json`: locked protocol and exact records;
+- `validation_multiseed_aggregate.csv` and `test_multiseed_aggregate.csv`;
+- `MULTISEED_ANALYSIS.md`: complete validation/test interpretation;
+- `BG_AAMI5_BINARY_COMPARISON.md`: canonical compact three-task report;
+- `bg_aami5_binary_comparison.csv`: machine-readable three-task table;
+- `.training_complete` and `.complete`: successful completion markers.
+
+Locked-test headline versus Baseline KD:
+
+| Method | Macro-F1 delta | Ectopy EO delta | EO wins |
+|---|---:|---:|---:|
+| T1 | -0.0111 | -0.0081 | 4/5 |
+| O2 | +0.0127 | -0.0357 | 3/5 |
+| T1+O2 | +0.0264 | -0.0248 | 4/5 |
+
+These binary results are supportive cross-domain evidence. Validation averages
+favor Baseline KD, one high-gap seed influences mean test EO reductions, and
+all seeds reuse the same ten held-out records. Do not use the test table for
+method selection or describe MIT-BIH as an independent BG cohort.

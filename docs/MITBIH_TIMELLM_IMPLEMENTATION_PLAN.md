@@ -4,6 +4,58 @@
 
 Turn the current repository into a working **Time-LLM AAMI 5-class ECG classification + distillation + fairness** pipeline.
 
+## Completion Update — 2026-07-15
+
+The internal implementation milestone and both locked five-seed ECG runs are
+complete. AAMI-5 remains the primary classification benchmark; binary ectopy
+(N versus S/V/F with Q excluded) is a reportable secondary stress test with RR
+features. Results are indexed in:
+
+- `experiments/mitbih_fairness_pipeline_protocol_fixed_all_seeds_20260712/MULTISEED_ANALYSIS.md`;
+- `experiments/mitbih_binary_ectopy_five_seed/MULTISEED_ANALYSIS.md`;
+- `experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`.
+
+The external CNN comparator is still future work. Binary locked-test results
+must not be used for post-hoc model selection because validation averages do
+not show the same ranking.
+
+## Implementation status on 2026-07-11
+
+The internal ECG path is implemented end to end:
+
+- MIT-BIH metadata, demographics, AAMI mapping, beat windows, and record-safe
+  train/validation/test splits;
+- Time-LLM ECG teacher/student classification through `main.py`;
+- classification KD and the T1, O1, O2, K1, K3, K4, O3, and T2 fairness
+  adaptations;
+- per-beat validation/test probabilities and subgroup metadata;
+- efficiency, classification, and fairness reports;
+- resumable single-seed, seed-list, and all-fixed-seed pipeline execution.
+
+The external CNN comparator remains future comparison work. It must use this
+project's record-level splits before its results are considered comparable.
+
+The corrected imbalance policy is mutually exclusive:
+
+- weighted sampler active: ordinary cross-entropy;
+- ordinary shuffled loader: inverse-frequency weighted cross-entropy.
+
+Combining the sampler and inverse class weights caused a real BERT run to
+collapse to class `F`; the pipeline now logs the selected objective and rejects
+a teacher before distillation if macro-F1 or prediction diversity is too low.
+
+The ECG model now also matches the BG Time-LLM freezing policy. The pretrained
+LLM backbone is frozen by default. Training updates the ECG patch embedding,
+continuous-input projection, layer normalization, and five-class classifier.
+For full BERT this is `58,373` trainable task parameters and zero trainable
+backbone parameters. `FREEZE_LLM=0` is an explicit ablation; it uses task LR
+`1e-4` and backbone LR `1e-5` rather than applying the task LR to BERT.
+
+Frozen ECG checkpoints store only those trainable task modules. The pretrained
+backbone is reconstructed from the same Hugging Face model when loading. This
+reduces full-BERT checkpoints from about `438 MB` to about `237 KB` and remains
+backward-compatible with earlier full state dictionaries.
+
 ## Non-breaking implementation policy
 
 The current BG forecasting system must remain usable while this ECG work is added.
@@ -231,9 +283,12 @@ Main loss:
 
 - Multi-class cross-entropy
 
-Optional:
+Imbalance handling:
 
-- Weighted cross-entropy for imbalance
+- Main supervised protocol: capped class-balanced sampler with ordinary
+  cross-entropy.
+- Fallback without a sampler: inverse-frequency weighted cross-entropy.
+- Do not enable both corrections for the same training loader.
 
 ### 4.4 Metrics during training
 
@@ -404,20 +459,30 @@ The second milestone is:
 
 ---
 
-## 11. Recommended immediate next step
+## 11. Historical execution step (completed)
 
-Start with the **data layer**, because everything depends on it.
+Run one corrected BERT teacher seed in a fresh directory so invalid checkpoints
+cannot be resumed:
 
-Immediate implementation order:
+```bash
+PIPELINE_DIR=experiments/mitbih_fairness_pipeline_frozen_backbone_20260711 \
+SEED=831363 \
+bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+```
 
-1. Metadata parser
-2. AAMI label mapper
-3. Beat-window dataset builder
-4. Split generator
+The default teacher gate requires macro-F1 at least `0.35` and predictions from
+at least four classes. It stops before student and distillation phases if the
+teacher fails. Override only for a documented sensitivity analysis with
+`MIN_TEACHER_MACRO_F1` or `MIN_TEACHER_PREDICTED_CLASSES`.
 
-Only after that:
+After one seed passed, the fixed seeds were run in fresh locked directories.
+The earlier example command was:
 
-1. Classification head adaptation
-2. Trainer
-3. Fairness analyzer
-4. Distillation runner
+```bash
+PIPELINE_DIR=experiments/mitbih_fairness_pipeline_all_seeds_objective_fixed \
+ALL_SEEDS=1 \
+bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+```
+
+Do not report either archived collapse run as a model result. Use the completed
+directories listed in the completion update for all final tables.

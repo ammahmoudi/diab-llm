@@ -1,6 +1,19 @@
-# Knowledge Distillation for Time Series Forecasting
+# Knowledge Distillation for Forecasting and ECG Classification
 
-This directory contains the knowledge distillation pipeline for training efficient time series forecasting models using teacher-student learning.
+This directory contains task-specific knowledge-distillation implementations
+for efficient forecasting models and MIT-BIH ECG classifiers.
+
+## Task Paths
+
+- Forecasting: continuous outputs, MSE ground-truth and teacher-matching terms,
+  forecasting datasets and RMSE/MAE metrics.
+- ECG classification: `distillation/core/ecg_classification_wrapper.py`,
+  categorical CE plus temperature-scaled KL, two- or five-class heads,
+  per-beat predictions, and subgroup fairness metrics.
+
+The locked ECG pair is BERT -> TinyBERT. Other backbones may be constructible,
+but are not five-seed classification results. Forecasting and ECG checkpoints
+are not interchangeable.
 
 ## Overview
 

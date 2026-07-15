@@ -16,6 +16,65 @@ This document replaces the earlier idea of starting from a generic classifier-on
 
 A generic CNN classifier can still be added as an external comparison baseline, but the **main system goal** is a **Time-LLM classification variant**.
 
+## Current implementation and validated training protocol
+
+As of 2026-07-11, the AAMI 5-class data path, Time-LLM classifier, teacher and
+student wrappers, distillation path, fairness analysis, gin generators, and
+one-command pipeline are implemented.
+
+The main preprocessing and training rules are:
+
+- split by record, never by beat;
+- exclude duplicate-subject record `202` by default;
+- retain robust per-record median/MAD normalization with mean/std fallback;
+- freeze the pretrained LLM backbone by default, matching BG Time-LLM;
+- train the ECG patch embedding, input projection, and five-class head;
+- use capped class-balanced sampling for supervised teacher/student training;
+- use ordinary cross-entropy when a weighted sampler is active;
+- use inverse-frequency weighted cross-entropy only when training with the
+	ordinary shuffled loader;
+- never combine class-balanced sampling with inverse-frequency weighted loss,
+	because this applies the imbalance correction twice.
+
+The friend's baseline use of SMOTE, class weights, and min-max normalization was
+reviewed. SMOTE and random beat-level splitting were not adopted because they
+do not preserve the record-safe evaluation protocol. The existing robust
+normalization was retained because the observed failures were label-imbalance
+failures, not waveform-scale failures.
+
+Two invalid diagnostic runs are intentionally preserved:
+
+- `experiments/mitbih_fairness_pipeline_BROKEN_teacher_collapsed_20260710/`:
+	weighted loss without sufficient sampling caused majority-class `N` collapse;
+- `experiments/mitbih_fairness_pipeline/`: capped class sampling plus inverse
+	class weights overcorrected and caused the BERT teacher to predict `F` for
+	every test beat.
+- `experiments/mitbih_fairness_pipeline_objective_fixed_20260711/`: corrected
+	sampling/loss interaction but full-backbone BERT fine-tuning at `1e-4`
+	stalled near random CE and produced only class `N`.
+
+After making sampling and loss weighting mutually exclusive, a one-epoch
+BERT-tiny smoke run reached accuracy `0.6815`, macro-F1 `0.4336`, and produced
+all five classes. A BG-style frozen full-BERT smoke run then reached accuracy
+`0.6671`, macro-F1 `0.3784`, and produced all five classes after one epoch. These
+are behavior checks, not final reported results.
+
+Default optimization hyperparameters are:
+
+- task-module learning rate: `1e-4`;
+- frozen backbone learning rate: inactive;
+- optional unfrozen-backbone learning rate: `1e-5`;
+- batch size: `32` training and `64` prediction for BERT-family models;
+- dropout: `0.1`;
+- patch length: `16`, stride: `8`, pooling: mean;
+- ten full-training epochs;
+- class-balanced oversampling cap: `50x` with ordinary CE.
+
+Because the backbone is frozen, checkpoints contain only the patch embedding,
+input projection, and classifier state. Existing full checkpoints still load,
+but new full-BERT task checkpoints are approximately `237 KB` rather than
+`438 MB`.
+
 ---
 
 ## 1. What is the task now?
@@ -182,13 +241,15 @@ This should be the **main task**.
 
 ### Is the binary task still useful?
 
-Yes, but as:
+Yes, as a secondary endpoint rather than the primary benchmark:
 
-- A warm-up experiment.
-- A debugging task.
-- An auxiliary baseline.
+- It began as a warm-up and debugging task.
+- It was later locked as N versus S/V/F with Q excluded and augmented with RR
+	features.
+- Its completed five-seed result is a reportable cross-domain stress test.
 
-It is not the final main task.
+It does not replace AAMI-5 as the main task, and its locked test results cannot
+be used for post-hoc model selection.
 
 ---
 
@@ -395,13 +456,15 @@ AAMI 5-class:
 
 ### Optional debug target
 
-Binary:
+Binary ectopy secondary endpoint:
 
-- Normal vs abnormal
+- N versus S/V/F, with Q excluded
 
 ### Recommendation
 
-Document and build around AAMI 5-class from the start, but allow binary mode for debugging.
+Document and build around AAMI 5-class as the primary benchmark. The binary
+mode is now also documented as a completed secondary stress test; retain
+separate output directories and report it without substituting it for AAMI-5.
 
 ---
 
@@ -417,7 +480,10 @@ Document and build around AAMI 5-class from the start, but allow binary mode for
 ### Loss
 
 - Multi-class cross-entropy.
-- Weighted cross-entropy if imbalance is strong.
+- Capped class-balanced sampling plus unweighted cross-entropy for the main
+	supervised teacher/student runs.
+- Inverse-frequency weighted cross-entropy only when no weighted sampler is
+	active.
 - Distillation loss for teacher/student experiments.
 
 ### Evaluation metrics

@@ -1,6 +1,27 @@
 # DiabLLM: An LLM-Based Framework for Blood Glucose Prediction in Type 1 Diabetes
 
-**DiabLLM** is a framework that leverages Large Language Models (LLMs) for accurate blood glucose prediction in Type 1 Diabetes Mellitus (T1DM) patients. This repository features advanced time series forecasting with knowledge distillation, cross-scenario validation, and comprehensive efficiency analysis.
+**DiabLLM** is a framework that leverages Large Language Models (LLMs) for accurate blood glucose prediction in Type 1 Diabetes Mellitus (T1DM) patients. This repository features advanced time series forecasting with knowledge distillation, cross-scenario validation, comprehensive efficiency analysis, and a fairness-aware MIT-BIH ECG classification extension.
+
+## Fairness and ECG Extension
+
+The repository now includes fairness-aware KD experiments in two clinical
+domains:
+
+- OhioT1DM BG forecasting, where T1+O2 reduces five-seed hypoglycemia EO from
+  `0.2174` to `0.1179` while improving RMSE;
+- MIT-BIH AAMI-5 and binary-ectopy classification under fixed record-disjoint
+  splits. AAMI-5 transfer is mixed; the locked binary test provides supportive
+  O2/T1+O2 utility and fairness evidence without constituting an independent BG
+  replication.
+
+Start with:
+
+- `docs/FAIRNESS_KD_JOURNEY_REPORT.md`;
+- `experiments/mitbih_binary_ectopy_five_seed/MULTISEED_ANALYSIS.md`;
+- `experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`.
+
+Absolute RMSE, macro-F1, and EO values must only be compared within their own
+task. The ECG locked-test table must not be used for post-hoc model selection.
 
 ## 📚 Acknowledgments
 
@@ -495,7 +516,8 @@ python scripts/data_formatting/runners/complete_data_pipeline.py --dataset ohiot
 
 ### Supported Data
 
-- **Datasets**: ohiot1dm, d1namo
+- **Forecasting datasets**: ohiot1dm, d1namo
+- **ECG classification dataset**: MIT-BIH Arrhythmia (AAMI-5 primary endpoint; N vs S/V/F binary-ectopy secondary endpoint, Q excluded)
 - **Scenarios**: raw, missing_periodic, missing_random, noisy, denoised
 - **Window Configs**: 6_6 (input=6, pred=6), 6_9 (input=6, pred=9)
 - **Output Formats**: CSV (formatted), Arrow (training-ready)

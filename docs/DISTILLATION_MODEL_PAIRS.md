@@ -2,6 +2,24 @@
 
 Based on our comprehensive Time-LLM model ecosystem analysis, here are the recommended teacher-student pairs for knowledge distillation:
 
+## Classification Scope
+
+The recommendations below were originally written for forecasting. The ECG
+classification path can construct BERT, TinyBERT, BERT-tiny, DistilBERT,
+MiniLM, MobileBERT, ALBERT, GPT-2, and OPT-125M backbones, but only
+**BERT -> TinyBERT** has completed the locked five-seed MIT-BIH protocol.
+
+| ECG pair | Status | Supported endpoints |
+| --- | --- | --- |
+| BERT -> TinyBERT | Locked five-seed validated | AAMI-5 and binary ectopy |
+| BERT -> BERT-tiny | Config/protocol tested | AAMI-5 and binary modes |
+| Other implemented backbone pairs | Engineering support only | Require controlled validation |
+
+ECG classification uses `alpha * cross_entropy + beta * T^2 * KL` rather than
+the forecasting MSE-to-ground-truth plus MSE-to-teacher objective. Do not carry
+forecasting pair rankings, expected retention percentages, or KD temperatures
+into ECG without validation.
+
 ## 🎯 Recommended Teacher-Student Combinations
 
 ### 🏆 **High-Performance Pairs** (Best Overall)
@@ -107,3 +125,33 @@ bash distill_pipeline.sh \
 ```
 
 The comparison script will automatically generate performance reports and recommend the best pairs for your specific use case!
+
+### MIT-BIH ECG Classification
+
+Generate a standalone classifier configuration:
+
+```bash
+python scripts/time_llm/config_generator_mitbih.py \
+   --mode train_inference \
+   --llm_models BERT,TinyBERT \
+   --label-mode aami5 \
+   --class-balanced
+```
+
+Generate BERT-to-TinyBERT ECG KD configuration after training the teacher:
+
+```bash
+python scripts/time_llm/config_generator_mitbih_distillation.py \
+   --mode train_inference \
+   --teacher-model BERT \
+   --student-models TinyBERT \
+   --teacher-checkpoint-path /path/to/checkpoint_best.pth \
+   --label-mode binary_ectopy \
+   --use-rr-features \
+   --teacher-use-rr-features \
+   --class-balanced
+```
+
+For the reproducible locked experiment, use
+`scripts/pipelines/run_mitbih_binary_ectopy_five_seed.sh` rather than manually
+selecting settings.

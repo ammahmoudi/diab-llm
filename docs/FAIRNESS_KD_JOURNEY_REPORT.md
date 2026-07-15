@@ -885,6 +885,36 @@ O2 beats baseline KD on raw EO Gap in all five seeds. Its improvement size varie
 
 ---
 
+### 11.1 Cross-Domain ECG Stress Test
+
+The fairness-aware KD framework was also evaluated on MIT-BIH ECG classification
+using the same five random seeds and record-disjoint train/validation/test
+splits. This is a cross-domain stress test, not an additional BG forecasting
+cohort. Utility and fairness magnitudes are therefore compared only within each
+task.
+
+| Task | Method | Utility | Fairness | Paired result vs Baseline KD |
+|---|---|---:|---:|---|
+| BG forecasting | T1+O2 | 22.942 +/- 0.667 RMSE | 0.1179 +/- 0.0325 hypoglycemia EO | lower RMSE; EO -0.0995; 5/5 EO wins |
+| ECG AAMI-5 | T1 | 0.4375 +/- 0.0174 macro-F1 | 0.1259 +/- 0.0536 N/V sex EO | macro-F1 -0.0041; EO -0.0191; 3/5 EO wins |
+| ECG binary ectopy | O2 | 0.7127 +/- 0.0160 macro-F1 | 0.0239 +/- 0.0211 ectopy sex EO | macro-F1 +0.0127; EO -0.0357; 3/5 EO wins |
+| ECG binary ectopy | T1+O2 | 0.7265 +/- 0.0345 macro-F1 | 0.0349 +/- 0.0400 ectopy sex EO | macro-F1 +0.0264; EO -0.0248; 4/5 EO wins |
+
+The binary-ectopy locked test is supportive: T1+O2 improves macro-F1 in all
+five seeds and EO in four. However, Baseline KD remains strongest on the
+five-seed validation averages, the fairness deltas are not statistically
+conclusive at five seeds, and one high-gap Baseline KD seed strongly influences
+the mean EO reduction. AAMI-5 is also mixed and has near-zero S recall for the
+distilled variants. The defensible conclusion is therefore that output-level
+fairness correction is portable enough to merit task-specific evaluation, not
+that O2 universally improves every clinical task.
+
+The implementations are conceptually aligned but not identical: BG O2
+calibrates continuous glucose outputs, while ECG O2 jointly learns
+group-conditional affine transformations of class logits.
+
+---
+
 ## 12. Why Most Fixes Failed
 
 The final interpretation is not simply “teacher bias copied into student.” The evidence points to subgroup base-rate imbalance.
@@ -964,6 +994,8 @@ This is an open ablation thread, not the main validated solution. O2 remains the
 
 - Main fairness analysis focuses on OhioT1DM and gender EO Gap.
 - OhioT1DM has only 12 patients, so subgroup estimates can be noisy.
+- MIT-BIH is a different classification domain, not an independent BG forecasting cohort; it cannot resolve the small OhioT1DM patient sample.
+- ECG fairness transfer is mixed across AAMI-5 and binary endpoints, and all ECG seeds reuse the same fixed test records.
 - O2 uses group labels at inference, which may raise deployment and privacy questions.
 - O2 corrects output behavior but does not remove underlying clinical prevalence imbalance.
 - Counterfactual augmentation was not run because physiologically valid CGM generation is out of scope.
@@ -995,3 +1027,5 @@ For clinical KD in BG forecasting: always report the trained student baseline, b
 - Fairness comparison script: `scripts/fairness/compute_fairness_comparison.py`
 - Distillation trainer: `distillation/core/distillation_trainer.py`
 - Fairness losses: `fairness/loss_functions/fairness_losses.py`
+- Binary-ectopy five-seed report: `experiments/mitbih_binary_ectopy_five_seed/MULTISEED_ANALYSIS.md`
+- Three-task comparison: `experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`

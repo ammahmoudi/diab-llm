@@ -1,8 +1,34 @@
 # 🤖 Supported Models in Time-LLM Distillation Pipeline
 
-This document lists all models supported across the Time-LLM implementation and distillation pipeline.
+This document lists models supported by the original forecasting path and the
+separate MIT-BIH ECG classification path. A model being constructible does not
+mean that it has completed the locked five-seed classification protocol.
 
-## 📋 Model Compatibility Matrix
+## Task Support
+
+| Backbone | Forecasting | ECG classifier | ECG KD role | Evidence level |
+| --- | --- | --- | --- | --- |
+| BERT | Yes | Yes | Teacher or student | Five-seed validated as Teacher |
+| TinyBERT | Yes | Yes | Teacher or student | Five-seed validated as Student |
+| BERT-tiny | Yes | Yes | Teacher or student | Protocol/smoke tested |
+| DistilBERT | Yes | Yes | Teacher or student | Implemented, not five-seed validated |
+| MiniLM | Yes | Yes | Teacher or student | Implemented, not five-seed validated for ECG |
+| MobileBERT | Yes | Yes | Teacher or student | Implemented, not five-seed validated for ECG |
+| ALBERT | Yes | Yes | Teacher or student | Implemented, not five-seed validated for ECG |
+| GPT-2 | Yes | Yes | Teacher or student | Implemented, not five-seed validated for ECG |
+| OPT-125M | Yes | Yes | Teacher or student | Implemented, not five-seed validated for ECG |
+| LLaMA-7B | Yes | Yes | Standalone backbone only in practice | Constructible; not validated for ECG KD |
+| BERT mini/small/medium aliases | Partial | No distinct ECG backbone | No distinct ECG role | Generator aliases currently resolve to BERT |
+
+The ECG implementation is `models/ecg/time_llm_classifier.py`, exposed through
+`llms/time_llm_ecg.py` and the `time_llm_ecg_classifier` method in `main.py`.
+It supports AAMI-5, binary ectopy (N versus S/V/F with Q excluded), and binary
+non-N label modes. Previous/next RR timing features are optional.
+
+## 📋 Legacy Forecasting Compatibility Matrix
+
+This original matrix describes the general forecasting ecosystem. Use the task
+support table above for ECG classification claims.
 
 | Model Name | HuggingFace ID | Parameters | Time-LLM | Teacher | Student | Distillation |
 |------------|----------------|------------|----------|---------|---------|--------------|
@@ -23,10 +49,15 @@ This document lists all models supported across the Time-LLM implementation and 
 
 ## 🎯 Recommended Teacher-Student Pairs
 
+For ECG classification, the only locked five-seed pair is **BERT -> TinyBERT**.
+Other pairs below are general forecasting recommendations or unvalidated ECG
+options and should not be described as classification results without a new
+controlled run.
+
 ### High Performance Pairs
 ```bash
 # BERT → TinyBERT (Most tested)
---teacher bert-base-uncased --student prajjwal1/bert-tiny
+--teacher bert-base-uncased --student huawei-noah/TinyBERT_General_4L_312D
 
 # BERT → DistilBERT (Balanced)
 --teacher bert-base-uncased --student distilbert-base-uncased
@@ -100,6 +131,17 @@ bash distill_pipeline.sh \
    - Model comments for tracking
 
 4. **Filename sanitization** is applied automatically for model names with forward slashes
+
+5. **Task-specific heads are required**. Classification is not enabled by
+  changing a forecasting loss. The ECG path uses waveform patch embeddings,
+  optional RR fusion, pooled backbone states, and a two- or five-class head.
+
+6. **Checkpoint compatibility is task-specific**. Forecasting checkpoints do
+  not load into the ECG classifier. Frozen ECG checkpoints store task modules
+  and reconstruct the configured pretrained backbone.
+
+7. **Chronos remains forecasting-only** in this repository. The implemented
+  ECG classifier uses the Time-LLM backbone family listed above.
 
 ## 🔍 Verification
 

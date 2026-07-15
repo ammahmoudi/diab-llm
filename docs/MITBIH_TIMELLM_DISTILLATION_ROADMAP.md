@@ -12,6 +12,100 @@ Build a **Time-LLM classification variant** for **MIT-BIH AAMI 5-class beat clas
 
 This roadmap is the ECG-classification analogue of the Time-LLM BG distillation and fairness pipeline.
 
+## Completion Update — 2026-07-15
+
+The internal reportable program described here is complete for both ECG
+endpoints. The AAMI-5 five-seed run is stored under
+`experiments/mitbih_fairness_pipeline_protocol_fixed_all_seeds_20260712/`.
+The secondary binary-ectopy run (N versus S/V/F, Q excluded) is stored under
+`experiments/mitbih_binary_ectopy_five_seed/` and completed all six variants
+for all five seeds.
+
+The authoritative synthesis is
+`experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`.
+AAMI-5 remains mixed; the locked binary test supports O2/T1+O2 portability,
+but validation favors Baseline KD and the test result is not a basis for
+retuning. The external CNN comparator remains pending.
+
+## Current status and corrected experiment protocol
+
+Phases 1 and 3-7 are implemented for the internal Time-LLM path. Phase 2, the
+external CNN baseline under the same record-safe split, remains pending.
+
+The production pipeline is:
+
+`scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh`
+
+It prepares data, trains a teacher and student baseline, runs baseline/T1/O2/
+T1+O2 distillation by default, computes fairness comparisons, supports all
+fixed seeds, and preserves configs, checkpoints, histories, predictions,
+calibration heads, efficiency reports, classification reports, and logs.
+
+### Imbalance correction
+
+MIT-BIH requires imbalance handling, but sampling and loss weighting must not
+apply the same inverse-frequency correction simultaneously:
+
+- class- or group-balanced `WeightedRandomSampler` active: use ordinary CE;
+- no weighted sampler: use inverse-frequency weighted CE;
+- baseline KD and O2 use the same capped class-balanced sampler as supervised
+	teacher/student training; T1 replaces it with the group/class sampler;
+- O2 follows the BG lifecycle: its group-specific affine head is optimized
+	jointly with the student under the ground-truth and KD losses. For ECG the
+	scale and bias are per class because a scalar bias shared by all logits
+	cancels under softmax.
+
+As in BG Time-LLM, pretrained teacher and student LLM backbones are frozen by
+default. The trainable ECG path consists of the patch embedding, continuous
+input projection, and classification head. Full-backbone fine-tuning is an
+explicit ablation with a separate `1e-5` backbone rate; the task modules retain
+their `1e-4` rate.
+
+### Failed-run diagnosis and acceptance rule
+
+The initial run collapsed to majority class `N`. A subsequent run combined
+up-to-50x class sampling with inverse-frequency CE and overcorrected: the BERT
+teacher predicted class `F` for all `22,975` test beats, with macro-F1
+`0.00030`. Both runs are diagnostic artifacts, not reportable results.
+
+The pipeline now stops before distillation unless the teacher reaches the
+configurable defaults:
+
+- macro-F1 at least `0.35`;
+- at least four predicted classes.
+
+The acceptance gate uses validation predictions only. Test predictions are
+reserved for final reporting.
+
+The original random record split was also invalid for fairness calibration:
+several validation sex/class cells were empty, including male `F` and `Q`.
+Data preparation now performs deterministic record-level stratification over
+sex, class coverage, and class counts. Records remain disjoint across splits.
+Some cells remain intrinsically too sparse because female `F` beats occur in
+only three records and `Q` is similarly record-concentrated. Equal-opportunity
+gaps are therefore excluded from aggregate fairness summaries when any group
+has fewer than 20 true examples for that class or best-group recall is below
+`0.05`; support, raw gaps, and exclusion reasons remain explicit in the JSON
+report.
+
+A corrected one-epoch BERT-tiny smoke test predicted all five classes and
+reached macro-F1 `0.4336`. A frozen full-BERT smoke test also predicted all five
+classes and reached macro-F1 `0.3784` after one epoch. These historical smoke
+checks were followed by the completed locked five-seed experiments cited in
+the completion update.
+
+### Historical launch sequence (completed)
+
+```bash
+PIPELINE_DIR=experiments/mitbih_fairness_pipeline_frozen_backbone_20260711 \
+SEED=831363 \
+bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+```
+
+This gate-first sequence was followed before the fixed five-seed runs. Do not
+rerun it as a new result unless the protocol changes and a new output directory
+is used.
+
 ---
 
 ## Phase 0: Scope lock

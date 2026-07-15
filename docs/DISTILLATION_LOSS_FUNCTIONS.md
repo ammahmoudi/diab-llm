@@ -2,7 +2,35 @@
 
 ## 🎓 Overview
 
-This Time-LLM project implements **knowledge distillation** specifically designed for **time series forecasting** using Large Language Models. The distillation process transfers knowledge from a large, capable teacher model to a smaller, efficient student model while maintaining prediction accuracy.
+This project has separate knowledge-distillation objectives for continuous
+time-series forecasting and ECG classification. The original sections below
+describe forecasting regression. MIT-BIH classification uses a categorical
+cross-entropy/KL objective and must not reuse the regression interpretation.
+
+## ECG Classification Distillation
+
+For student logits `z_s`, teacher logits `z_t`, labels `y`, and temperature
+`T`, the ECG wrapper uses:
+
+```text
+L_ECG = alpha * CE(z_s, y)
+            + beta * T^2 * KL(softmax(z_t / T) || softmax(z_s / T))
+```
+
+- `alpha` weights supervised classification.
+- `beta` weights teacher-distribution matching.
+- `T` controls class-probability softness; unlike BG regression, it is an
+    operative scientific parameter.
+- The locked binary-ectopy run uses `alpha=0.5`, `beta=0.5`, and `T=1.0`,
+    selected by a validation-only screen.
+- A weighted sampler and class-weighted CE are mutually exclusive to avoid
+    applying the imbalance correction twice.
+- O2 jointly learns group-conditional per-class affine scale/bias parameters
+    on student logits; BG O2 instead calibrates continuous predictions.
+
+Classification checkpoints are selected on validation only and evaluated with
+accuracy, macro-F1, weighted-F1, class recall, and support-qualified EO. Test
+predictions are final evaluation artifacts, not tuning inputs.
 
 ## 📊 Distillation Loss Function
 
@@ -158,4 +186,6 @@ distillation_params = {
 - Monitor both teacher and ground truth loss components
 - Validate performance on held-out test sets
 
-This simplified distillation framework is specifically optimized for time series forecasting tasks, focusing on direct regression learning without unnecessary probability distribution complexities.
+The simplified MSE framework is specifically optimized for forecasting
+regression. ECG classification intentionally uses probability-distribution
+matching because its outputs are categorical logits.

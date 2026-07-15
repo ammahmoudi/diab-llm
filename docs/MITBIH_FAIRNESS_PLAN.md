@@ -17,6 +17,54 @@ not normal-versus-abnormal classification. The main benchmark is multi-class
 AAMI beat classification with fairness analysis attached to the teacher,
 student, and distilled student systems.
 
+## Secondary Endpoint Completion — 2026-07-15
+
+AAMI-5 remains the primary benchmark. After the AAMI-5 analysis exposed
+persistent S-class failure and sparse F/Q subgroup support, a separate binary
+ectopy endpoint was completed as a reportable secondary stress test: N versus
+S/V/F, Q excluded, with previous/next RR features. It uses a validation-only KD
+screen followed by a locked five-seed evaluation.
+
+On the locked binary test, O2 improves macro-F1 by `0.0127` and EO by `0.0357`,
+while T1+O2 improves macro-F1 by `0.0264` and EO by `0.0248` versus Baseline
+KD. Validation averages favor Baseline KD, so this does not change the primary
+AAMI-5 benchmark or justify post-hoc ECG method selection. See
+`experiments/mitbih_binary_ectopy_five_seed/BG_AAMI5_BINARY_COMPARISON.md`.
+
+## Current validated protocol and result-quality gate
+
+The internal teacher/student/distillation/fairness pipeline is implemented.
+The main supervised imbalance protocol uses capped class-balanced sampling and
+ordinary cross-entropy. Inverse-frequency weighted cross-entropy is retained
+only as the fallback when no weighted sampler is active. Applying both caused
+an observed rare-class collapse and is prohibited for reportable experiments.
+
+The pretrained LLM backbone is frozen by default, matching the BG Time-LLM
+protocol. The ECG patch embedding, continuous-input projection, and five-class
+head remain trainable. Unfreezing is an ablation and must use the separate
+`1e-5` backbone learning rate rather than the `1e-4` task-module rate.
+
+The first completed seed runs are retained only for failure analysis:
+
+- majority-class `N` collapse under insufficient balancing;
+- class `F` collapse after combining up-to-50x sampling with inverse class
+  weights.
+- majority-class `N` collapse when the entire BERT backbone was fine-tuned at
+  the task-module learning rate.
+
+Therefore, successful execution is not sufficient for acceptance. Before any
+fairness or distillation interpretation, require:
+
+- teacher macro-F1 at least `0.35` by default;
+- predictions from at least four AAMI classes;
+- inspection of every class's precision, recall, F1, and support;
+- no claim of fairness from zero EO/DP gaps when a model predicts one class;
+- comparison against the student baseline before claiming KD improvement.
+
+The pipeline enforces the first two conditions before starting distillation.
+Accuracy alone must never be used as the acceptance criterion because class
+`N` dominates the test set.
+
 ## Task Definition
 
 ### Primary task
@@ -190,6 +238,19 @@ This is required to prevent leakage across training, validation, and test sets.
 Under the current one-record-per-patient policy, this means splitting across
 the curated 47-record set after excluding duplicate record `202`.
 
+Use deterministic record-level stratification over sex, AAMI class coverage,
+overall class counts, and sex-by-class counts. The earlier random record split
+left entire validation cells absent and is not reportable. Stratification must
+never move individual beats independently of their record.
+
+Report every subgroup/class support. Treat an equal-opportunity gap as
+non-reportable when any compared group has fewer than 20 true samples for that
+class or when the best-group recall is below `0.05`, and exclude that class
+from aggregate EO summaries. This affects sparse `F`/`Q` sex cells
+structurally and prevents shared class failure (observed for `S`) from being
+misrepresented as fairness. The JSON report must retain raw gaps and list
+exclusion reasons.
+
 ### Metadata to retain
 
 Store subgroup-relevant metadata for each sample or parent record, including:
@@ -212,6 +273,13 @@ Use a minimal, auditable preprocessing stack for the main benchmark:
 - use provided annotations directly
 - per-record normalization on the selected lead
 - fixed-length extraction with boundary padding when needed
+
+The friend's ECG baseline preprocessing was reviewed. Its SMOTE, random
+beat-level split, and per-sample min-max normalization are not copied into the
+main benchmark. Synthetic oversampling and random beat splitting could weaken
+record-level auditability. Robust per-record normalization remains the main
+policy because the diagnosed collapses came from the imbalance objective, not
+from waveform scaling.
 
 ### Normalization recommendation
 
@@ -493,6 +561,9 @@ Report:
 - subgroup metrics
 - one-vs-rest fairness tables
 
+Do not continue to distillation when the teacher acceptance gate fails. Keep
+the failed checkpoint and predictions only as diagnostic artifacts.
+
 ### Stage 3: student benchmark
 
 Train a smaller student without distillation on the same task and evaluate with
@@ -520,6 +591,29 @@ Add secondary analyses for:
 - threshold sensitivity for one-vs-rest fairness
 - subgroup support sensitivity
 - optional calibration checks
+
+### Saved evidence for re-analysis
+
+Each accepted run should retain:
+
+- generated and operative gin configuration;
+- best and last checkpoints;
+- training or distillation history;
+- validation and test per-beat predictions with `prob_0` through `prob_4`;
+- record and subgroup columns used by the fairness analyzer;
+- class-wise classification report;
+- O2 calibration metadata when enabled;
+- efficiency report and timestamped pipeline log;
+- per-seed fairness comparison JSON.
+
+Use a fresh output directory for the corrected seed so the resumable pipeline
+cannot reuse a failed checkpoint:
+
+```bash
+PIPELINE_DIR=experiments/mitbih_fairness_pipeline_frozen_backbone_20260711 \
+SEED=831363 \
+bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+```
 
 ### Final comparison table
 

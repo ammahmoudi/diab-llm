@@ -4,6 +4,35 @@
 
 The Knowledge Distillation Pipeline enables you to distill knowledge from larger, more capable teacher models (like BERT-base) to smaller, more efficient student models (like TinyBERT). This technique maintains high performance while significantly reducing model size and computational requirements.
 
+Two task-specific paths are available:
+
+- BG/time-series forecasting through `distill_pipeline.sh` and the forecasting
+  wrappers documented in the original sections below;
+- MIT-BIH ECG classification through
+  `scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh`, using
+  `time_llm_ecg_classifier` and `distillation_ecg_classifier` in `main.py`.
+
+The paths share backbone configuration concepts but not heads, losses,
+checkpoints, datasets, or evaluation metrics.
+
+## ECG Classification Quick Start
+
+The production ECG pipeline supports AAMI-5 and binary modes, record-disjoint
+splits, class-balanced sampling, classification KD, optional RR features, and
+T1/O2 fairness variants.
+
+```bash
+PIPELINE_DIR=experiments/mitbih_example \
+SEEDS=831363 \
+LABEL_MODE=aami5 \
+bash scripts/pipelines/run_mitbih_fairness_distillation_pipeline.sh
+```
+
+Classification outputs include validation/test per-beat probabilities,
+accuracy, macro-F1, weighted-F1, per-class recall, and subgroup fairness
+reports. The locked binary protocol uses BERT -> TinyBERT, five fixed seeds,
+ten epochs, N versus S/V/F with Q excluded, and previous/next RR features.
+
 ## 🚀 Quick Start
 
 ### Single Patient Pipeline
@@ -571,6 +600,8 @@ python distillation/scripts/distill_students.py \
 ### Supported Datasets
 - **ohiot1dm**: Ohio T1DM dataset for glucose forecasting
 - **d1namo**: D1NAMO dataset for continuous glucose monitoring
+- **mitbih**: MIT-BIH beat classification through the separate ECG pipeline;
+  AAMI-5 is primary and binary ectopy is the locked secondary endpoint
 
 ### Data Path Auto-Detection
 The system automatically detects data paths:
@@ -719,4 +750,7 @@ distillation/
 
 ---
 
-**Note**: This system is designed for temporal forecasting tasks with Time-LLM models. Ensure your data follows the expected CSV format with target columns and appropriate temporal structure.
+**Note**: The `distill_pipeline.sh` commands in this document remain specific
+to temporal forecasting. MIT-BIH classification must use the ECG generators or
+pipeline because it requires beat-index data, class labels, a classification
+head, cross-entropy/KL losses, and classification/fairness metrics.
