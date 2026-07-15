@@ -49,11 +49,11 @@ apply the same inverse-frequency correction simultaneously:
 - class- or group-balanced `WeightedRandomSampler` active: use ordinary CE;
 - no weighted sampler: use inverse-frequency weighted CE;
 - baseline KD and O2 use the same capped class-balanced sampler as supervised
-	teacher/student training; T1 replaces it with the group/class sampler;
+  teacher/student training; T1 replaces it with the group/class sampler;
 - O2 follows the BG lifecycle: its group-specific affine head is optimized
-	jointly with the student under the ground-truth and KD losses. For ECG the
-	scale and bias are per class because a scalar bias shared by all logits
-	cancels under softmax.
+  jointly with the student under the ground-truth and KD losses. For ECG the
+  scale and bias are per class because a scalar bias shared by all logits
+  cancels under softmax.
 
 As in BG Time-LLM, pretrained teacher and student LLM backbones are frozen by
 default. The trainable ECG path consists of the patch embedding, continuous
@@ -409,8 +409,8 @@ Produce a clear research story across systems.
 
 ### Docs
 
-- `docs/MITBIH_TIMELLM_CLASSIFICATION_VARIANT.md`
-- `docs/MITBIH_TIMELLM_DISTILLATION_ROADMAP.md`
+- `docs/mitbih/TIMELLM_CLASSIFICATION_VARIANT.md`
+- `docs/mitbih/TIMELLM_DISTILLATION_ROADMAP.md`
 
 ---
 

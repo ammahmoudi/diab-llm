@@ -758,7 +758,7 @@ def generate_report(
             f"- Binary-ectopy five-seed analysis: `{display_path(binary_root / 'MULTISEED_ANALYSIS.md')}`",
             f"- Canonical three-task comparison: `{display_path(binary_root / 'BG_AAMI5_BINARY_COMPARISON.md')}`",
             f"- Binary locked protocol: `{display_path(binary_root / 'protocol_manifest.json')}`",
-            "- MIT-BIH tuning and class-limitations roadmap: `../../docs/MITBIH_ECG_TUNING_AND_CLASS_LIMITATIONS_ROADMAP.md`",
+            "- MIT-BIH tuning and class-limitations roadmap: `../../docs/mitbih/ECG_TUNING_AND_CLASS_LIMITATIONS_ROADMAP.md`",
             f"- BG single-run grid: `{bg_root / 'fairness_comparison_results.csv'}`",
             f"- BG five-seed results: `{bg_root / 'multiseed_robustness_results.csv'}`",
         ]
