@@ -70,40 +70,74 @@ For the confirmatory BG matrix, keep the canonical BERT teacher, BERT-tiny stude
 
 ## 4. Current Evidence Inventory
 
-### 4.1 Five-seed BG evidence already complete
+### 4.1 Unified BG evidence table
 
-| Method | RMSE, mean +/- SD | EO raw, mean +/- SD | EO calibrated, mean +/- SD | Current conclusion |
-| --- | ---: | ---: | ---: | --- |
-| Baseline KD | 23.5284 +/- 0.2702 | 0.2174 +/- 0.0061 | 0.0675 +/- 0.0078 | Stable reference |
-| T1 fair teacher | 22.8454 +/- 0.3305 | 0.2013 +/- 0.0077 | 0.0568 +/- 0.0057 | Small directional improvement |
-| T1+O2 calibration head | 22.9420 +/- 0.6669 | 0.1179 +/- 0.0325 | 0.0445 +/- 0.0041 | Strong positive result; EO improves in 5/5 seeds |
+All completed BG methods are shown in the same table and use the same metric columns. A value marked **5 seeds** is the current confirmatory mean +/- SD; a value marked **1 seed** is provisional. In the future, replace each 1-seed row in place with its five-seed mean +/- SD and paired statistics. Do not create a separate table or combine the old single value with the new aggregate.
 
-The direction of the T1+O2 raw-EO improvement is consistent, but its magnitude varies by seed. That variation must be shown rather than hidden.
+| Intervention family | Method | Seeds | RMSE | EO raw | EO calibrated | Evidence note |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Reference | Teacher baseline (BERT) | **1** | 24.162 | 0.2302 | 0.0761 | Provisional; replace in place with 5 seeds |
+| Reference | Student baseline, no KD | **1** | 21.989 | 0.1948 | 0.0534 | Provisional; replace in place with 5 seeds |
+| Reference | Baseline KD | **5** | 23.5284 +/- 0.2702 | 0.2174 +/- 0.0061 | 0.0675 +/- 0.0078 | Confirmatory reference |
+| Reference | Fair-sampling teacher (T1 teacher) | **1** | 22.564 | 0.1925 | 0.0478 | Provisional; replace in place with 5 seeds |
+| Source | Distilled from fair teacher (T1) | **5** | 22.8454 +/- 0.3305 | 0.2013 +/- 0.0077 | 0.0568 +/- 0.0057 | Confirmatory; small directional improvement |
+| Output | T1+O2 calibration head | **5** | 22.9420 +/- 0.6669 | 0.1179 +/- 0.0325 | 0.0445 +/- 0.0041 | Confirmatory; EO improves in 5/5 seeds |
+| Fairness loss | Equalized-odds loss v1 | **1** | 23.672 | 0.2194 | 0.0629 | Exploratory; later replace in place if repeated |
+| Fairness loss | Soft/focal TPR loss v2 | **1** | 24.426 | 0.2300 | 0.0764 | Exploratory; later replace in place if repeated |
+| Data weighting | Oversampling only | **1** | 24.918 | 0.2326 | 0.0752 | Exploratory; later replace in place if repeated |
+| Data/loss | Oversampling + TPR loss | **1** | 24.141 | 0.2225 | 0.0650 | Provisional; replace in place with 5 seeds |
+| Constraint | T1+O1 projected constraint | **1** | 23.141 | 0.2135 | 0.0656 | Provisional; replace in place with 5 seeds |
+| Transfer | T1+K1 calibrated soft labels | **1** | 22.654 | 0.1981 | 0.0719 | Provisional; replace in place with 5 seeds |
+| Representation | T1+K3 feature alignment, weight 100 | **1** | 22.496 | 0.1974 | 0.0417 | Exploratory secondary ablation |
+| Representation | T1+K3 feature alignment, weight 200 | **1** | 22.438 | 0.1919 | 0.0536 | Provisional; replace in place with 5 seeds |
+| Selective transfer | T1+K4 selective KD replay | **1** | 23.413 | 0.2056 | 0.0645 | Provisional; replace in place with 5 seeds |
+| Erasure | T1+O3 adversarial group erasure | **1** | 23.048 | 0.2118 | 0.0557 | Provisional; replace in place with 5 seeds |
+| Source specialization | T2 per-group teachers | **1** | 22.956 | 0.2197 | 0.0732 | Provisional; replace in place with 5 seeds |
+| Transfer ablation | K1 calibrated soft labels without T1 | **1** | 25.677 | 0.2326 | 0.0706 | Exploratory; later replace in place if repeated |
 
-### 4.2 Complete BG single-seed method grid
+The T1+O2 direction is consistent across five seeds, but its effect magnitude varies by seed and must remain visible in the paired analysis. Every future five-seed replacement must add per-seed values, paired deltas versus Baseline KD, win counts, confidence intervals, and the prespecified test from Gate C.
 
-| Intervention family | Methods already run | Single-seed observation | Evidence status |
-| --- | --- | --- | --- |
-| Baselines | Teacher, Student, Baseline KD | KD is worse than the standalone student on RMSE and EO in the matched run | Descriptive until teacher/student references are aligned with repeated evidence |
-| Teacher/source | T1, T2 | T1 helps at teacher stage; per-group teachers T2 do not close the gap | T1 headline repeated; T2 single seed |
-| Data weighting | Oversampling; oversampling + TPR loss | Utility worsens and EO remains high | Single seed |
-| Fairness loss | Equalized-odds v1; soft/focal TPR v2 | EO remains high | Single seed |
-| Transfer labels | K1; T1+K1 | K1-only performs poorly; T1+K1 partially recovers T1 | Single seed |
-| Representation | K3 at weights 100 and 200 | Best RMSE among single runs, but EO remains near baseline | Two weights, one seed each |
-| Selective transfer | K4 | Engaged loss does not close EO | Single seed |
-| Student constraint | O1 | Stable run, but EO remains high | Single seed |
-| Output correction | T1+O2 | Large utility-compatible EO reduction | Five seeds complete |
-| Group erasure | O3 | Adversary reaches chance while EO remains high | Strong mechanism check, but one seed |
+### 4.2 Unified ECG five-seed evidence table
 
-### 4.3 ECG evidence already complete
+All ECG rows use the same five training seeds. Binary ectopy is listed first because it provides the stronger supportive cross-domain signal; AAMI-5 follows as mixed evidence. AAMI-5 utility is accuracy and macro-F1; binary-ectopy utility is macro-F1. The two endpoints have different class sets, utility metrics, and EO definitions, so values must be compared only within their own endpoint. Binary-ectopy results use the locked test split.
 
-AAMI-5 has five-seed Teacher, Student, Baseline KD, T1, O2, and T1+O2 results. No paired fairness comparison is statistically significant; T1 has the strongest directional N/V EO reduction versus Baseline KD.
+| ECG endpoint | Method | Seeds | Primary utility (higher is better) | EO gap (lower is better) | EO change vs Baseline KD | Evidence note |
+| --- | --- | ---: | --- | ---: | --- | --- |
+| Binary ectopy | Teacher | **5** | Macro-F1 0.6951 +/- 0.0560 | 0.0535 +/- 0.0398 | -0.0062 (2/5 wins) | Locked-test source reference |
+| Binary ectopy | Student, no KD | **5** | Macro-F1 0.7063 +/- 0.0715 | 0.0861 +/- 0.0599 | +0.0264 (2/5 wins) | Higher utility but worse mean EO |
+| Binary ectopy | Baseline KD | **5** | Macro-F1 0.7000 +/- 0.0314 | 0.0596 +/- 0.0964 | +0.0000 (0/5 wins) | Locked-test confirmatory reference |
+| Binary ectopy | T1 | **5** | Macro-F1 0.6890 +/- 0.0536 | 0.0516 +/- 0.0672 | -0.0081 (4/5 wins) | Directional EO gain with lower mean utility |
+| Binary ectopy | O2 | **5** | Macro-F1 0.7127 +/- 0.0160 | 0.0239 +/- 0.0211 | -0.0357 (3/5 wins) | Mean utility and EO improve; validation still favors KD |
+| Binary ectopy | T1+O2 | **5** | Macro-F1 0.7265 +/- 0.0345 | 0.0349 +/- 0.0400 | -0.0248 (4/5 wins) | Mean utility improves in 5/5; one high-gap seed influences the EO mean |
+| AAMI-5 | Teacher | **5** | Accuracy 0.6633 +/- 0.0833; macro-F1 0.4222 +/- 0.0248 | 0.1124 +/- 0.0255 | -22.5% (2/5 wins) | Fairest mean EO; source reference |
+| AAMI-5 | Student, no KD | **5** | Accuracy 0.6175 +/- 0.0602; macro-F1 0.4236 +/- 0.0281 | 0.2187 +/- 0.0524 | +50.8% (1/5 wins) | Compression degrades mean EO |
+| AAMI-5 | Baseline KD | **5** | Accuracy 0.6939 +/- 0.0865; macro-F1 0.4416 +/- 0.0232 | 0.1450 +/- 0.0908 | +0.0% (0/5 wins) | Confirmatory reference |
+| AAMI-5 | T1 | **5** | Accuracy 0.7019 +/- 0.0645; macro-F1 0.4375 +/- 0.0174 | 0.1259 +/- 0.0536 | -13.2% (3/5 wins) | Best distilled directional EO result; not statistically significant |
+| AAMI-5 | O2 | **5** | Accuracy 0.7035 +/- 0.1160; macro-F1 0.4440 +/- 0.0251 | 0.1484 +/- 0.0961 | +2.4% (2/5 wins) | No mean EO improvement versus KD |
+| AAMI-5 | T1+O2 | **5** | Accuracy 0.7196 +/- 0.0468; macro-F1 0.4416 +/- 0.0120 | 0.1349 +/- 0.0540 | -7.0% (2/5 wins) | Mean EO improves, but not consistently |
 
-Binary ectopy also has five-seed locked-test results. O2 and T1+O2 improve mean utility and mean EO relative to Baseline KD, but the result is supportive rather than decisive because validation favors Baseline KD and one high-gap seed influences the mean test reduction.
+The ECG source artifact is `experiments/mitbih_fairness_pipeline_protocol_fixed_all_seeds_20260712/BG_ECG_CROSS_DOMAIN_COMPARISON.md`. It contains the locked aggregates, endpoint definitions, and supporting per-seed interpretation.
 
 The defensible cross-domain statement today is:
 
 > Group-aware output correction is strongly effective for BG and directionally promising for binary ECG, but not consistently beneficial for AAMI-5. Fairness mitigation is task- and endpoint-dependent.
+
+### 4.3 Provisional lessons from secondary BG methods
+
+The methods below do not currently show an O2-like raw-EO improvement, but they are more than discarded experiments: they test distinct explanations for the disparity. Every value is from one BG seed, so the interpretations are provisional. Do not call any method a robust failure until its mechanism diagnostic passes and the five-seed replacement is complete.
+
+| Method family | Current one-seed observation | Provisional lesson | Use in the article plan |
+| --- | --- | --- | --- |
+| Direct fairness losses (v1/v2) | RMSE 23.672/24.426; raw EO 0.2194/0.2300 | Direct differentiable EO penalties did not improve thresholded raw EO and incurred utility cost. | Secondary ablations; repeat only the representative data/loss configuration. |
+| Oversampling and oversampling + TPR loss | RMSE 24.918/24.141; raw EO 0.2326/0.2225 | Increasing minority-event exposure alone did not repair event-detection parity. | Keep oversampling + TPR loss as the representative data/loss repeat; retain oversampling-only as explanatory context. |
+| O1 projected EO constraint | RMSE 23.141; raw EO 0.2135 | A valid constrained objective was not sufficient to leave the high-gap regime. | Repeat as the representative objective-level negative, with violation and dual-variable diagnostics. |
+| K1 calibrated soft labels | K1-only: RMSE 25.677, raw EO 0.2326; T1+K1: RMSE 22.654, raw EO 0.1981 | A fair teacher helps, but static target offsets remain weaker than learned output correction. | Repeat T1+K1; keep K1-only as a secondary ablation. |
+| K3 feature alignment | Best RMSE: 22.438 at weight 200; raw EO 0.1919 | Alignment can improve utility, but did not produce an O2-like raw-EO reduction; the alignment term was flat in the completed run. | Repeat weight 200 as the representation-family test; retain weight 100 as a secondary ablation. |
+| K4 selective KD replay | RMSE 23.413; raw EO 0.2056 | Active minority-event loss reweighting did not close the raw gap. | Repeat as the selective-transfer family test, logging the effective weights and weighted-loss change. |
+| O3 adversarial group erasure | RMSE 23.048; raw EO 0.2118; adversary near chance | Removing group information from the representation did not remove the outcome gap, supporting a prevalence-driven rather than representational explanation. | Highest-priority negative mechanism repeat; report adversary performance with EO. |
+| T2 per-group teachers | RMSE 22.956; raw EO 0.2197 | Group-specialized teachers can reproduce group base rates rather than mitigate their downstream effect; the female teacher also has only five patients. | Highest-priority source-mechanism repeat; report both teacher data support and routing diagnostics. |
+
+This section motivates the confirmatory matrix rather than expanding it indefinitely: O1, K1, K3, K4, O3, T2, and one data/loss configuration cover distinct intervention families. O3 and T2 are especially valuable because, if replicated, they explain why source-, representation-, and loss-level changes can underperform a learned group-aware output correction.
 
 ## 5. Methods That Belong in the BG Comparison
 
@@ -415,6 +449,10 @@ If a method has unstable or contradictory five-seed behavior, keep the result. T
 
 ## 12. Source of Truth
 
+- Concise problem, methods, evidence, and decision brief:
+  `docs/research/FAIRNESS_KD_DECISION_BRIEF.md`
+- T1/O2 method definitions and BG/ECG data flows:
+  `docs/research/FAIRNESS_METHODS_AND_DATA_FLOWS.md`
 - BG method definitions and single-seed grid: `docs/FAIRNESS_SOLUTIONS_ROADMAP.md`
 - Canonical BG artifact paths: `docs/EXPERIMENT_FOLDER_REGISTRY.md`
 - BG single-seed table: `distillation_experiments/all_patients_pipeline/pipeline_2025-10-28_14-20-17/fairness_comparison_results.csv`
