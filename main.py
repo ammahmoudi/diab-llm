@@ -735,6 +735,9 @@ def run(
                 "include_duplicate_202": data_settings.get("include_duplicate_202", False),
                 "beat_index_csv": data_settings.get("beat_index_csv"),
                 "metadata_csv": data_settings.get("metadata_csv"),
+                "label_mode": data_settings.get("label_mode", "aami5"),
+                "sampling_rate_hz": data_settings.get("sampling_rate_hz", 360.0),
+                "rr_clip_seconds": data_settings.get("rr_clip_seconds", 3.0),
             }
         )
 
@@ -743,6 +746,7 @@ def run(
             batch_size=llm_settings.get("train_batch_size", 64),
             fair_sampling=data_settings.get("fair_teacher_sampling", False),
             fair_feature=data_settings.get("fair_teacher_feature", "sex"),
+            fair_max_oversample=data_settings.get("fair_teacher_max_oversample", 4.0),
             class_balanced_sampling=data_settings.get("class_balanced_sampling", False),
             class_balanced_max_oversample=data_settings.get("class_balanced_max_oversample", 50.0),
         )
@@ -813,6 +817,9 @@ def run(
                 "include_duplicate_202": data_settings.get("include_duplicate_202", False),
                 "beat_index_csv": data_settings.get("beat_index_csv"),
                 "metadata_csv": data_settings.get("metadata_csv"),
+                "label_mode": data_settings.get("label_mode", "aami5"),
+                "sampling_rate_hz": data_settings.get("sampling_rate_hz", 360.0),
+                "rr_clip_seconds": data_settings.get("rr_clip_seconds", 3.0),
             }
         )
 
@@ -821,6 +828,7 @@ def run(
             batch_size=llm_settings.get("train_batch_size", 64),
             fair_sampling=data_settings.get("fair_teacher_sampling", False),
             fair_feature=data_settings.get("fair_teacher_feature", "sex"),
+            fair_max_oversample=data_settings.get("fair_teacher_max_oversample", 4.0),
             class_balanced_sampling=data_settings.get("class_balanced_sampling", False),
             class_balanced_max_oversample=data_settings.get("class_balanced_max_oversample", 50.0),
         )
@@ -883,11 +891,11 @@ def run(
                 json.dump(distillation_driver.classification_report_dict(targets, preds), f, indent=2)
 
         elif llm_settings["mode"] == "inference":
-            distillation_driver.student.load_state_dict(
+            distillation_driver.student.load_checkpoint_state_dict(
                 torch.load(llm_settings["restore_checkpoint_path"], map_location=distillation_driver.device, weights_only=True)
             )
             if distillation_driver.student_calibration_enabled:
-                calibration_dir = os.path.dirname(llm_settings["restore_checkpoint_path"])
+                calibration_dir = os.path.dirname(os.path.dirname(llm_settings["restore_checkpoint_path"]))
                 distillation_driver.load_student_calibration(
                     os.path.join(calibration_dir, "student_calibration_head.json")
                 )

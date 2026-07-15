@@ -2,14 +2,14 @@
 
 Fairness-mitigation transfer from BG (blood glucose): this wrapper ports every
 fix from `distillation/core/distillation_wrapper.py` / `distillation_trainer.py`
-to ECG AAMI 5-class classification. T1 (fair teacher sampling) lives upstream
+to ECG AAMI-5 and binary beat classification. T1 (fair teacher sampling) lives upstream
 in `EcgTimeLLMDataHandler.load_from_index` / `fairness/utils/ecg_sampling.py`.
 The remaining fixes are adapted here as follows (BG -> ECG):
 
 - O2 (student calibration): BG learns a per-group affine scale+bias on
-  continuous glucose outputs *during* training. Here it is a per-group
-  additive *logit* bias (any number of groups) fit *post-hoc* on the
-  validation set after distillation finishes (see `_fit_student_calibration`).
+    continuous glucose outputs during training. Here the same jointly trained
+    head uses per-class scale+bias vectors on classification logits; a scalar
+    bias shared by all classes would cancel under softmax and have no effect.
 - K1 (calibrated soft labels): BG shifts the teacher's continuous output by a
   scalar per-group mg/dL offset. A uniform shift to classification logits is a
   no-op after softmax, so here the offset is a per-class vector added to the
@@ -43,10 +43,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, classification_report, f1_score
 from torch.optim.adam import Adam
+from torch.utils.data import WeightedRandomSampler
 
 from data_processing.ecg.label_map import AAMI_CLASS_TO_ID
 from fairness.loss_functions.fairness_losses import FeatureAlignmentLoss, GroupAdversary
-from fairness.utils.ecg_calibration import apply_groupwise_logit_bias, fit_groupwise_logit_bias
 from fairness.utils.ecg_sampling import build_group_labels_from_samples
 from models.ecg.time_llm_classifier import TimeLLMEcgClassifier
 
@@ -64,11 +64,48 @@ class ECGClassificationDistillationWrapper:
         self.beta = float(settings.get("distillation_beta", 0.5))
         self.temperature = float(settings.get("distillation_temperature", 2.0))
         self.logger = logging.getLogger(__name__)
+        self.checkpoint_selection = settings.get("checkpoint_selection", "loss")
+        self.checkpoint_selection_feature = settings.get("checkpoint_selection_feature", "sex")
+        self.checkpoint_selection_fairness_classes = [
+            int(class_id) for class_id in settings.get("checkpoint_selection_fairness_classes", [0, 2])
+        ]
+        self.checkpoint_selection_s_class = int(settings.get("checkpoint_selection_s_class", 1))
+        self.checkpoint_selection_min_s_recall = float(
+            settings.get("checkpoint_selection_min_s_recall", 0.05)
+        )
+        self.checkpoint_selection_macro_f1_tolerance = float(
+            settings.get("checkpoint_selection_macro_f1_tolerance", 0.01)
+        )
+        self.checkpoint_selection_min_group_class_support = int(
+            settings.get("checkpoint_selection_min_group_class_support", 20)
+        )
+        self.checkpoint_selection_min_best_group_recall = float(
+            settings.get("checkpoint_selection_min_best_group_recall", 0.05)
+        )
+        self.checkpoint_selection_require_s_recall = bool(
+            settings.get("checkpoint_selection_require_s_recall", False)
+        )
+        if self.checkpoint_selection not in {"loss", "utility_fairness"}:
+            raise ValueError(
+                "checkpoint_selection must be 'loss' or 'utility_fairness', "
+                f"got {self.checkpoint_selection!r}"
+            )
 
-        # O2: optional learned per-group logit calibration applied on top of
-        # the distilled student's raw outputs.
+        # O2: jointly learned per-group affine calibration on student logits,
+        # matching the BG trainer's learned calibration-head lifecycle.
         self.student_calibration_enabled = bool(settings.get("student_calibration_enabled", False))
         self.student_calibration_feature = settings.get("student_calibration_feature", "sex")
+        self.student_calibration_learning_rate = float(
+            settings.get("student_calibration_learning_rate", settings.get("learning_rate", 1e-4))
+        )
+        self.student_calibration_scale_regularization = float(
+            settings.get("student_calibration_scale_regularization", 0.0)
+        )
+        self.student_calibration_bias_regularization = float(
+            settings.get("student_calibration_bias_regularization", 0.0)
+        )
+        self.student_calibration_scale: nn.Parameter | None = None
+        self.student_calibration_bias: nn.Parameter | None = None
         self._calibration_metadata: Dict[str, object] | None = None
 
         # K1: calibrated soft labels (group-conditional teacher logit offsets)
@@ -153,6 +190,25 @@ class ECGClassificationDistillationWrapper:
             self.logger.info(f"🛡️ O3 ECG adversarial group erasure: lambda={self.adv_erasure_lambda}, feature={self.adv_erasure_feature}")
         if self.multi_teacher_enabled:
             self.logger.info(f"👥 T2 ECG per-group teachers: feature={self.multi_teacher_feature}, group0_teacher={self.second_teacher_checkpoint_path}")
+        if self.student_calibration_enabled:
+            self.logger.info(
+                "🎯 O2 ECG calibration: feature=%s, lr=%.2e, scale_reg=%.2e, bias_reg=%.2e",
+                self.student_calibration_feature,
+                self.student_calibration_learning_rate,
+                self.student_calibration_scale_regularization,
+                self.student_calibration_bias_regularization,
+            )
+        if self.checkpoint_selection == "utility_fairness":
+            self.logger.info(
+                "ECG checkpoint selection: utility_fairness, feature=%s, classes=%s, "
+                "min_s_recall=%.3f, macro_f1_tolerance=%.3f, min_support=%d, require_s=%s",
+                self.checkpoint_selection_feature,
+                self.checkpoint_selection_fairness_classes,
+                self.checkpoint_selection_min_s_recall,
+                self.checkpoint_selection_macro_f1_tolerance,
+                self.checkpoint_selection_min_group_class_support,
+                self.checkpoint_selection_require_s_recall,
+            )
 
     def _teacher_model_name(self) -> str:
         return self.settings.get("teacher_model", self.settings.get("llm_model", "BERT"))
@@ -180,7 +236,9 @@ class ECGClassificationDistillationWrapper:
                 "stride": int(self.settings.get("stride", 8)),
                 "num_classes": int(self.settings.get("num_classes", len(AAMI_CLASS_TO_ID))),
                 "pooling": self.settings.get("pooling", "mean"),
-                "freeze_llm": bool(self.settings.get("freeze_llm", False)),
+                "use_rr_features": bool(self.settings.get("teacher_use_rr_features", False)),
+                "rr_fusion_weight": float(self.settings.get("rr_fusion_weight", 1.0)),
+                "freeze_llm": bool(self.settings.get("freeze_llm", True)),
             }
         )
         return config
@@ -197,10 +255,12 @@ class ECGClassificationDistillationWrapper:
             "stride": int(self.settings.get("stride", 8)),
             "num_classes": int(self.settings.get("num_classes", len(AAMI_CLASS_TO_ID))),
             "pooling": self.settings.get("pooling", "mean"),
+            "use_rr_features": bool(self.settings.get("use_rr_features", False)),
+            "rr_fusion_weight": float(self.settings.get("rr_fusion_weight", 1.0)),
             "llm_model": self.settings.get("llm_model", "TinyBERT"),
             "llm_layers": int(self.settings.get("llm_layers", 4)),
             "llm_dim": int(self.settings.get("llm_dim", 312)),
-            "freeze_llm": bool(self.settings.get("freeze_llm", False)),
+            "freeze_llm": bool(self.settings.get("freeze_llm", True)),
         }
 
     def _build_model(self, is_student: bool) -> TimeLLMEcgClassifier:
@@ -209,7 +269,7 @@ class ECGClassificationDistillationWrapper:
 
     def _load_teacher(self):
         state_dict = torch.load(self.teacher_checkpoint_path, map_location=self.device, weights_only=True)
-        self.teacher.load_state_dict(state_dict)
+        self.teacher.load_checkpoint_state_dict(state_dict)
         self.teacher.eval()
         for param in self.teacher.parameters():
             param.requires_grad = False
@@ -218,7 +278,7 @@ class ECGClassificationDistillationWrapper:
     def _load_second_teacher(self):
         """T2: load the group-0 specialized teacher checkpoint."""
         state_dict = torch.load(self.second_teacher_checkpoint_path, map_location=self.device, weights_only=True)
-        self.second_teacher.load_state_dict(state_dict)
+        self.second_teacher.load_checkpoint_state_dict(state_dict)
         self.second_teacher.eval()
         for param in self.second_teacher.parameters():
             param.requires_grad = False
@@ -246,6 +306,8 @@ class ECGClassificationDistillationWrapper:
 
     def _prepare_group_vocabs(self, dataset) -> None:
         features = set()
+        if self.student_calibration_enabled and self.student_calibration_feature:
+            features.add(self.student_calibration_feature)
         if self.fairness_constraint_enabled and self.fairness_constraint_feature:
             features.add(self.fairness_constraint_feature)
         if self.feature_alignment_loss_fn is not None and self.feature_alignment_feature:
@@ -254,6 +316,189 @@ class ECGClassificationDistillationWrapper:
             features.add(self.adv_erasure_feature)
         for feature in features:
             self._group_vocab(feature, dataset)
+
+    def _initialize_student_calibration(self) -> None:
+        if not self.student_calibration_enabled:
+            return
+        vocab = self._group_vocab(self.student_calibration_feature)
+        num_groups = len(vocab)
+        num_classes = int(self.settings.get("num_classes", len(AAMI_CLASS_TO_ID)))
+        self.student_calibration_scale = nn.Parameter(
+            torch.ones((num_groups, num_classes), dtype=torch.float32, device=self.device)
+        )
+        self.student_calibration_bias = nn.Parameter(
+            torch.zeros((num_groups, num_classes), dtype=torch.float32, device=self.device)
+        )
+
+    def _apply_student_calibration(self, logits: torch.Tensor, meta) -> torch.Tensor:
+        if (
+            not self.student_calibration_enabled
+            or self.student_calibration_scale is None
+            or self.student_calibration_bias is None
+        ):
+            return logits
+        groups = meta.get(self.student_calibration_feature)
+        if groups is None:
+            return logits
+        group_idx = self._encode_batch_groups(groups, self.student_calibration_feature)
+        scales = self.student_calibration_scale[group_idx].to(dtype=logits.dtype)
+        biases = self.student_calibration_bias[group_idx].to(dtype=logits.dtype)
+        return logits * scales + biases
+
+    def _export_student_calibration_metadata(self) -> Dict[str, object] | None:
+        if (
+            not self.student_calibration_enabled
+            or self.student_calibration_scale is None
+            or self.student_calibration_bias is None
+        ):
+            return None
+        vocab = self._group_vocab(self.student_calibration_feature)
+        groups = [group for group, _ in sorted(vocab.items(), key=lambda item: item[1])]
+        return {
+            "feature": self.student_calibration_feature,
+            "groups": groups,
+            "group_scales": self.student_calibration_scale.detach().cpu().tolist(),
+            "group_biases": self.student_calibration_bias.detach().cpu().tolist(),
+            "num_classes": int(self.student_calibration_bias.shape[1]),
+            "training_mode": "joint",
+            "learning_rate": self.student_calibration_learning_rate,
+            "scale_regularization": self.student_calibration_scale_regularization,
+            "bias_regularization": self.student_calibration_bias_regularization,
+        }
+
+    def _student_calibration_regularization_loss(self) -> torch.Tensor:
+        if (
+            not self.student_calibration_enabled
+            or self.student_calibration_scale is None
+            or self.student_calibration_bias is None
+        ):
+            return torch.tensor(0.0, device=self.device)
+        scale_penalty = torch.mean(torch.square(self.student_calibration_scale - 1.0))
+        bias_penalty = torch.mean(torch.square(self.student_calibration_bias))
+        return (
+            self.student_calibration_scale_regularization * scale_penalty
+            + self.student_calibration_bias_regularization * bias_penalty
+        )
+
+    def _validation_selection_metrics(self, loader) -> Dict[str, object]:
+        self.student.eval()
+        all_true: List[int] = []
+        all_pred: List[int] = []
+        all_groups: List[str] = []
+        with torch.no_grad():
+            for batch_x, batch_y, meta in loader:
+                logits = self.student(batch_x.to(self.device), metadata=meta)
+                logits = self._apply_student_calibration(logits, meta)
+                all_pred.extend(torch.argmax(logits, dim=1).cpu().tolist())
+                all_true.extend(batch_y.tolist())
+                all_groups.extend(
+                    str(group) for group in meta[self.checkpoint_selection_feature]
+                )
+
+        y_true = np.asarray(all_true, dtype=int)
+        y_pred = np.asarray(all_pred, dtype=int)
+        groups = np.asarray(all_groups, dtype=object)
+        num_classes = int(self.settings.get("num_classes", len(AAMI_CLASS_TO_ID)))
+        macro_f1 = float(
+            f1_score(
+                y_true,
+                y_pred,
+                labels=list(range(num_classes)),
+                average="macro",
+                zero_division=0,
+            )
+        )
+        s_mask = y_true == self.checkpoint_selection_s_class
+        s_recall = float(np.mean(y_pred[s_mask] == self.checkpoint_selection_s_class)) if s_mask.any() else 0.0
+
+        class_eo: Dict[str, float] = {}
+        class_support: Dict[str, Dict[str, int]] = {}
+        unique_groups = sorted(set(all_groups))
+        for class_id in self.checkpoint_selection_fairness_classes:
+            recalls = []
+            support_by_group = {}
+            for group in unique_groups:
+                group_class_mask = (groups == group) & (y_true == class_id)
+                support = int(group_class_mask.sum())
+                support_by_group[group] = support
+                if support > 0:
+                    recalls.append(float(np.mean(y_pred[group_class_mask] == class_id)))
+            class_support[str(class_id)] = support_by_group
+            if (
+                len(unique_groups) >= 2
+                and len(recalls) == len(unique_groups)
+                and all(
+                    support >= self.checkpoint_selection_min_group_class_support
+                    for support in support_by_group.values()
+                )
+                and max(recalls) >= self.checkpoint_selection_min_best_group_recall
+            ):
+                class_eo[str(class_id)] = float(max(recalls) - min(recalls))
+
+        fairness_eo = (
+            float(np.mean(list(class_eo.values())))
+            if len(class_eo) == len(self.checkpoint_selection_fairness_classes)
+            and class_eo
+            else None
+        )
+        return {
+            "macro_f1": macro_f1,
+            "s_recall": s_recall,
+            "fairness_eo": fairness_eo,
+            "class_eo": class_eo,
+            "class_support": class_support,
+            "groups": unique_groups,
+        }
+
+    def _select_validation_candidate(self, candidates: List[Dict[str, object]]) -> Dict[str, object]:
+        if not candidates:
+            raise ValueError("No validation candidates were collected")
+        best_macro_f1 = max(float(candidate["macro_f1"]) for candidate in candidates)
+        utility_candidates = [
+            candidate
+            for candidate in candidates
+            if float(candidate["macro_f1"])
+            >= best_macro_f1 - self.checkpoint_selection_macro_f1_tolerance
+        ]
+        s_candidates = [
+            candidate
+            for candidate in utility_candidates
+            if float(candidate["s_recall"]) >= self.checkpoint_selection_min_s_recall
+        ]
+        if self.checkpoint_selection_require_s_recall and not s_candidates:
+            raise RuntimeError(
+                "No validation checkpoint passed the required S-recall gate: "
+                f"minimum={self.checkpoint_selection_min_s_recall:.3f}"
+            )
+        eligible = s_candidates or utility_candidates
+        return min(
+            eligible,
+            key=lambda candidate: (
+                float(candidate["fairness_eo"])
+                if candidate["fairness_eo"] is not None
+                else float("inf"),
+                -float(candidate["s_recall"]),
+                -float(candidate["macro_f1"]),
+                float(candidate["val_loss"]),
+            ),
+        )
+
+    def _restore_student_calibration_metadata(self, metadata: Dict[str, object]) -> None:
+        self.student_calibration_feature = str(metadata.get("feature", self.student_calibration_feature))
+        groups = [str(group) for group in metadata["groups"]]
+        self._group_vocabs[self.student_calibration_feature] = {
+            group: index for index, group in enumerate(groups)
+        }
+        biases = torch.tensor(metadata["group_biases"], dtype=torch.float32, device=self.device)
+        scales_value = metadata.get("group_scales")
+        scales = (
+            torch.tensor(scales_value, dtype=torch.float32, device=self.device)
+            if scales_value is not None
+            else torch.ones_like(biases)
+        )
+        self.student_calibration_scale = nn.Parameter(scales)
+        self.student_calibration_bias = nn.Parameter(biases)
+        self._calibration_metadata = metadata
 
     # ------------------------------------------------------------------
     # K3/O3: shared forward hook capturing the student LLM's hidden state
@@ -356,18 +601,50 @@ class ECGClassificationDistillationWrapper:
 
     def distill_knowledge(self, train_loader, val_loader=None, epochs=None):
         os.makedirs(os.path.join(self.log_dir, "checkpoints"), exist_ok=True)
-        optimizer = Adam(
-            [param for param in self.student.parameters() if param.requires_grad],
-            lr=float(self.settings.get("learning_rate", 1e-4)),
+        self._prepare_group_vocabs(train_loader.dataset)
+        self._initialize_student_calibration()
+        task_learning_rate = float(self.settings.get("learning_rate", 1e-4))
+        backbone_learning_rate = float(self.settings.get("backbone_learning_rate", 1e-5))
+        task_parameters = []
+        backbone_parameters = []
+        for name, param in self.student.named_parameters():
+            if not param.requires_grad:
+                continue
+            if name.startswith("llm_model."):
+                backbone_parameters.append(param)
+            else:
+                task_parameters.append(param)
+        parameter_groups = [{"params": task_parameters, "lr": task_learning_rate}]
+        if backbone_parameters:
+            parameter_groups.append({"params": backbone_parameters, "lr": backbone_learning_rate})
+        if self.student_calibration_enabled:
+            parameter_groups.append(
+                {
+                    "params": [self.student_calibration_scale, self.student_calibration_bias],
+                    "lr": self.student_calibration_learning_rate,
+                }
+            )
+        optimizer = Adam(parameter_groups)
+        self.logger.info(
+            "ECG KD optimizer: task_params=%d at %.2e, backbone_params=%d at %.2e, freeze_llm=%s",
+            sum(param.numel() for param in task_parameters),
+            task_learning_rate,
+            sum(param.numel() for param in backbone_parameters),
+            backbone_learning_rate,
+            self.student.freeze_llm,
         )
-        class_weights = self._compute_class_weights(train_loader.dataset)
+        uses_weighted_sampler = isinstance(train_loader.sampler, WeightedRandomSampler)
+        class_weights = None if uses_weighted_sampler else self._compute_class_weights(train_loader.dataset)
         ce_loss = nn.CrossEntropyLoss(weight=class_weights)
+        self.logger.info(
+            "ECG KD imbalance objective: weighted_sampler=%s, class_weighted_ce=%s",
+            uses_weighted_sampler,
+            class_weights is not None,
+        )
         epochs = int(epochs or self.settings.get("train_epochs", 5))
 
-        # Build O1/K3/O3 group vocabularies from the training set before the
-        # epoch loop, and lazily construct the O3 adversary now that its
-        # required num_groups (and the optimizer to attach it to) are known.
-        self._prepare_group_vocabs(train_loader.dataset)
+        # Lazily construct the O3 adversary now that its required num_groups
+        # and the optimizer to attach it to are known.
         if self.adv_erasure_enabled and self.adv_erasure_lambda > 0 and self.adv_erasure_head is None:
             hidden_size = int(getattr(self.student.llm_model.config, "hidden_size", self.settings.get("llm_dim", 312)))
             num_groups = 2
@@ -380,20 +657,91 @@ class ECGClassificationDistillationWrapper:
         best_path = os.path.join(self.log_dir, "checkpoints", "checkpoint_best.pth")
         last_path = os.path.join(self.log_dir, "checkpoints", "checkpoint_last.pth")
         train_history: List[Dict[str, float]] = []
+        best_calibration_metadata = None
+        validation_candidates: List[Dict[str, object]] = []
 
         for epoch in range(epochs):
             train_loss = self._run_epoch(train_loader, optimizer, ce_loss, train=True)
             val_loss = self._run_epoch(val_loader, optimizer, ce_loss, train=False) if val_loader is not None else 0.0
-            train_history.append({"epoch": epoch + 1, "train_loss": train_loss, "val_loss": val_loss})
+            history_row = {"epoch": epoch + 1, "train_loss": train_loss, "val_loss": val_loss}
+            if val_loader is not None and self.checkpoint_selection == "utility_fairness":
+                selection_metrics = self._validation_selection_metrics(val_loader)
+                history_row.update(selection_metrics)
+                candidate_path = os.path.join(
+                    self.log_dir,
+                    "checkpoints",
+                    f"checkpoint_candidate_epoch_{epoch + 1}.pth",
+                )
+                torch.save(self.student.checkpoint_state_dict(), candidate_path)
+                validation_candidates.append(
+                    {
+                        "epoch": epoch + 1,
+                        "val_loss": val_loss,
+                        **selection_metrics,
+                        "student_state_path": candidate_path,
+                        "calibration_metadata": self._export_student_calibration_metadata(),
+                    }
+                )
+                self.logger.info(
+                    "ECG validation candidate epoch=%d macro_f1=%.4f s_recall=%.4f fairness_eo=%s",
+                    epoch + 1,
+                    selection_metrics["macro_f1"],
+                    selection_metrics["s_recall"],
+                    f"{selection_metrics['fairness_eo']:.4f}"
+                    if selection_metrics["fairness_eo"] is not None
+                    else "unavailable",
+                )
+            train_history.append(history_row)
             self.logger.info(
                 f"ECG KD Epoch {epoch + 1}/{epochs} | train_loss={train_loss:.6f} | val_loss={val_loss:.6f} "
                 f"| O1 lambda={self.fairness_dual_lambda:.5f}"
             )
             if val_loader is not None and val_loss < best_val:
                 best_val = val_loss
-                torch.save(self.student.state_dict(), best_path)
+                torch.save(self.student.checkpoint_state_dict(), best_path)
+                best_calibration_metadata = self._export_student_calibration_metadata()
 
-        torch.save(self.student.state_dict(), last_path)
+        if validation_candidates:
+            try:
+                selected = self._select_validation_candidate(validation_candidates)
+            except Exception:
+                for candidate in validation_candidates:
+                    os.remove(candidate["student_state_path"])
+                raise
+            selected_state = torch.load(
+                selected["student_state_path"],
+                map_location="cpu",
+                weights_only=True,
+            )
+            torch.save(selected_state, best_path)
+            best_calibration_metadata = selected["calibration_metadata"]
+            selection_report = {
+                "selection_mode": self.checkpoint_selection,
+                "selected_epoch": selected["epoch"],
+                "selected_metrics": {
+                    key: value
+                    for key, value in selected.items()
+                    if key not in {"student_state_path", "calibration_metadata"}
+                },
+                "candidates": [
+                    {
+                        key: value
+                        for key, value in candidate.items()
+                        if key not in {"student_state_path", "calibration_metadata"}
+                    }
+                    for candidate in validation_candidates
+                ],
+            }
+            with open(os.path.join(self.log_dir, "checkpoint_selection.json"), "w") as f:
+                json.dump(selection_report, f, indent=2)
+            self.logger.info(
+                "Selected ECG checkpoint epoch=%d by utility/fairness validation rule",
+                selected["epoch"],
+            )
+            for candidate in validation_candidates:
+                os.remove(candidate["student_state_path"])
+
+        torch.save(self.student.checkpoint_state_dict(), last_path)
         if val_loader is None:
             best_path = last_path
         with open(os.path.join(self.log_dir, "distillation_history.json"), "w") as f:
@@ -404,69 +752,34 @@ class ECGClassificationDistillationWrapper:
             self._hook_handle.remove()
             self._hook_handle = None
 
-        if self.student_calibration_enabled and val_loader is not None:
-            self._fit_student_calibration(val_loader)
+        best_state = torch.load(best_path, map_location=self.device, weights_only=True)
+        self.student.load_checkpoint_state_dict(best_state)
+        self.logger.info("Loaded best-validation ECG student checkpoint from %s", best_path)
+
+        if best_calibration_metadata is not None:
+            self._restore_student_calibration_metadata(best_calibration_metadata)
+            calibration_path = os.path.join(self.log_dir, "student_calibration_head.json")
+            with open(calibration_path, "w") as f:
+                json.dump(best_calibration_metadata, f, indent=2)
+            self.logger.info("🎯 O2 ECG student calibration head saved to %s", calibration_path)
 
         return best_path, [row["train_loss"] for row in train_history], [row["val_loss"] for row in train_history]
 
-    def _fit_student_calibration(self, val_loader) -> None:
-        """O2: fit a per-group additive logit bias on validation predictions."""
-        self.student.eval()
-        all_logits: List[np.ndarray] = []
-        all_labels: List[int] = []
-        all_groups: List[str] = []
-        with torch.no_grad():
-            for batch_x, batch_y, meta in val_loader:
-                logits = self.student(batch_x.to(self.device)).cpu().numpy()
-                all_logits.append(logits)
-                all_labels.extend(batch_y.numpy().tolist())
-                all_groups.extend([str(g) for g in meta[self.student_calibration_feature]])
-
-        if not all_logits:
-            self.logger.warning("O2 calibration skipped: validation loader produced no batches.")
-            return
-
-        logits = np.concatenate(all_logits, axis=0)
-        num_classes = logits.shape[1]
-        labels_arr = np.asarray(all_labels)
-        # Fit with class-balanced weighting: on MIT-BIH's extreme imbalance
-        # (e.g. class F is ~0.07% of beats), plain unweighted cross-entropy
-        # would let the bias chase majority-class accuracy and re-collapse
-        # the calibrated model toward the majority class.
-        class_counts = np.bincount(labels_arr, minlength=num_classes)
-        class_counts = np.maximum(class_counts, 1)
-        class_weights = class_counts.sum() / (len(class_counts) * class_counts)
-        metadata = fit_groupwise_logit_bias(
-            logits=logits,
-            labels=labels_arr,
-            group_labels=all_groups,
-            num_classes=num_classes,
-            class_weights=class_weights,
-        )
-        metadata["feature"] = self.student_calibration_feature
-        self._calibration_metadata = metadata
-
-        calibration_path = os.path.join(self.log_dir, "student_calibration_head.json")
-        with open(calibration_path, "w") as f:
-            json.dump(metadata, f, indent=2)
-        self.logger.info(f"🎯 O2 ECG student calibration head saved to: {calibration_path}")
-
     def load_student_calibration(self, calibration_path: str | None = None) -> None:
-        """Load a previously fitted O2 calibration head from disk, if present."""
+        """Load a jointly trained O2 calibration head from disk, if present."""
         calibration_path = calibration_path or os.path.join(self.log_dir, "student_calibration_head.json")
         if not os.path.exists(calibration_path):
             self._calibration_metadata = None
             return
         with open(calibration_path, "r") as f:
-            self._calibration_metadata = json.load(f)
-        self.student_calibration_feature = self._calibration_metadata.get("feature", self.student_calibration_feature)
+            metadata = json.load(f)
+        self._restore_student_calibration_metadata(metadata)
         self.logger.info(f"Loaded O2 ECG student calibration head from {calibration_path}")
 
     def predict(self, test_loader, output_dir=None, filename: str = "test_predictions.csv"):
-        # Mirrors the BG DistillationWrapper: if calibration is enabled but no
-        # metadata has been fit/loaded yet in this instance, try to auto-load
-        # it from log_dir so standalone predict() calls stay correct.
-        if self.student_calibration_enabled and self._calibration_metadata is None:
+        # Mirrors the BG DistillationWrapper: auto-load the learned sidecar for
+        # standalone inference instances.
+        if self.student_calibration_enabled and self.student_calibration_scale is None:
             self.load_student_calibration()
 
         self.student.eval()
@@ -475,13 +788,8 @@ class ECGClassificationDistillationWrapper:
         all_pred: List[int] = []
         with torch.no_grad():
             for batch_x, batch_y, meta in test_loader:
-                logits = self.student(batch_x.to(self.device))
-                if self._calibration_metadata is not None:
-                    groups = [str(g) for g in meta[self.student_calibration_feature]]
-                    calibrated = apply_groupwise_logit_bias(
-                        logits.cpu().numpy(), groups, self._calibration_metadata
-                    )
-                    logits = torch.as_tensor(calibrated, dtype=torch.float32, device=self.device)
+                logits = self.student(batch_x.to(self.device), metadata=meta)
+                logits = self._apply_student_calibration(logits, meta)
                 preds = torch.argmax(logits, dim=1).cpu().numpy()
                 probs = torch.softmax(logits, dim=1).cpu().numpy()
                 true = batch_y.numpy()
@@ -493,6 +801,10 @@ class ECGClassificationDistillationWrapper:
                         "beat_sample_index": int(meta["beat_sample_index"][i]),
                         "raw_symbol": meta["raw_symbol"][i],
                         "aami_class": meta["aami_class"][i],
+                        "original_class_id": int(meta["original_class_id"][i]),
+                        "label_mode": meta["label_mode"][i],
+                        "rr_prev_seconds": float(meta["rr_prev_seconds"][i]),
+                        "rr_next_seconds": float(meta["rr_next_seconds"][i]),
                         "sex": meta["sex"][i],
                         "age_group": meta["age_group"][i],
                         "paced_group": meta["paced_group"][i],
@@ -529,7 +841,10 @@ class ECGClassificationDistillationWrapper:
     def _compute_class_weights(self, dataset) -> torch.Tensor:
         underlying = getattr(dataset, "_dataset", dataset)
         labels = [sample.class_id for sample in underlying.samples]
-        counts = np.bincount(labels, minlength=len(AAMI_CLASS_TO_ID))
+        counts = np.bincount(
+            labels,
+            minlength=int(self.settings.get("num_classes", len(AAMI_CLASS_TO_ID))),
+        )
         counts = np.maximum(counts, 1)
         weights = counts.sum() / (len(counts) * counts)
         return torch.tensor(weights, dtype=torch.float32, device=self.device)
@@ -544,10 +859,10 @@ class ECGClassificationDistillationWrapper:
             batch_y = batch_y.to(self.device)
 
             with torch.no_grad():
-                teacher_logits = self.teacher(batch_x)
+                teacher_logits = self.teacher(batch_x, metadata=meta)
                 # T2: route each sample to its group-specialized teacher.
                 if train and self.multi_teacher_enabled and self.multi_teacher_feature is not None:
-                    second_logits = self.second_teacher(batch_x)
+                    second_logits = self.second_teacher(batch_x, metadata=meta)
                     groups = meta.get(self.multi_teacher_feature, [])
                     is_g0 = torch.tensor(
                         [str(g) == str(self.multi_teacher_group0) for g in groups],
@@ -559,7 +874,8 @@ class ECGClassificationDistillationWrapper:
                 if train:
                     teacher_logits = self._apply_teacher_calibration(teacher_logits, meta)
 
-            student_logits = self.student(batch_x)
+            student_logits = self.student(batch_x, metadata=meta)
+            student_logits = self._apply_student_calibration(student_logits, meta)
 
             supervised = ce_loss(student_logits, batch_y)
 
@@ -578,6 +894,8 @@ class ECGClassificationDistillationWrapper:
             kd = (kd_weights * per_sample_kd).mean()
 
             loss = self.alpha * supervised + self.beta * kd
+            if train and self.student_calibration_enabled:
+                loss = loss + self._student_calibration_regularization_loss()
 
             loss_align = torch.tensor(0.0, device=self.device)
             loss_adv = torch.tensor(0.0, device=self.device)

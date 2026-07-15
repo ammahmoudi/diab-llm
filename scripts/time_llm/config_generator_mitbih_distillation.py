@@ -26,12 +26,47 @@ def get_length_sets(mode):
     ]
 
 
+def parse_length_configs(value):
+    if value is None:
+        return get_length_sets("train")
+    configs = []
+    for item in value.split(","):
+        sequence_length, patch_len = (int(part) for part in item.split(":"))
+        configs.append(
+            {
+                "sequence_length": sequence_length,
+                "context_length": sequence_length,
+                "prediction_length": 0,
+                "patch_len": patch_len,
+            }
+        )
+    return configs
+
+
 def generate_config_content(mode, seed, teacher_config, student_config, length_set,
                             train_epochs=10, teacher_checkpoint_path=None,
                             torch_dtype="float32", include_duplicate_202=False,
+                            class_balanced=False, class_balanced_max_oversample=50.0,
+                            freeze_llm=True, learning_rate=1e-4,
+                            backbone_learning_rate=1e-5,
                             alpha=0.5, beta=0.5, temperature=2.0,
                             fair_teacher=False, fair_teacher_feature="sex",
+                            fair_teacher_max_oversample=4.0,
                             student_calibration=False, student_calibration_feature="sex",
+                            student_calibration_learning_rate=None,
+                            student_calibration_scale_regularization=0.0,
+                            student_calibration_bias_regularization=0.0,
+                            checkpoint_selection="loss", checkpoint_selection_feature="sex",
+                            checkpoint_selection_fairness_classes=None,
+                            checkpoint_selection_s_class=1,
+                            checkpoint_selection_min_s_recall=0.05,
+                            checkpoint_selection_macro_f1_tolerance=0.01,
+                            checkpoint_selection_min_group_class_support=20,
+                            checkpoint_selection_min_best_group_recall=0.05,
+                            checkpoint_selection_require_s_recall=False,
+                            label_mode="aami5", use_rr_features=False,
+                            teacher_use_rr_features=False, rr_fusion_weight=1.0,
+                            beat_index_csv="./data/mit-bih-arrhythmia/beat_index.csv",
                             teacher_calibration=False, teacher_calibration_feature="sex",
                             teacher_calibration_offsets=None,
                             fairness_constraint=False, fairness_constraint_feature="sex",
@@ -48,11 +83,18 @@ def generate_config_content(mode, seed, teacher_config, student_config, length_s
     mode_str = "training+inference" if mode != "inference" else "inference"
     batch_sizes = get_model_batch_sizes(student_config["llm_model"])
     restore_flag = mode == "inference"
+    num_classes = 5 if label_mode == "aami5" else 2
 
     fair_teacher_line = (
         f"\n     'fair_teacher_sampling': True,"
         f"\n     'fair_teacher_feature': '{fair_teacher_feature}',"
+        f"\n     'fair_teacher_max_oversample': {fair_teacher_max_oversample},"
         if fair_teacher else ""
+    )
+    class_balanced_line = (
+        f"\n     'class_balanced_sampling': True,"
+        f"\n     'class_balanced_max_oversample': {class_balanced_max_oversample},"
+        if class_balanced else ""
     )
 
     # K1, O1, K3, K4, O3, T2: extra llm_settings keys, only emitted when enabled.
@@ -107,12 +149,15 @@ run.data_settings = \\
     {{'dataset_dir': './data/mit-bih-arrhythmia',
      'metadata_csv': './data/mit-bih-arrhythmia/metadata_records.csv',
      'demographics_csv': './data/mit-bih-arrhythmia/demographics_records.csv',
-     'beat_index_csv': './data/mit-bih-arrhythmia/beat_index.csv',
-     'include_duplicate_202': {str(include_duplicate_202)},{fair_teacher_line}}}
+    'beat_index_csv': '{beat_index_csv}',
+    'include_duplicate_202': {str(include_duplicate_202)},
+     'label_mode': '{label_mode}',
+     'sampling_rate_hz': 360.0,
+     'rr_clip_seconds': 3.0,{class_balanced_line}{fair_teacher_line}}}
 
 run.llm_settings = \\
     {{'activation': 'gelu',
-     'c_out': 5,
+    'c_out': {num_classes},
      'context_length': {length_set["context_length"]},
      'd_ff': 128,
      'd_layers': 1,
@@ -128,7 +173,9 @@ run.llm_settings = \\
      'enc_in': 1,
      'eval_metrics': ['accuracy', 'macro_f1', 'weighted_f1'],
      'factor': 1,
-     'learning_rate': 0.0001,
+    'freeze_llm': {str(freeze_llm)},
+    'learning_rate': {learning_rate},
+    'backbone_learning_rate': {backbone_learning_rate},
      'llm_dim': {student_config["llm_dim"]},
      'llm_layers': {student_config["llm_layers"]},
      'llm_model': '{student_config["llm_model"]}',
@@ -139,7 +186,7 @@ run.llm_settings = \\
      'model_id': 'mitbih_distillation',
      'moving_avg': 25,
      'n_heads': 8,
-     'num_classes': 5,
+    'num_classes': {num_classes},
      'num_workers': 0,
      'patch_len': {length_set["patch_len"]},
      'patience': 10,
@@ -152,8 +199,23 @@ run.llm_settings = \\
      'seed': {seed},
      'sequence_length': {length_set["sequence_length"]},
      'stride': 8,
+    'use_rr_features': {str(use_rr_features)},
+    'teacher_use_rr_features': {str(teacher_use_rr_features)},
+    'rr_fusion_weight': {rr_fusion_weight},
      'student_calibration_enabled': {str(student_calibration)},
      'student_calibration_feature': '{student_calibration_feature}',
+    'student_calibration_learning_rate': {student_calibration_learning_rate if student_calibration_learning_rate is not None else learning_rate},
+    'student_calibration_scale_regularization': {student_calibration_scale_regularization},
+    'student_calibration_bias_regularization': {student_calibration_bias_regularization},
+    'checkpoint_selection': '{checkpoint_selection}',
+    'checkpoint_selection_feature': '{checkpoint_selection_feature}',
+    'checkpoint_selection_fairness_classes': {repr(checkpoint_selection_fairness_classes or [0, 2])},
+    'checkpoint_selection_s_class': {checkpoint_selection_s_class},
+    'checkpoint_selection_min_s_recall': {checkpoint_selection_min_s_recall},
+    'checkpoint_selection_macro_f1_tolerance': {checkpoint_selection_macro_f1_tolerance},
+    'checkpoint_selection_min_group_class_support': {checkpoint_selection_min_group_class_support},
+    'checkpoint_selection_min_best_group_recall': {checkpoint_selection_min_best_group_recall},
+    'checkpoint_selection_require_s_recall': {str(checkpoint_selection_require_s_recall)},
      'task_name': 'ecg_classification',
      'teacher_checkpoint_path': '{teacher_checkpoint_path}',
      'teacher_model': '{teacher_config["llm_model"]}',
@@ -178,19 +240,62 @@ def main():
     parser.add_argument("--output_dir", default=None, help="Output directory")
     parser.add_argument("--torch-dtype", default="float32", choices=["float32", "bfloat16", "float16"])
     parser.add_argument("--include-duplicate-202", action="store_true")
+    parser.add_argument("--class-balanced", action="store_true",
+                       help="Enable class-balanced sampling for baseline KD and non-T1 variants")
+    parser.add_argument("--class-balanced-max-oversample", type=float, default=50.0,
+                       help="Maximum rare-class oversampling multiplier (default: 50.0)")
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--beta", type=float, default=0.5)
     parser.add_argument("--temperature", type=float, default=2.0)
+    parser.add_argument("--unfreeze-llm", action="store_true",
+                       help="Fine-tune the student LLM backbone; default keeps it frozen to match BG Time-LLM")
+    parser.add_argument("--learning-rate", type=float, default=1e-4,
+                       help="Learning rate for student ECG task modules (default: 1e-4)")
+    parser.add_argument("--backbone-learning-rate", type=float, default=1e-5,
+                       help="Student LLM backbone learning rate when --unfreeze-llm is used (default: 1e-5)")
+    parser.add_argument("--label-mode", default="aami5",
+                       choices=["aami5", "binary_ectopy", "binary_non_n"])
+    parser.add_argument("--use-rr-features", action="store_true",
+                       help="Fuse RR-before/RR-after timing features into the student")
+    parser.add_argument("--teacher-use-rr-features", action="store_true",
+                       help="Teacher checkpoint was trained with RR timing features")
+    parser.add_argument("--rr-fusion-weight", type=float, default=1.0)
+    parser.add_argument("--beat-index-csv", default="./data/mit-bih-arrhythmia/beat_index.csv")
+    parser.add_argument("--length-configs", default=None,
+                       help="Comma-separated sequence:patch pairs, e.g. 256:16,720:32")
     parser.add_argument("--fair-teacher", action="store_true",
                        help="Enable ECG fair teacher sampling (T1 analogue): upweight rare group/class combinations")
     parser.add_argument("--fair-teacher-feature", default="sex",
                        choices=["sex", "age_group", "paced_group", "difficulty_group"],
                        help="Demographic feature for fair teacher sampling (default: sex)")
+    parser.add_argument("--fair-teacher-max-oversample", type=float, default=4.0,
+                       help="Maximum group/class oversampling multiplier for T1 (default: 4.0)")
     parser.add_argument("--student-calibration", action="store_true",
                        help="Enable O2-style learned per-group logit calibration on the distilled student")
     parser.add_argument("--student-calibration-feature", default="sex",
                        choices=["sex", "age_group", "paced_group", "difficulty_group"],
                        help="Demographic feature for student calibration (default: sex)")
+    parser.add_argument("--student-calibration-learning-rate", type=float, default=None,
+                       help="O2 calibration-head learning rate (default: task learning rate)")
+    parser.add_argument("--student-calibration-scale-regularization", type=float, default=0.0,
+                       help="O2 L2 penalty that keeps group scales near one")
+    parser.add_argument("--student-calibration-bias-regularization", type=float, default=0.0,
+                       help="O2 L2 penalty that keeps group biases near zero")
+    parser.add_argument("--checkpoint-selection", default="loss",
+                       choices=["loss", "utility_fairness"],
+                       help="Best-checkpoint rule; utility_fairness uses validation only")
+    parser.add_argument("--checkpoint-selection-feature", default="sex",
+                       choices=["sex", "age_group", "paced_group", "difficulty_group"])
+    parser.add_argument("--checkpoint-selection-fairness-classes", default="0,2",
+                       help="Comma-separated class ids for validation EO selection (default: N,V)")
+    parser.add_argument("--checkpoint-selection-s-class", type=int, default=1)
+    parser.add_argument("--checkpoint-selection-min-s-recall", type=float, default=0.05)
+    parser.add_argument("--checkpoint-selection-macro-f1-tolerance", type=float, default=0.01)
+    parser.add_argument("--checkpoint-selection-min-group-class-support", type=int, default=20)
+    parser.add_argument("--checkpoint-selection-min-best-group-recall", type=float, default=0.05,
+                       help="Exclude fairness classes that every validation group fails")
+    parser.add_argument("--checkpoint-selection-require-s-recall", action="store_true",
+                       help="Fail training when no utility-eligible checkpoint passes the S-recall gate")
     parser.add_argument("--teacher-calibration", action="store_true",
                        help="Enable K1-style calibrated soft labels (per-group teacher logit offsets)")
     parser.add_argument("--teacher-calibration-feature", default="sex",
@@ -242,6 +347,9 @@ def main():
     teacher_calibration_offsets = json.loads(args.teacher_calibration_offsets) if args.teacher_calibration_offsets else None
     fairness_constraint_target_classes = [int(c) for c in args.fairness_constraint_target_classes.split(',') if c.strip()]
     kd_replay_target_classes = [int(c) for c in args.kd_replay_target_classes.split(',') if c.strip()]
+    checkpoint_selection_fairness_classes = [
+        int(c) for c in args.checkpoint_selection_fairness_classes.split(',') if c.strip()
+    ]
 
     teacher_config = get_llm_config(args.teacher_model)
     student_models = [m.strip() for m in args.student_models.split(',') if m.strip()]
@@ -253,7 +361,7 @@ def main():
     else:
         base_output_dir = f"./experiments/time_llm_ecg_classifier_distillation_{args.mode}_mitbih/"
 
-    length_sets = get_length_sets(args.mode)
+    length_sets = parse_length_configs(args.length_configs)
     config_count = 0
 
     print(f"🚀 Starting MIT-BIH distillation config generation...")
@@ -270,6 +378,10 @@ def main():
             f"_student_{student_config['llm_model']}_{student_config['llm_dim']}"
             f"_seq_{seq_len}_patch_{patch_len}_epochs_{train_epochs}"
         )
+        if args.label_mode != "aami5":
+            folder_name += f"_label_{args.label_mode}"
+        if args.use_rr_features:
+            folder_name += "_rr"
         experiment_folder = os.path.join(base_output_dir, folder_name)
         dataset_folder = os.path.join(experiment_folder, 'dataset_mitbih')
         log_folder = os.path.join(dataset_folder, 'logs')
@@ -285,13 +397,36 @@ def main():
             teacher_checkpoint_path=args.teacher_checkpoint_path,
             torch_dtype=args.torch_dtype,
             include_duplicate_202=args.include_duplicate_202,
+            class_balanced=args.class_balanced,
+            class_balanced_max_oversample=args.class_balanced_max_oversample,
+            freeze_llm=not args.unfreeze_llm,
+            learning_rate=args.learning_rate,
+            backbone_learning_rate=args.backbone_learning_rate,
             alpha=args.alpha,
             beta=args.beta,
             temperature=args.temperature,
             fair_teacher=args.fair_teacher,
             fair_teacher_feature=args.fair_teacher_feature,
+            fair_teacher_max_oversample=args.fair_teacher_max_oversample,
             student_calibration=args.student_calibration,
             student_calibration_feature=args.student_calibration_feature,
+            student_calibration_learning_rate=args.student_calibration_learning_rate,
+            student_calibration_scale_regularization=args.student_calibration_scale_regularization,
+            student_calibration_bias_regularization=args.student_calibration_bias_regularization,
+            checkpoint_selection=args.checkpoint_selection,
+            checkpoint_selection_feature=args.checkpoint_selection_feature,
+            checkpoint_selection_fairness_classes=checkpoint_selection_fairness_classes,
+            checkpoint_selection_s_class=args.checkpoint_selection_s_class,
+            checkpoint_selection_min_s_recall=args.checkpoint_selection_min_s_recall,
+            checkpoint_selection_macro_f1_tolerance=args.checkpoint_selection_macro_f1_tolerance,
+            checkpoint_selection_min_group_class_support=args.checkpoint_selection_min_group_class_support,
+            checkpoint_selection_min_best_group_recall=args.checkpoint_selection_min_best_group_recall,
+            checkpoint_selection_require_s_recall=args.checkpoint_selection_require_s_recall,
+            label_mode=args.label_mode,
+            use_rr_features=args.use_rr_features,
+            teacher_use_rr_features=args.teacher_use_rr_features,
+            rr_fusion_weight=args.rr_fusion_weight,
+            beat_index_csv=args.beat_index_csv,
             teacher_calibration=args.teacher_calibration,
             teacher_calibration_feature=args.teacher_calibration_feature,
             teacher_calibration_offsets=teacher_calibration_offsets,

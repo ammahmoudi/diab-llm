@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import accuracy_score, classification_report, f1_score
 from torch.optim.adam import Adam
+from torch.utils.data import WeightedRandomSampler
 
 from llms.ts_llm import TimeSeriesLLM
 from models.ecg.time_llm_classifier import TimeLLMEcgClassifier
@@ -29,21 +30,53 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.logger = logging.getLogger(__name__)
         self.llm_model = TimeLLMEcgClassifier(settings).float().to(self.device)
+        total_parameters = sum(param.numel() for param in self.llm_model.parameters())
+        trainable_parameters = sum(param.numel() for param in self.llm_model.parameters() if param.requires_grad)
+        self.logger.info(
+            "ECG model parameters: total=%d, trainable=%d, freeze_llm=%s",
+            total_parameters,
+            trainable_parameters,
+            self.llm_model.freeze_llm,
+        )
 
     def load_model(self, checkpoint_path: str):
         state_dict = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
-        self.llm_model.load_state_dict(state_dict)
+        self.llm_model.load_checkpoint_state_dict(state_dict)
         self.llm_model.to(self.device)
         self.logger.info(f"Loaded ECG classifier checkpoint from {checkpoint_path}")
 
     def train(self, train_data, train_loader, val_loader=None):
         os.makedirs(os.path.join(self._log_dir, "checkpoints"), exist_ok=True)
-        optimizer = Adam(
-            [param for param in self.llm_model.parameters() if param.requires_grad],
-            lr=self._llm_settings.get("learning_rate", 1e-4),
+        task_learning_rate = float(self._llm_settings.get("learning_rate", 1e-4))
+        backbone_learning_rate = float(self._llm_settings.get("backbone_learning_rate", 1e-5))
+        task_parameters = []
+        backbone_parameters = []
+        for name, param in self.llm_model.named_parameters():
+            if not param.requires_grad:
+                continue
+            if name.startswith("llm_model."):
+                backbone_parameters.append(param)
+            else:
+                task_parameters.append(param)
+        parameter_groups = [{"params": task_parameters, "lr": task_learning_rate}]
+        if backbone_parameters:
+            parameter_groups.append({"params": backbone_parameters, "lr": backbone_learning_rate})
+        optimizer = Adam(parameter_groups)
+        self.logger.info(
+            "ECG optimizer: task_params=%d at %.2e, backbone_params=%d at %.2e",
+            sum(param.numel() for param in task_parameters),
+            task_learning_rate,
+            sum(param.numel() for param in backbone_parameters),
+            backbone_learning_rate,
         )
-        class_weights = self._compute_class_weights(train_data)
+        uses_weighted_sampler = isinstance(train_loader.sampler, WeightedRandomSampler)
+        class_weights = None if uses_weighted_sampler else self._compute_class_weights(train_data)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
+        self.logger.info(
+            "ECG imbalance objective: weighted_sampler=%s, class_weighted_ce=%s",
+            uses_weighted_sampler,
+            class_weights is not None,
+        )
 
         best_val_loss = float("inf")
         best_path = os.path.join(self._log_dir, "checkpoints", "checkpoint_best.pth")
@@ -60,9 +93,9 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
             )
             if val_loader is not None and val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save(self.llm_model.state_dict(), best_path)
+                torch.save(self.llm_model.checkpoint_state_dict(), best_path)
 
-        torch.save(self.llm_model.state_dict(), last_path)
+        torch.save(self.llm_model.checkpoint_state_dict(), last_path)
         if val_loader is None:
             best_path = last_path
         with open(os.path.join(self._log_dir, "train_history.json"), "w") as f:
@@ -78,7 +111,7 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
 
         with torch.no_grad():
             for batch_x, batch_y, meta in test_loader:
-                logits = self.llm_model(batch_x.to(self.device))
+                logits = self.llm_model(batch_x.to(self.device), metadata=meta)
                 preds = torch.argmax(logits, dim=1).cpu().numpy()
                 true = batch_y.numpy()
                 probs = torch.softmax(logits, dim=1).cpu().numpy()
@@ -91,6 +124,10 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
                         "beat_sample_index": int(meta["beat_sample_index"][i]),
                         "raw_symbol": meta["raw_symbol"][i],
                         "aami_class": meta["aami_class"][i],
+                        "original_class_id": int(meta["original_class_id"][i]),
+                        "label_mode": meta["label_mode"][i],
+                        "rr_prev_seconds": float(meta["rr_prev_seconds"][i]),
+                        "rr_next_seconds": float(meta["rr_next_seconds"][i]),
                         "sex": meta["sex"][i],
                         "age_group": meta["age_group"][i],
                         "paced_group": meta["paced_group"][i],
@@ -140,10 +177,10 @@ class TimeLLMECGClassifier(TimeSeriesLLM):
             return 0.0
         self.llm_model.train(train)
         losses = []
-        for batch_x, batch_y, _meta in loader:
+        for batch_x, batch_y, meta in loader:
             batch_x = batch_x.to(self.device)
             batch_y = batch_y.to(self.device)
-            logits = self.llm_model(batch_x)
+            logits = self.llm_model(batch_x, metadata=meta)
             loss = criterion(logits, batch_y)
             if train:
                 optimizer.zero_grad()

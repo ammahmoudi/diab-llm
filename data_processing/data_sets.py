@@ -457,6 +457,9 @@ class Dataset_MITBIH_ECG(Dataset):
         beat_index_csv=None,
         metadata_csv=None,
         include_duplicate_202=False,
+        label_mode="aami5",
+        sampling_rate_hz=360.0,
+        rr_clip_seconds=3.0,
     ):
         from data_processing.ecg.dataset import MitBihBeatDataset
 
@@ -467,6 +470,9 @@ class Dataset_MITBIH_ECG(Dataset):
             beat_index_csv=beat_index_csv,
             metadata_csv=metadata_csv,
             include_duplicate_202=include_duplicate_202,
+            label_mode=label_mode,
+            sampling_rate_hz=sampling_rate_hz,
+            rr_clip_seconds=rr_clip_seconds,
         )
 
     def __len__(self):

@@ -1,7 +1,8 @@
-"""Time-LLM-inspired ECG classifier for MIT-BIH AAMI 5-class classification.
+"""Time-LLM-inspired ECG classifier for MIT-BIH beat classification.
 
 This module is intentionally separate from the existing BG forecasting models so
-classification work does not break the original forecasting pipeline.
+classification work does not break the original forecasting pipeline. The
+number of classes is configurable for AAMI-5 and binary label modes.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ transformers_logging.set_verbosity_error()
 
 
 class TimeLLMEcgClassifier(nn.Module):
-    """Time-LLM-inspired classifier with a 5-way task head.
+    """Time-LLM-inspired classifier with a configurable categorical task head.
 
     Input:
         x: [batch, time, channels] where channels defaults to 1 for MIT-BIH.
@@ -59,7 +60,9 @@ class TimeLLMEcgClassifier(nn.Module):
         self.llm_model_name = configs.get("llm_model", "BERT")
         self.llm_dim = int(configs.get("llm_dim", 768))
         self.llm_layers = int(configs.get("llm_layers", 6))
-        self.freeze_llm = bool(configs.get("freeze_llm", False))
+        self.freeze_llm = bool(configs.get("freeze_llm", True))
+        self.use_rr_features = bool(configs.get("use_rr_features", False))
+        self.rr_fusion_weight = float(configs.get("rr_fusion_weight", 1.0))
 
         self.normalize = Normalize(self.enc_in, affine=False)
         self.patch_embedding = PatchEmbedding(
@@ -72,6 +75,13 @@ class TimeLLMEcgClassifier(nn.Module):
         self.llm_model, self.tokenizer = self._build_llm_backbone()
         hidden_size = int(getattr(self.llm_model.config, "hidden_size", self.llm_dim))
         self.input_projection = nn.Linear(self.d_model, hidden_size)
+        self.rr_projection = None
+        if self.use_rr_features:
+            self.rr_projection = nn.Sequential(
+                nn.Linear(2, hidden_size),
+                nn.GELU(),
+                nn.LayerNorm(hidden_size),
+            )
         self.classifier = nn.Sequential(
             nn.LayerNorm(hidden_size),
             nn.Dropout(self.dropout),
@@ -141,8 +151,42 @@ class TimeLLMEcgClassifier(nn.Module):
         backbone_outputs = self.llm_model(inputs_embeds=patch_embeddings)
         hidden = backbone_outputs.last_hidden_state
         pooled = self._pool_hidden(hidden)
+        if self.use_rr_features and self.rr_projection is not None:
+            rr_features = self._rr_feature_tensor(
+                metadata,
+                batch_size=pooled.shape[0],
+                device=pooled.device,
+                dtype=pooled.dtype,
+            )
+            pooled = pooled + self.rr_fusion_weight * self.rr_projection(rr_features)
         logits = self.classifier(pooled)
         return logits
+
+    @staticmethod
+    def _rr_feature_tensor(
+        metadata: Optional[Dict],
+        batch_size: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> torch.Tensor:
+        if metadata is None:
+            rr_prev = torch.ones(batch_size, device=device, dtype=dtype)
+            rr_next = torch.ones(batch_size, device=device, dtype=dtype)
+        else:
+            rr_prev = torch.as_tensor(
+                metadata.get("rr_prev_seconds", [1.0] * batch_size),
+                device=device,
+                dtype=dtype,
+            ).reshape(-1)
+            rr_next = torch.as_tensor(
+                metadata.get("rr_next_seconds", [1.0] * batch_size),
+                device=device,
+                dtype=dtype,
+            ).reshape(-1)
+            if rr_prev.numel() != batch_size or rr_next.numel() != batch_size:
+                raise ValueError("RR metadata batch size must match ECG waveform batch size")
+        rr = torch.stack((rr_prev, rr_next), dim=1).clamp(0.2, 3.0)
+        return torch.log(rr)
 
     def _pool_hidden(self, hidden: torch.Tensor) -> torch.Tensor:
         if self.pooling == "mean":
@@ -153,3 +197,25 @@ class TimeLLMEcgClassifier(nn.Module):
             center_idx = hidden.size(1) // 2
             return hidden[:, center_idx, :]
         raise ValueError(f"Unsupported pooling mode: {self.pooling}")
+
+    def checkpoint_state_dict(self) -> Dict[str, torch.Tensor]:
+        state_dict = self.state_dict()
+        if not self.freeze_llm:
+            return state_dict
+        return {
+            name: tensor
+            for name, tensor in state_dict.items()
+            if not name.startswith("llm_model.")
+        }
+
+    def load_checkpoint_state_dict(self, state_dict: Dict[str, torch.Tensor]) -> None:
+        incompatible = self.load_state_dict(state_dict, strict=False)
+        invalid_missing = [
+            name for name in incompatible.missing_keys
+            if not (self.freeze_llm and name.startswith("llm_model."))
+        ]
+        if invalid_missing or incompatible.unexpected_keys:
+            raise RuntimeError(
+                "Invalid ECG checkpoint: "
+                f"missing={invalid_missing}, unexpected={incompatible.unexpected_keys}"
+            )

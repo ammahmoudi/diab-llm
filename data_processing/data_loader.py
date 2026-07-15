@@ -282,6 +282,9 @@ class EcgTimeLLMDataHandler:
             "include_duplicate_202": False,
             "beat_index_csv": None,
             "metadata_csv": None,
+            "label_mode": "aami5",
+            "sampling_rate_hz": 360.0,
+            "rr_clip_seconds": 3.0,
         },
     ):
         self._settings = settings
@@ -296,6 +299,9 @@ class EcgTimeLLMDataHandler:
             beat_index_csv=self._settings.get("beat_index_csv"),
             metadata_csv=self._settings.get("metadata_csv"),
             include_duplicate_202=self._settings.get("include_duplicate_202", False),
+            label_mode=self._settings.get("label_mode", "aami5"),
+            sampling_rate_hz=self._settings.get("sampling_rate_hz", 360.0),
+            rr_clip_seconds=self._settings.get("rr_clip_seconds", 3.0),
         )
 
     def load_from_index(

@@ -11,7 +11,7 @@ Supported modes:
 - train_inference: Generate combined training+inference configurations
 
 Supported dataset:
-- mitbih: MIT-BIH Arrhythmia dataset for beat-centered AAMI 5-class ECG classification
+- mitbih: MIT-BIH Arrhythmia dataset for beat-centered AAMI-5 or binary ECG classification
 
 Usage:
     python config_generator_mitbih.py --mode train
@@ -49,16 +49,39 @@ def get_length_sets(mode):
     ]
 
 
+def parse_length_configs(value):
+    if value is None:
+        return get_length_sets("train")
+    configs = []
+    for item in value.split(","):
+        sequence_length, patch_len = (int(part) for part in item.split(":"))
+        configs.append(
+            {
+                "sequence_length": sequence_length,
+                "context_length": sequence_length,
+                "prediction_length": 0,
+                "patch_len": patch_len,
+            }
+        )
+    return configs
+
+
 def generate_config_content(mode, seed, llm_config, length_set, train_epochs=10,
                             checkpoint_path=None, torch_dtype="float32",
                             include_duplicate_202=False,
-                            class_balanced=False, class_balanced_max_oversample=50.0):
+                            class_balanced=False, class_balanced_max_oversample=50.0,
+                            freeze_llm=True, learning_rate=1e-4,
+                            backbone_learning_rate=1e-5,
+                            label_mode="aami5", use_rr_features=False,
+                            rr_fusion_weight=1.0,
+                            beat_index_csv="./data/mit-bih-arrhythmia/beat_index.csv"):
     """Generate the configuration content based on parameters."""
     log_folder_placeholder = "LOGS_PLACEHOLDER"
 
     mode_str = "training+inference" if mode != "inference" else "inference"
     batch_sizes = get_model_batch_sizes(llm_config["llm_model"])
     restore_flag = mode == "inference" and checkpoint_path is not None
+    num_classes = 5 if label_mode == "aami5" else 2
 
     class_balanced_line = (
         f",\n     'class_balanced_sampling': True,"
@@ -72,12 +95,15 @@ run.data_settings = \\
     {{'dataset_dir': './data/mit-bih-arrhythmia',
      'metadata_csv': './data/mit-bih-arrhythmia/metadata_records.csv',
      'demographics_csv': './data/mit-bih-arrhythmia/demographics_records.csv',
-     'beat_index_csv': './data/mit-bih-arrhythmia/beat_index.csv',
-     'include_duplicate_202': {str(include_duplicate_202)}{class_balanced_line}}}
+    'beat_index_csv': '{beat_index_csv}',
+    'include_duplicate_202': {str(include_duplicate_202)},
+    'label_mode': '{label_mode}',
+    'sampling_rate_hz': 360.0,
+    'rr_clip_seconds': 3.0{class_balanced_line}}}
 
 run.llm_settings = \\
     {{'activation': 'gelu',
-     'c_out': 5,
+    'c_out': {num_classes},
      'context_length': {length_set["context_length"]},
      'd_ff': 128,
      'd_layers': 1,
@@ -90,7 +116,9 @@ run.llm_settings = \\
      'enc_in': 1,
      'eval_metrics': ['accuracy', 'macro_f1', 'weighted_f1'],
     'factor': 1,
-     'learning_rate': 0.0001,
+    'freeze_llm': {str(freeze_llm)},
+    'learning_rate': {learning_rate},
+    'backbone_learning_rate': {backbone_learning_rate},
      'llm_dim': {llm_config["llm_dim"]},
      'llm_layers': {llm_config["llm_layers"]},
      'llm_model': '{llm_config["llm_model"]}',
@@ -101,7 +129,7 @@ run.llm_settings = \\
      'model_id': 'mitbih',
      'moving_avg': 25,
      'n_heads': 8,
-     'num_classes': 5,
+    'num_classes': {num_classes},
      'num_workers': 0,
      'patch_len': {length_set["patch_len"]},
      'patience': 10,
@@ -114,6 +142,8 @@ run.llm_settings = \\
      'seed': {seed},
      'sequence_length': {length_set["sequence_length"]},
      'stride': 8,
+    'use_rr_features': {str(use_rr_features)},
+    'rr_fusion_weight': {rr_fusion_weight},
      'task_name': 'ecg_classification',
      'timeenc': 0,
      'torch_dtype': '{torch_dtype}',
@@ -152,6 +182,20 @@ def main():
                             "to always predicting the majority class N)")
     parser.add_argument("--class-balanced-max-oversample", type=float, default=50.0,
                        help="Max oversample multiplier for rare classes when --class-balanced is set (default: 50.0)")
+    parser.add_argument("--unfreeze-llm", action="store_true",
+                       help="Fine-tune the LLM backbone; default keeps it frozen to match BG Time-LLM")
+    parser.add_argument("--learning-rate", type=float, default=1e-4,
+                       help="Learning rate for ECG patch/projection/classifier modules (default: 1e-4)")
+    parser.add_argument("--backbone-learning-rate", type=float, default=1e-5,
+                       help="LLM backbone learning rate when --unfreeze-llm is used (default: 1e-5)")
+    parser.add_argument("--label-mode", default="aami5",
+                       choices=["aami5", "binary_ectopy", "binary_non_n"])
+    parser.add_argument("--use-rr-features", action="store_true",
+                       help="Fuse RR-before/RR-after timing features into the classifier")
+    parser.add_argument("--rr-fusion-weight", type=float, default=1.0)
+    parser.add_argument("--beat-index-csv", default="./data/mit-bih-arrhythmia/beat_index.csv")
+    parser.add_argument("--length-configs", default=None,
+                       help="Comma-separated sequence:patch pairs, e.g. 256:16,720:32")
 
     args = parser.parse_args()
 
@@ -175,7 +219,7 @@ def main():
     else:
         base_output_dir = f"./experiments/time_llm_ecg_classifier_{args.mode}_mitbih/"
 
-    length_sets = get_length_sets(args.mode)
+    length_sets = parse_length_configs(args.length_configs)
     torch_dtypes = [args.torch_dtype]
     print(f"🚀 Starting {args.mode} config generation...")
     print(f"📁 Output directory: {base_output_dir}")
@@ -192,7 +236,12 @@ def main():
         seq_len = length_set["sequence_length"]
         patch_len = length_set["patch_len"]
 
-        folder_name = f"seed_{seed}_model_{llm_config['llm_model']}_dim_{llm_config['llm_dim']}_seq_{seq_len}_patch_{patch_len}_epochs_{train_epochs}"
+        variant_suffix = ""
+        if args.label_mode != "aami5":
+            variant_suffix += f"_label_{args.label_mode}"
+        if args.use_rr_features:
+            variant_suffix += "_rr"
+        folder_name = f"seed_{seed}_model_{llm_config['llm_model']}_dim_{llm_config['llm_dim']}_seq_{seq_len}_patch_{patch_len}_epochs_{train_epochs}{variant_suffix}"
         experiment_folder = os.path.join(base_output_dir, folder_name)
         dataset_folder = os.path.join(experiment_folder, "dataset_mitbih")
         log_folder = os.path.join(dataset_folder, "logs")
@@ -211,6 +260,13 @@ def main():
             include_duplicate_202=args.include_duplicate_202,
             class_balanced=args.class_balanced,
             class_balanced_max_oversample=args.class_balanced_max_oversample,
+            freeze_llm=not args.unfreeze_llm,
+            learning_rate=args.learning_rate,
+            backbone_learning_rate=args.backbone_learning_rate,
+            label_mode=args.label_mode,
+            use_rr_features=args.use_rr_features,
+            rr_fusion_weight=args.rr_fusion_weight,
+            beat_index_csv=args.beat_index_csv,
         )
 
         config_content = config_content.replace("LOGS_PLACEHOLDER", log_folder)

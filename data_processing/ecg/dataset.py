@@ -36,6 +36,7 @@ class EcgBeatSample:
     beat_sample_index: int
     raw_symbol: str
     aami_class: str
+    original_class_id: int
     class_id: int
     signal_window: np.ndarray
     sex: str
@@ -43,6 +44,8 @@ class EcgBeatSample:
     paced_group: str
     difficulty_group: str
     split: str
+    rr_prev_seconds: float
+    rr_next_seconds: float
 
 
 class MitBihBeatDataset(Dataset):
@@ -69,6 +72,9 @@ class MitBihBeatDataset(Dataset):
         normalize: bool = True,
         split_assignments: Optional[Dict[str, str]] = None,
         include_duplicate_202: bool = False,
+        label_mode: str = "aami5",
+        sampling_rate_hz: float = 360.0,
+        rr_clip_seconds: float = 3.0,
     ):
         if split not in {"train", "val", "test", "all"}:
             raise ValueError("split must be one of train/val/test/all")
@@ -83,6 +89,13 @@ class MitBihBeatDataset(Dataset):
         self.beat_index_csv = Path(beat_index_csv) if beat_index_csv is not None else self.dataset_dir / "beat_index.csv"
         self.split_assignments = split_assignments or {}
         self.include_duplicate_202 = include_duplicate_202
+        if label_mode not in {"aami5", "binary_ectopy", "binary_non_n"}:
+            raise ValueError(
+                "label_mode must be one of aami5/binary_ectopy/binary_non_n"
+            )
+        self.label_mode = label_mode
+        self.sampling_rate_hz = float(sampling_rate_hz)
+        self.rr_clip_seconds = float(rr_clip_seconds)
 
         self.metadata = self._load_metadata()
         self.samples: List[EcgBeatSample] = []
@@ -102,11 +115,15 @@ class MitBihBeatDataset(Dataset):
             "beat_sample_index": sample.beat_sample_index,
             "raw_symbol": sample.raw_symbol,
             "aami_class": sample.aami_class,
+            "original_class_id": sample.original_class_id,
+            "label_mode": self.label_mode,
             "sex": sample.sex,
             "age_group": sample.age_group,
             "paced_group": sample.paced_group,
             "difficulty_group": sample.difficulty_group,
             "split": sample.split,
+            "rr_prev_seconds": sample.rr_prev_seconds,
+            "rr_next_seconds": sample.rr_next_seconds,
         }
         return x, y, meta
 
@@ -127,11 +144,33 @@ class MitBihBeatDataset(Dataset):
 
     def _load_from_index(self, index_path: Path) -> List[EcgBeatSample]:
         df = pd.read_csv(index_path)
+        df["record_id"] = df["record_id"].astype(str)
+        df = df.sort_values(["record_id", "beat_sample_index"]).reset_index(drop=True)
+        grouped_indices = df.groupby("record_id")["beat_sample_index"]
+        rr_prev = grouped_indices.diff() / self.sampling_rate_hz
+        rr_next = -grouped_indices.diff(-1) / self.sampling_rate_hz
+        record_medians = rr_prev.where(rr_prev > 0).groupby(df["record_id"]).transform("median")
+        global_median = float(rr_prev[rr_prev > 0].median())
+        if not np.isfinite(global_median):
+            global_median = 1.0
+        df["rr_prev_seconds"] = rr_prev.fillna(record_medians).fillna(global_median)
+        df["rr_next_seconds"] = rr_next.fillna(record_medians).fillna(global_median)
+        df["rr_prev_seconds"] = df["rr_prev_seconds"].clip(0.0, self.rr_clip_seconds)
+        df["rr_next_seconds"] = df["rr_next_seconds"].clip(0.0, self.rr_clip_seconds)
         samples: List[EcgBeatSample] = []
         for _, row in df.iterrows():
             row_split = row.get("split", "all")
             if self.split != "all" and row_split != self.split:
                 continue
+            original_class_id = int(row["class_id"])
+            if self.label_mode == "binary_ectopy" and original_class_id == 4:
+                continue
+            if self.label_mode == "aami5":
+                class_id = original_class_id
+            elif self.label_mode == "binary_ectopy":
+                class_id = int(original_class_id in {1, 2, 3})
+            else:
+                class_id = int(original_class_id != 0)
             signal = np.fromstring(str(row["signal_window"]), sep=" ")
             samples.append(
                 EcgBeatSample(
@@ -139,13 +178,16 @@ class MitBihBeatDataset(Dataset):
                     beat_sample_index=int(row["beat_sample_index"]),
                     raw_symbol=str(row["raw_symbol"]),
                     aami_class=str(row["aami_class"]),
-                    class_id=int(row["class_id"]),
+                    original_class_id=original_class_id,
+                    class_id=class_id,
                     signal_window=signal,
                     sex=str(row.get("sex", "unknown")),
                     age_group=str(row.get("age_group", "unknown")),
                     paced_group=str(row.get("paced_group", "non_paced")),
                     difficulty_group=str(row.get("difficulty_group", "unknown")),
                     split=str(row_split),
+                    rr_prev_seconds=float(row["rr_prev_seconds"]),
+                    rr_next_seconds=float(row["rr_next_seconds"]),
                 )
             )
         return samples
@@ -280,4 +322,108 @@ def build_record_level_split_assignments(
         else:
             split_map[record_id] = "test"
 
+    return split_map
+
+
+def build_stratified_record_level_split_assignments(
+    index_rows: pd.DataFrame,
+    seed: int = 42,
+    train_ratio: float = 0.6,
+    val_ratio: float = 0.2,
+    search_iterations: int = 100_000,
+) -> Dict[str, str]:
+    """Create a record-safe split balanced across sex and AAMI classes.
+
+    Random record splitting can leave entire sex/class cells absent from
+    validation or test data. This deterministic search preserves record-level
+    isolation while balancing record sex, per-class record coverage, overall
+    class counts, and sex-by-class counts. A sex/class cell is required in every split when
+    at least three records provide that cell globally.
+    """
+    required_columns = {"record_id", "class_id", "sex"}
+    missing_columns = required_columns.difference(index_rows.columns)
+    if missing_columns:
+        raise ValueError(f"Missing split-stratification columns: {sorted(missing_columns)}")
+    if not 0 < train_ratio < 1:
+        raise ValueError("train_ratio must be in (0, 1)")
+    if not 0 <= val_ratio < 1 or train_ratio + val_ratio >= 1:
+        raise ValueError("val_ratio must be non-negative and train_ratio + val_ratio must be < 1")
+
+    rows = index_rows.loc[:, ["record_id", "class_id", "sex"]].copy()
+    rows["record_id"] = rows["record_id"].astype(str)
+    rows["class_id"] = rows["class_id"].astype(int)
+    rows["sex"] = rows["sex"].astype(str)
+    records = sorted(rows["record_id"].unique().tolist())
+    if len(records) < 3:
+        return build_record_level_split_assignments(records, seed, train_ratio, val_ratio)
+
+    n_total = len(records)
+    n_train = max(1, int(round(n_total * train_ratio)))
+    n_val = max(1, int(round(n_total * val_ratio)))
+    if n_train + n_val >= n_total:
+        n_val = max(1, n_total - n_train - 1)
+    split_sizes = [n_train, n_val, n_total - n_train - n_val]
+    split_ratios = np.asarray(split_sizes, dtype=np.float64) / n_total
+
+    record_sex = rows.groupby("record_id")["sex"].first().to_dict()
+    class_counts = rows.groupby(["record_id", "class_id"]).size().to_dict()
+    sexes = sorted(set(record_sex.values()))
+    num_classes = max(5, int(rows["class_id"].max()) + 1)
+
+    feature_rows = []
+    for record_id in records:
+        sex_features = [float(record_sex[record_id] == sex) for sex in sexes]
+        presence_features = [float(class_counts.get((record_id, class_id), 0) > 0) for class_id in range(num_classes)]
+        count_features = [float(class_counts.get((record_id, class_id), 0)) for class_id in range(num_classes)]
+        group_count_features = [
+            float(class_counts.get((record_id, class_id), 0))
+            if record_sex[record_id] == sex else 0.0
+            for sex in sexes
+            for class_id in range(num_classes)
+        ]
+        feature_rows.append(sex_features + presence_features + count_features + group_count_features)
+    features = np.asarray(feature_rows, dtype=np.float64)
+    features /= np.maximum(features.sum(axis=0, keepdims=True), 1.0)
+
+    required_cells = []
+    for sex in sexes:
+        for class_id in range(num_classes):
+            providers = np.asarray(
+                [
+                    record_sex[record_id] == sex and class_counts.get((record_id, class_id), 0) > 0
+                    for record_id in records
+                ],
+                dtype=bool,
+            )
+            if int(providers.sum()) >= 3:
+                required_cells.append(providers)
+
+    rng = np.random.default_rng(seed)
+    best_score = float("inf")
+    best_groups = None
+    first_end = split_sizes[0]
+    second_end = split_sizes[0] + split_sizes[1]
+    for _ in range(search_iterations):
+        order = rng.permutation(n_total)
+        groups = [order[:first_end], order[first_end:second_end], order[second_end:]]
+        if any(not all(bool(providers[group].any()) for group in groups) for providers in required_cells):
+            continue
+        score = 0.0
+        for split_index, group in enumerate(groups):
+            actual = features[group].sum(axis=0)
+            score += float(np.mean(np.square(actual - split_ratios[split_index])))
+        if score < best_score:
+            best_score = score
+            best_groups = [group.copy() for group in groups]
+
+    if best_groups is None:
+        raise RuntimeError(
+            "Could not find a record-level split with complete feasible sex/class coverage; "
+            "increase search_iterations or inspect record metadata."
+        )
+
+    split_map: Dict[str, str] = {}
+    for split_name, group in zip(("train", "val", "test"), best_groups):
+        for record_index in group:
+            split_map[records[int(record_index)]] = split_name
     return split_map
