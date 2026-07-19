@@ -35,6 +35,31 @@ BG and ECG metrics are not numerically comparable. ECG tests whether the
 intervention family transfers to another task; it is not an independent BG
 clinical cohort.
 
+## Terms used in this brief
+
+| Term | Plain-language meaning | Mathematical form |
+| --- | --- | --- |
+| KD: knowledge distillation | Train a smaller student model to learn from both the real labels and the predictions of a larger teacher model. | $\mathcal{L}_{KD}=\alpha\mathcal{L}_{task}(S,y)+\beta\mathcal{L}_{teacher}(S,T)$ |
+| Raw EO gap | Absolute difference between groups in true-positive rate for the clinically important event. For BG, the event is hypoglycemia at or below 70 mg/dL. Lower is better. | $\Delta EO=\lvert TPR_{group\;1}-TPR_{group\;2}\rvert$ |
+| Calibrated EO gap (`EO_cal`) | EO gap after using a separate decision threshold for each group. The thresholds are fitted on calibration patients and evaluated on different held-out patients, so the evaluation avoids fitting and testing on the same patients. It does not change model predictions. | $\Delta EO_{cal}=\lvert TPR_M(\hat y<\tau_M)-TPR_F(\hat y<\tau_F)\rvert$ |
+| RMSE | Root mean squared error for BG forecasts. It measures average numerical prediction error; lower is better. | $\sqrt{\frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i-y_i)^2}$ |
+| Macro-F1 | Classification quality averaged equally across classes, so common classes do not dominate the score. Higher is better. | $\frac{1}{C}\sum_{c=1}^{C}F1_c$ |
+| AAMI-5 | Five ECG beat groups: `N` normal, `S` supraventricular ectopic, `V` ventricular ectopic, `F` fusion, and `Q` paced/unknown. | $y\in\{N,S,V,F,Q\}$ |
+| Binary ectopy | A simpler ECG endpoint: `N` is non-ectopic; `S`, `V`, and `F` are ectopic; `Q` is excluded. An ectopic beat is a beat occurring outside the normal rhythm pattern. | $y_{ectopy}=\mathbb{1}[y\in\{S,V,F\}]$ |
+| T1: fair teacher | Retrain the teacher so underrepresented clinically relevant group/event examples are sampled more often, then distil that teacher into the student. | $p_i\propto w_i$; BG uses larger $w_i$ for lower-prevalence hypoglycemia windows, and ECG uses $w_i\propto1/n_{group,class}$ |
+| T2: group-specific teachers | Train a separate teacher for each group and route a sample to its matching teacher during KD. | $\hat{y}_{T,i}=f_{T,A_i}(x_i)$ |
+| O1: constrained EO | Add a fairness constraint during training and increase its penalty when the model exceeds the allowed EO gap. | $\mathcal{L}=\mathcal{L}_{KD}+\lambda\max(0,\Delta EO-\epsilon)$ |
+| O2: output calibration | Learn a small group-specific correction to the final student prediction. For BG it adjusts the predicted glucose value; for ECG it adjusts each class logit before the predicted class is chosen. | BG: $\hat{y}=s_A\hat{y}_S+b_A$; ECG: $z_c'=s_{A,c}z_c+b_{A,c}$ |
+| T1+O2 | Distil from the fair T1 teacher and apply the learned O2 output correction to the student. | $\mathcal{L}=\alpha\mathcal{L}_{task}(O2(S),y)+\beta\mathcal{L}_{teacher}(O2(S),T_{T1})$ |
+| O3: adversarial erasure | Train the student to make its hidden representation less predictive of group membership. | $\min_{\theta}\max_{\phi}\;\mathcal{L}_{KD}-\gamma\mathcal{L}_{group}(g_{\phi}(h_{\theta}(x)),A)$ |
+| K1: corrected teacher targets | Shift the teacher target by group before the student learns from it. | BG: $\tilde{y}_T=\hat{y}_T+\delta_A$; ECG: $\tilde{z}_{T,c}=z_{T,c}+\delta_{A,c}$ |
+| K3: feature alignment | Penalize differences between group hidden representations during KD. | $\mathcal{L}=\mathcal{L}_{KD}+\lambda\left\|C_{group\;1}-C_{group\;2}\right\|_F^2$ |
+| K4: selective KD replay | Give more KD weight to clinically important examples from the underrepresented group. | $\mathcal{L}=\alpha\mathcal{L}_{task}+\beta\frac{1}{n}\sum_iw_i\mathcal{L}_{teacher,i}$, with $w_i>1$ for target events |
+
+`T1+O2` means that the student is distilled from the fair T1 teacher and also
+uses the learned O2 output correction. The labels `T`, `O`, and `K` are short
+method identifiers only; they do not represent clinical categories.
+
 ## Methods tested
 
 | Method | Main idea | Current evidence |
@@ -54,36 +79,56 @@ changes the held-out data, labels, or split.
 
 ### Confirmed BG results
 
-| Method | RMSE | Raw EO gap | Change versus Baseline KD |
-| --- | ---: | ---: | ---: |
-| Baseline KD | 23.5284 +/- 0.2702 | 0.2174 +/- 0.0061 | Reference |
-| T1 | 22.8454 +/- 0.3305 | 0.2013 +/- 0.0077 | -7.4% |
-| T1+O2 | 22.9420 +/- 0.6669 | 0.1179 +/- 0.0325 | -45.8%; lower gap in every completed repetition |
+| Method | RMSE | Raw EO gap | Calibrated EO gap | Raw-EO change versus Baseline KD |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline KD | 23.5284 +/- 0.2702 | 0.2174 +/- 0.0061 | 0.0675 +/- 0.0078 | Reference |
+| T1 | 22.8454 +/- 0.3305 | 0.2013 +/- 0.0077 | 0.0568 +/- 0.0057 | -7.4% |
+| T1+O2 | 22.9420 +/- 0.6669 | 0.1179 +/- 0.0325 | 0.0445 +/- 0.0041 | -45.8%; lower gap in every completed repetition |
 
 Interpretation: T1 alone gives a small directional fairness improvement. The
 combined T1+O2 approach produces a large, consistent reduction in the BG raw
 EO gap while maintaining similar average RMSE.
 
+`EO_cal` is reported as a secondary decision-threshold analysis. It shows how
+much gap remains after leakage-controlled group-specific threshold adjustment;
+it does not replace the primary raw-EO result at the fixed 70 mg/dL clinical
+threshold. O2 is different: it learns and applies a correction to the model
+outputs themselves before either EO metric is calculated.
+
 ### ECG evidence
 
 #### Binary ectopy: locked-test results
 
-| Method | Macro-F1 | EO gap |
-| --- | ---: | ---: |
-| Teacher | 0.6951 +/- 0.0560 | 0.0535 +/- 0.0398 |
-| Student, no KD | 0.7063 +/- 0.0715 | 0.0861 +/- 0.0599 |
-| Baseline KD | 0.7000 +/- 0.0314 | 0.0596 +/- 0.0964 |
-| T1 | 0.6890 +/- 0.0536 | 0.0516 +/- 0.0672 |
-| O2 | 0.7127 +/- 0.0160 | 0.0239 +/- 0.0211 |
-| T1+O2 | 0.7265 +/- 0.0345 | 0.0349 +/- 0.0400 |
+| Method | Macro-F1 | Macro-F1 change versus KD | EO gap | EO change versus KD |
+| --- | ---: | ---: | ---: | ---: |
+| Teacher | 0.6951 +/- 0.0560 | -0.0049 | 0.0535 +/- 0.0398 | -0.0062 |
+| Student, no KD | 0.7063 +/- 0.0715 | +0.0063 | 0.0861 +/- 0.0599 | +0.0264 |
+| Baseline KD | 0.7000 +/- 0.0314 | Reference | 0.0596 +/- 0.0964 | Reference |
+| T1 | 0.6890 +/- 0.0536 | -0.0110 | 0.0516 +/- 0.0672 | -0.0081 |
+| O2 | 0.7127 +/- 0.0160 | +0.0127 | 0.0239 +/- 0.0211 | -0.0357 |
+| T1+O2 | 0.7265 +/- 0.0345 | +0.0264 | 0.0349 +/- 0.0400 | -0.0248 |
 
-O2 and T1+O2 improve mean locked-test macro-F1 and mean EO versus Baseline KD.
-This is supportive rather than definitive: validation averages favor Baseline
-KD, and one unusually high Baseline KD gap strongly affects the mean test EO.
+For binary ectopy, positive macro-F1 change and negative EO change are better.
+O2 and T1+O2 improve both mean utility and mean EO versus Baseline KD. This is
+supportive rather than definitive: validation averages favor Baseline KD, and
+one unusually high Baseline KD gap strongly affects the mean test EO.
 
-- **AAMI-5:** effects are mixed. T1 has the best directional EO result, while
-  O2 does not improve mean EO over Baseline KD. Sparse classes and low S-class
-  recall limit the endpoint.
+#### AAMI-5: locked-test results
+
+| Method | Accuracy | Macro-F1 | Macro-F1 change versus KD | EO gap | EO change versus KD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Teacher | 0.6633 +/- 0.0833 | 0.4222 +/- 0.0248 | -0.0194 | 0.1124 +/- 0.0255 | -0.0326 |
+| Student, no KD | 0.6175 +/- 0.0602 | 0.4236 +/- 0.0281 | -0.0180 | 0.2187 +/- 0.0524 | +0.0737 |
+| Baseline KD | 0.6939 +/- 0.0865 | 0.4416 +/- 0.0232 | Reference | 0.1450 +/- 0.0908 | Reference |
+| T1 | 0.7019 +/- 0.0645 | 0.4375 +/- 0.0174 | -0.0041 | 0.1259 +/- 0.0536 | -0.0191 |
+| O2 | 0.7035 +/- 0.1160 | 0.4440 +/- 0.0251 | +0.0024 | 0.1484 +/- 0.0961 | +0.0034 |
+| T1+O2 | 0.7196 +/- 0.0468 | 0.4416 +/- 0.0120 | +0.0000 | 0.1349 +/- 0.0540 | -0.0101 |
+
+For AAMI-5, T1 has the strongest fairness direction, but its macro-F1 is
+slightly lower than Baseline KD. O2 improves macro-F1 but makes mean EO
+slightly worse. T1+O2 improves accuracy and mean EO, but does not provide a
+consistent all-metric improvement. Sparse classes and low S-class recall limit
+the endpoint.
 
 ## Secondary BG methods: preliminary conclusions
 
@@ -128,18 +173,36 @@ method failure.
 - Locked ECG test results must not be used to choose another method or retune
   the pipeline.
 
-## Choices for next work
+## Future Work Methodology
 
-| Choice | Purpose | Resulting scope |
-| --- | --- | --- |
-| Confirm the secondary BG methods | Establish whether the preliminary O1, K1, K3, K4, O3, T2, and data/loss findings hold under repeated evaluation. | A complete comparison of intervention families. |
-| Focus on the current BG finding | Present T1+O2 as the main completed BG result and keep all secondary methods clearly preliminary. | A narrower output-calibration study. |
-| Assess deployment feasibility | Decide whether the required group attribute can be used at inference and, if not, investigate group-agnostic alternatives. | A clinically actionable calibration strategy. |
-| Extend external evidence | Keep the current ECG results fixed, then evaluate the approach on an independent ECG dataset. | Stronger evidence for cross-task generalization. |
+Future work should use the existing BG T1+O2 result as a fixed reference and
+evaluate the preliminary intervention families under the same patient splits,
+data processing, model architecture, training settings, and event-level
+fairness definition. The evaluation should compare each method with Baseline
+KD, T1, and T1+O2 using paired utility and raw-EO changes with uncertainty
+intervals.
 
-The current evidence supports the BG T1+O2 finding. It does not yet support a
-general claim that O2 is the best method for every task or that all other
-interventions fail.
+The secondary BG methods should be evaluated as distinct mechanism tests:
+
+- **Data and loss methods:** repeat oversampling and direct TPR/EO losses to
+  test whether increasing minority-event exposure or penalizing disparity can
+  reduce the output gap.
+- **Objective and transfer methods:** repeat O1, K1, and K4 to test constrained
+  optimization, group-corrected teacher targets, and selective KD replay.
+- **Representation and source methods:** repeat K3, O3, and T2 to test feature
+  alignment, removal of group-predictive representations, and group-specific
+  teachers. Report the corresponding mechanism diagnostics, including the
+  alignment loss, adversary performance, routing behavior, and subgroup support.
+
+ECG work should keep the current protocol fixed and use validation data for
+all model or hyperparameter selection. A future external ECG evaluation should
+use a record-safe split and the same support-qualified fairness definition;
+the current locked test results must not be used for retuning.
+
+Finally, deployment-oriented work should assess whether the group attribute
+needed by O2 is available, reliable, and permissible at inference. If it is
+not, group-agnostic alternatives should be compared with the same utility and
+fairness criteria.
 
 ## Source documents
 
