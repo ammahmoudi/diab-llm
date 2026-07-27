@@ -1,0 +1,335 @@
+Improving Group Fairness in Knowledge Distillation
+via Laplace Approximation of Early Exits
+Edvin Fasth
+EESC
+KTH Royal Institute of Technology
+edvinfa@kth.se
+Sagar Singh
+CSE
+IIT Bombay
+sagarsingh@cse.iitb.ac.in
+Abstract
+Knowledge distillation (KD) has become a powerful tool for training compact
+student models using larger, pretrained teacher models, often requiring less data
+and computational resources. Teacher models typically possess more layers and
+thus exhibit richer feature representations compared to their student counterparts.
+Furthermore, student models tend to learn simpler, surface-level features in their
+early layers. This discrepancy can increase errors in groups where labels spuriously
+correlate with specific input attributes, leading to a decline in group fairness even
+when overall accuracy remains comparable to the teacher. To mitigate these chal-
+lenges, Early-Exit Neural Networks (EENNs), which enable predictions at multiple
+intermediate layers, have been employed. Confidence margins derived from these
+early exits have been utilized to reweight both cross-entropy and distillation losses
+on a per-instance basis.
+In this paper, we propose that leveraging Laplace approximation-based meth-
+ods to obtain well-calibrated uncertainty estimates can also effectively reweight
+challenging instances and improve group fairness. We hypothesize that Laplace ap-
+proximation offers a more robust identification of difficult or ambiguous instances
+compared to margin-based approaches. To validate our claims, we benchmark our
+approach using a Bert-based model on the MultiNLI dataset.
+1 Introduction
+Knowledge Distillation (KD) Hinton et al. [2015] offers a sample-efficient approach for training
+a student model by leveraging a pretrained teacher model. The training loss for the student is a
+combination of the standard cross-entropy loss calculated on the ground-truth labels and a knowledge
+distillation (KD) loss that encourages the student’s predictions to align with the "soft targets"
+provided by the teacher. Let D = ( xi, yi)N
+i=1 represent the training dataset, Lstudent = (1 −
+α)LCE (fs(xi), yi) + αLKD (fs(xi; T ), ft(xi; T )), with T being the temperature parameter usually
+kept high during training. This process effectively transfers the teacher’s generalization capabilities
+to the student. A significant advantage of KD is the flexibility to choose a student model with
+significantly fewer parameters than the often computationally intensive teacher, thereby facilitating
+easier deployment.
+One issue identified in the original knowledge distillation paper is the occurrence of bias during
+the training process. Since the student model learns from the teacher’s output probabilities, any
+biases present in the teacher’s predictions can be inherited—or even amplified—by the student.
+This becomes particularly problematic in settings where the teacher model has overfit to spurious
+correlations in the data or exhibits imbalanced performance across subgroups. As a result, the
+distillation process may unintentionally reinforce unfair or misleading patterns, highlighting the need
+for strategies that account for such biases during student training.
+Preprint. Under review.
+arXiv:2505.01070v1  [cs.LG]  2 May 2025
+Reweighting losses for spuriously correlated groups has been shown to improve group fairness
+metrics. However, this approach typically requires prior knowledge of the group during training
+and lacks adaptivity based on the student model’s current performance on challenging groups. To
+address these limitations, Tiwari et al. Tiwari et al. [2024] observed that student models often exhibit
+overconfidence on difficult instances in their early layers. They proposed utilizing Early-Exit Neural
+Networks (EENNs) to obtain uncertainty estimates from these intermediate layers and subsequently
+employing this information to dynamically reweight both the teacher’s distillation loss and the
+student’s cross-entropy loss for each training sample.
+Meronen et al. Meronen et al. [2024] proposed an alternative method for obtaining well-calibrated
+uncertainty estimates from EENNs. Their approach treats the final layer of the classification heads
+in early exit blocks as Bayesian parameters, employing Laplace approximations. This offers a
+computationally efficient way to estimate the uncertainty associated with making a prediction at an
+early exit. Furthermore, this method tends to yield high uncertainty for difficult instances, attributed
+to potential model misspecification.
+In this paper, we investigate whether this Laplace approximation-based uncertainty estimation in
+early exit layers can be effectively used to reweight challenging training instances.
+Section 1.1 outlines the work of Tiwari et al. Tiwari et al. [2024] as the primary motivation for our
+approach. Section 2 details the Laplace approximation method used for uncertainty estimation. The
+experimental setup and results are presented in Section 3. Finally, Section 5 provides concluding
+remarks.
+1.1 Related Works
+Mediating Bias Using Early Readouts Our work closely builds upon the approach by Tiwari
+et al. to mitigate featural bias in student models Tiwari et al. [2024]. To address the issue of bias
+propagation during knowledge distillation, Tiwari et al. introduced the DEDIER model. Their method
+adds the student model with an auxiliary network designed to estimate the confidence of early-layer
+predictions. This auxiliary network generates instance-level uncertainty estimates, which are then
+used to dynamically reweight the losses from training samples during distillation. They assign higher
+weights to instances with low uncertainty predictions and thus overconfident instances in the early
+exits, then multiply these weights with KD loss from the teacher and reduces the impact of potentially
+biased or misleading data points. DEDIER thus introduces a more debiased training process that
+maintains the student model’s efficiency and compactness while achieving improved performance on
+classification tasks. The overall loss was given by:
+Lstudent =
+X
+Dw
+(1 − λ) · lce + λ · wt · lke
+where wt = exp β.cm.α and cm(p) = pmax − maxpk∈p−pmax pk. The parameters β and α are
+hyperparameters. While DEDIER offers a more robust framework compared to standard knowledge
+distillation, it remains reliant on the accuracy of the auxiliary network’s confidence margins. This
+dependency has been identified as a potential limitation. Specifically, within subgroups of the dataset
+where classification performance is lowest, the prediction confidence margins tend to be higher than
+the average confidence across the dataset, as illustrated in Figure 1. In the next section we’ll see how
+to use laplace approximation as another approach towards uncertainty estimation in early exits and
+how to use them for adjusting the loss function.
+2 Laplace Approximation for uncertainty estimates
+Identifying the need for better prediction of confidence margins, Meronen et al. Meronen et al. [2024]
+targeted overconfidence and miscalibration in their intermediate classifiers. To do so, the paper
+proposed a probabilistic framework that enhanced the uncertainty quantification at each exit point.
+By applying last-layer Laplace approximations and model-internal ensembling, the model captured
+both aleatoric and epistemic uncertainties more accurately. This led to improved calibration and more
+trustworthy confidence scores, which in turn allowed for better decision-making under computational
+budget constraints. The proposed method demonstrated superior performance on many benchmark
+datasets (CIFAR-100, ImageNet, Caltech-256) across multiple metrics, including accuracy, negative
+2
+Figure 1: Confidence margin at different feature levels for the worst-performing group compared to
+other groups in the original DEDIER paper.
+log predictive density (NLPD), and expected calibration error (ECE), without retraining or significant
+computational overhead.
+The original DEDIER paper defines the confidence margin according to Eq. 2
+pmax = max
+pk∈P
+pk (1)
+cm(p) = pmax − max
+pk∈P\{pmax}
+pk (2)
+This is used to re-weight the training samples for samples where the auxiliary network in the student
+model does not produce the correct label, according to Eq. 3
+wt =
+(
+1, if y(aux) = y
+eβ·cm(p(aux))α
+, otherwise (3)
+Instead of learning point estimates for the parameters in the auxiliary network, we apply a Laplace
+approximation over the final linear layer. Specifically, we approximate the posterior over the output
+weights of the auxiliary network using the Bayesian update rule from Eq. 4:
+p(θ | Dtrain) = p(Dtrain | θ) p(θ)R
+p(Dtrain | θ) p(θ) dθ = [likelihood] × [prior]
+[model evidence] (4)
+In practice, we apply this approximation to the final weight matrix ˆWMAP of the auxiliary linear
+classifier. Let ˆϕi denote the BERT feature vector (CLS token) for inputxi. The predictive distribution
+over the logits zi is then:
+p(zi | xi) = N
+
+ˆW⊤
+MAP ˆϕi, ˆϕ
+⊤
+i Σϕ ˆϕi · IC
+
+(5)
+Here, Σϕ is the empirical covariance of the feature vectors ˆϕi, and IC is the identity matrix over
+output classes. The resulting variance term reflects uncertainty from both the features and the weight
+posterior. The covariance Σϕ is computed as:
+Σϕ = 1
+N − 1
+NX
+i=1
+( ˆϕi − ¯ϕ)( ˆϕi − ¯ϕ)⊤ (6)
+3
+To ensure numerical stability and positive-definiteness, we add a small ridge term to Σϕ as in the
+Laplace approximation. Samples from the predictive distribution are drawn using Monte Carlo, and
+the entropy of the resulting averaged softmax distribution is used to weight the loss function.
+In order to make uncertainty predictions more accurate, we aim to integrate the work of Meronen et
+al. into the original DeDIER model.
+3 Experiments and results
+3.1 Datasets
+The MultiNLI dataset Williams et al. [2018] was used for classification. MultiNLI is a benchmark
+dataset designed to evaluate a model’s ability to perform natural language inference (NLI), which
+involves determining whether a given premise sentence entails, contradicts, or is neutral with respect to
+a hypothesis sentence. The dataset encompasses examples from ten distinct genres of both written and
+spoken English, including fiction, government reports, telephone conversations, and popular culture
+articles, thus providing a diverse and challenging testbed for robust generalization. Each premise-
+hypothesis pair is manually annotated and labeled as "entailment," "neutral," or "contradiction." This
+dataset is widely adopted within the NLI research community and was also employed in the original
+DeDiER paper, which facilitates direct benchmarking and comparison of results.
+3.2 Model Architecture And Training
+The model is based on the original DeDIER approach, with some important modifications made to
+the confidence marings used in the auxiliary network.
+Algorithm 1 The original DeDIER approach: learning student S given dataset D = {(xi, yi)}N
+i=1
+and teacher T .
+Hyperparameters: Distillation loss fraction λ, early exit depth d, parameters α and β for weight
+calculation.
+1: S = h(gd(·)): split student into early layers gd of depth d and deeper layers h
+2: Let haux(·) be the auxiliary network
+3: Augment dataset D with weights:
+Dw ← {(xi, yi, wti)}n
+i=1, where wti = 1
+4: for e = 1 to E do
+5: Train student S using loss from Eq. 5
+6: if e mod L = 0 then
+7: Train haux(gd(·)) for R epochs on D using cross-entropy
+8: for each (x, y, wt) ∈ Dw do
+9: y(aux) ← haux(gd(x))
+10: Update wt according to Eq. 4
+11: end for
+12: end if
+13: end for
+With Laplace implemented, this is our new version:
+The major differences between DeDIER and our approach, except for the implementation of Laplace
+Layer Approximaiton, can be listed as:
+• The auxiliary reweighting is done in every layer, since we are only training the student on
+five epochs and want to see the effect of the auxiliary network.
+• The used auxiliary network is very simple, using only one layer. In our testing, last layer
+and third layer was used for separate test cases.
+4
+Algorithm 2 DeDiER with auxiliary projector and Laplace margins on MultiNLI
+Inputs: Teacher T , Student S, Projector haux, dataset D, hyperparameters α, β, number of epochs E.
+1: Pre-train or load teacher model T on D
+2: Initialize student S and auxiliary projector haux
+3: for e = 1 to E do
+4: for each minibatch (x, y, m) from D do
+5: Compute features ϕ = TBERT(x) (CLS embedding)
+6: Train projector haux using cross-entropy on (ϕ, y)
+7: Compute logits z(aux) = haux(ϕ)
+8: Compute Laplace covariance matrix Σ using haux and ϕ
+9: Sample predictive distribution: p = Ez∼N (z(aux),Σ)[softmax(z)]
+10: Compute entropy margin: H(p) = − P
+j pj log pj
+11: Compute weight w = exp(β · H(p)α)
+12: Get teacher logits z(T ) = T (x)
+13: Get student logits z(S) = S(x)
+14: Compute KD loss: LKD = KLDiv(z(S), z(T ))
+15: Compute CE loss: LCE = CE(z(S), y)
+16: Total loss: L = w · LKD + LCE
+17: Update student parameters via backprop on L
+18: end for
+19: end for
+20: Save final student model and evaluate on test set
+Models Used
+• Teacher model: bert-base-uncased (12-layer BERT, hidden size 768)
+• Student model: distilbert-base-uncased (6-layer DistilBERT, hidden size 768)
+• Auxiliary network: One-layer linear classifier trained on the students third layer.
+Optimization Hyperparameters
+• Teacher fine-tuning
+– Epochs: ET = 3
+– Learning rate: 2 × 10−5
+– Optimizer: AdamW
+• Student training
+– Epochs: ES = 5
+– Learning rate: 2 × 10−5
+– Optimizer: AdamW
+– Distillation temperature: τ = 2.0
+Training and Evaluation Details
+• Batch size: 16
+• Dataset: MultiNLI (via HuggingFace datasets)
+• Evaluation: Accuracy and per-group performance (negation vs. non-negation)
+• Tokenization: bert-base-uncased tokenizer with padding and truncation
+• Learning rate scheduler: Linear schedule with warm-up
+Evaluation Metrics
+The model is evaluated using accuracy over numerous groups, compared to the accuracy of the
+teacher model and the original DeDiER model. We also look at the confidence margins in the model
+in different layers of the algorithm to better understand how the change affects the model.
+5
+4 Results
+The results are presented in Table 1, Table, 2 Figure 2 and Figure 3.
+4.1 Analysis
+4.1.1 Improvement in Accuracy
+Looking at the results of the tests, a small improvement in accuracy of the student model is shown
+by the proposed approach compared to the original DeDIER model. This shows that the Laplace
+transformation has potential to enhance the results.
+Using a single-layer auxiliary network on the third of six layers was found to be more effective
+than placing the auxiliary network on the final layer of the model. This observation aligns with the
+argument that earlier layers tend to capture more fundamental and informative representations. As a
+result, addressing the problem at an earlier stage may offer greater benefits by influencing the model’s
+internal feature processing more directly Tiwari et al. [2024].
+4.1.2 Changes in confidence margin
+The confidence margins are generally lower than those reported in the original paper Tiwari et al.
+[2024], as well as those of the teacher model when using the Laplace transformation. Even though
+only one layer was used for auxiliary, the effect of the reweighting affects multiple layers in both test
+cases.
+While lower confidence margins can sometimes indicate increased model uncertainty—which may
+be beneficial for calibration and avoiding overconfident incorrect predictions—they can also signal
+weaker separation between correct and incorrect classes, potentially reducing model reliability.
+Despite this ambiguity, the observed improvements in performance suggest that the approach holds
+promise. The results indicate potential for further gains with continued refinement of the auxiliary
+training and reweighting strategy.
+4.2 Future Work
+The Laplace transformation has shown potential to enhance the DeDIER model. However, to justify
+the results and enable further improvements, additional testing is required.
+4.2.1 More Advanced Auxiliary Layer
+The auxiliary network used in this study is a simple, single-layer model. To further evaluate the
+concept and assess the contribution of each layer in the network, a more sophisticated auxiliary
+architecture should be explored. Meronen et al. Meronen et al. [2024] propose combining predictions
+from auxiliary networks up to a given layer, as described in Eq. 7, where the weights wk represent
+the computational cost in FLOPs up to classifier m. While accounting for computational cost may be
+less important in the context of knowledge distillation, a similar approach for aggregating predictions
+across multiple layers could still be evaluated.
+pens
+k (ˆyi | xi) = 1
+Pk
+l=1 wl
+kX
+m=1
+wm pm(ˆyi | xi) (7)
+4.2.2 More Datasets
+The current experiments are limited to the MultiNLI dataset. To gain a deeper understanding of the
+proposed model, it should be evaluated on additional datasets. Suitable datasets include Waterbirds,
+Civil Comments, and CelebA, which were used in the original paper and would allow for direct
+comparison. Moreover, the MultiNLI dataset itself offers further opportunities for analysis by
+exploring alternative subgrouping strategies when assessing worst-group performance.
+6
+4.2.3 Hyperparameter Fine tuning
+Further work is needed to tune the hyperparameters of the proposed approach. This includes adjusting
+the number of training epochs, temperature parameters in the Laplace transformation, and the
+weighting scheme.
+Metric Teacher Student (Aux layer 3) Student (Aux layer 6) Group
+Average Accuracy 0.845 0.835 0.832 All
+Table 1:
+Results of Dedier with Laplace
+Metric Teacher Student
+Final Test Accuracy 0.841 0.830
+Table 2:
+Original DEDIER performance with same teacher
+(a) Auxiliary network on layer 3
+ (b) Auxiliary network on layer 6 (last layer)
+Figure 2: Confidence margins per layer on worst group predictions and all predictions
+(a) Auxiliary network on layer 3
+ (b) Auxiliary network on layer 6 (last layer)
+Figure 3: Confidence margins in student and teacher on the predictions that were wrong
+5 Conclusion
+We conclude that Laplace-based approximation for early exit layers is a cheap yet effective way
+to compute uncertainty estimates from early layers, which can be used to reweight the KD loss in
+student models and make their predictions less reliant on simple features.
+7
+References
+Geoffrey Hinton, Oriol Vinyals, and Jeff Dean. Distilling the knowledge in a neural network. arXiv
+preprint arXiv:1503.02531, 2015.
+Lassi Meronen, Martin Trapp, Andrea Pilzer, Le Yang, and Arno Solin. Fixing overconfidence in
+dynamic neural networks. In Proceedings of the IEEE/CVF winter conference on applications of
+computer vision, pages 2680–2690, 2024.
+Rishabh Tiwari, Durga Sivasubramanian, Anmol Mekala, Ganesh Ramakrishnan, and Pradeep
+Shenoy. Using Early Readouts to Mediate Featural Bias in Distillation. In 2024 IEEE/CVF
+Winter Conference on Applications of Computer Vision (WACV), pages 2626–2635, Waikoloa, HI,
+USA, January 2024. IEEE. ISBN 9798350318920. doi: 10.1109/W ACV57701.2024.00262. URL
+https://ieeexplore.ieee.org/document/10484228/.
+Adina Williams, Nikita Nangia, and Samuel R Bowman. A broad-coverage challenge corpus for
+sentence understanding through inference. In Proceedings of the 2018 Conference of the North
+American Chapter of the Association for Computational Linguistics: Human Language Tech-
+nologies, V olume 1 (Long Papers), pages 1112–1122. Association for Computational Linguistics,
+2018.
+A Appendix / supplemental material
+A.1 Code
+The code used can be found on https://github.com/addvinf/DEDIER-with-Laplace/tree/
+main
+8

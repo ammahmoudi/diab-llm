@@ -1,0 +1,892 @@
+Future-aware blood glucose
+forecasting using knowledge
+distillation with transformer-based
+sequence-to-sequence models
+Xiaoyu Sun, Hongru Li & Xia Yu
+Accurate blood glucose level (BGL) forecasting is critical for diabetes self-management and clinical
+decision-making. Although deep learning models based on continuous glucose monitoring (CGM) data
+have achieved encouraging results, most approaches rely exclusively on historical observations and
+cannot explicitly account for future disturbances, such as insulin delivery and meal intake, that are
+unavailable at deployment. To address this limitation, we propose a future-aware learning framework
+for multi-step BGL prediction that leverages privileged information during training while preserving
+deployability at inference. A Transformer-based teacher model is trained offline using both historical
+CGM data and future disturbance information to learn disturbance-aware temporal representations.
+A student model with a similar sequence-to-sequence structure is then trained using knowledge
+distillation to approximate the teacher’s representations based solely on historical inputs, enabling
+real-time forecasting without access to future data. The proposed framework is evaluated on the
+publicly available OhioT1DM and AZT1D datasets for prediction horizons ranging from 30 to 120
+minutes and compared with several established methods. The results show consistent reductions
+in root mean squared error and mean absolute error, together with improved clinical reliability as
+assessed by Clarke error grid analysis, with over 90% of predictions falling within clinically acceptable
+regions. These findings demonstrate the potential of future-aware training strategies to enhance
+glucose forecasting performance under realistic deployment constraints.
+Diabetes mellitus is a chronic metabolic condition that affects around 589 million people worldwide and is
+characterized by sustained hyperglycemia due to the body’s inability to produce or effectively utilize insulin 1.
+Type 1 diabetes mellitus (T1DM), in particular, results from autoimmune destruction of insulin-producing β
+-cells in the pancreas, necessitating lifelong exogenous insulin therapy. Maintaining blood glucose levels (BGLs)
+within a narrow euglycemic range (typically 70-180 mg/dL) is essential to prevent both acute complications
+(e.g., hypoglycemia, diabetic ketoacidosis) and long-term comorbidities (e.g., retinopathy, neuropathy, and
+cardiovascular disease) 2,3. However, achieving optimal glycemic control remains a significant challenge,
+especially due to the nonlinear and delayed physiological responses to insulin, meals, stress, physical activity,
+and other lifestyle factors4.
+In clinical practice, individuals with T1DM rely on continuous glucose monitoring (CGM) systems and
+insulin pumps or multiple daily injections to regulate BGLs. However, a critical limitation lies in the inherent lags
+of glucose sensing and insulin kinetics. Subcutaneously infused insulin exhibits a delayed onset and prolonged
+action compared to endogenous insulin. Besides, CGM systems measure interstitial glucose rather than plasma
+glucose levels, which takes time for glucose to be transported between plasma and interstitial fluid 4–6. But it is
+worth noting that the CGM readings are referred to as BGL in this work. These temporal mismatches make
+real-time glycemic regulation challenging and often lead to overcorrection or underestimation of insulin needs,
+resulting in frequent episodes of hypo- or hyperglycemia. T o mitigate these risks, accurate BGL forecasting has
+been widely recognized as a key component in decision support systems for diabetes management.
+T o estimate future BGLs, a broad range of data-driven prediction models has been developed based on
+CGM data and related physiological signals. Traditional approaches, including autoregressive models, Kalman
+filters, Gaussian process regression, and support vector machines7–12, have been widely investigated in modeling
+glucose dynamics. While these models offer some interpretability and robustness, they often fall short in
+capturing the nonlinear and multiscale dynamics in glycemic metabolism. More recently, the surge in deep
+College of Information Science and Technology, Northeastern University, Shenyang 110819, China. email:
+sunxiaoyu1@ise.neu.edu.cn
+OPEN
+Scientific Reports |        (2026) 16:11404 1| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports
+
+learning research has led to the development of powerful models that can learn complex temporal dependencies
+directly from data13. The deep neural network (DNN) models for BGL prediction leveraged feedforward neural
+networks (FNNs) and recurrent neural networks (RNNs) such as long short-term memory (LSTM) and gated
+recurrent unit (GRU) architectures 14–18. These models demonstrated improved performance over traditional
+methods by capturing long-range temporal dependencies and nonlinearities in glucose dynamics. Subsequently,
+convolutional neural networks (CNNs) and hybrid CNN-RNN architectures were introduced to learn local
+patterns and global trends simultaneously 19. Further enhancements have been explored using attention
+mechanisms, transformer architectures, reinforcement learning, variational autoencoders, etc.20–25.
+Among these advanced techniques, the encoder-decoder framework has gained particular attention for
+sequence-to-sequence (seq2seq) forecasting tasks, including glucose prediction. This architecture consists of
+two components: an encoder that transforms the input sequence into a latent representation, and a decoder that
+generates the output sequence based on this representation. The use of attention mechanisms in the encoder-
+decoder framework has further improved performance by allowing the model to focus on the most relevant
+time steps in the input sequence. Transformers, originally introduced for natural language processing tasks, have
+recently been adapted to BGL forecasting and have shown state-of-the-art performance21,26–28. However, despite
+these advancements, a key limitation of the end-to-end deep learning models for BGL forecasting is that they
+rely solely on past observations and assume the future is independent of external disturbances. In real-world
+scenarios, unobserved future events, such as unannounced meals, unrecorded physical activity, stress, or insulin
+infusion, can dramatically alter glycemic trends. These future disturbances are not available at prediction time
+and are thus omitted from the model input, leading to systematic prediction errors, particularly during periods
+of rapid glucose change. Although various attempts have been made to compensate for this uncertainty using
+data augmentation, probabilistic modeling, or ensemble methods, the challenge of representing unseen future
+influences remains a fundamental bottleneck.
+To address these limitations, we proposed a knowledge-distillation-based approach that improved the
+prediction accuracy of future BGLs by learning from future disturbances. The main contributions of this study
+are as follows:
+ (1) We develop a future-aware training framework for multi-step blood glucose level prediction that leverages
+privileged future disturbance information during training while maintaining deployability using historical
+data only at inference time.
+ (2) We design a Transformer-based teacher student architecture in which a teacher model learns distur -
+bance-aware temporal representations from complete sequences containing both past and future glu -
+cose-related signals, and a student model approximates these representations using historical observations
+alone through knowledge distillation.
+ (3) We introduce a shared decoder strategy that enables consistent decoding of teacher and student latent rep-
+resentations into future blood glucose trajectories, facilitating effective comparison and transfer of predic-
+tive information.
+ (4) We conduct a comprehensive evaluation on a publicly available clinical continuous glucose monitoring
+dataset across multiple prediction horizons, demonstrating consistent performance improvements over
+baseline deep learning approaches and clinically acceptable prediction accuracy as assessed by Clarke error
+grid analysis.
+In summary, this study presents a future-aware learning framework for multi-step blood glucose prediction
+that addresses the mismatch between training assumptions and deployment constraints in real-world diabetes
+management. By exploiting future disturbance information during offline training through a knowledge-
+distillation-based teacher student architecture, the proposed approach enables a deployable student model
+to capture future-relevant temporal representations using historical data only. Comprehensive evaluations
+on clinical CGM data demonstrate that the framework provides consistent improvements over baseline deep
+learning models across multiple prediction horizons while maintaining clinical reliability. These findings
+highlight both the potential and the practical limits of transferring future-aware information to history-only
+predictors, offering insights for the development of robust and deployable glucose forecasting systems.
+Related works
+The recent rapid development of wearable sensing and deep learning techniques provides novel opportunities
+for modeling the glucose metabolism of individuals with T1DM accurately, which is critical for diabetic
+management. The conventional DNN structures, including FNN, RNN, and CNN, have been widely investigated
+in modeling glucose metabolism and forecasting future BGLs.
+Rabby et al. 29 combined the stacked LSTM model with Kalman filter, where the Kalman filter was applied
+to CGM readings for improving the robustness of the DNN model to sensor noise and errors. Wang et al. 30
+proposed to reduce the non-stationarity of glycemic dynamics by decomposing CGM data with variational
+modal decomposition method and forecasting future BGLs with an LSTM model. Shuvo et al. 31 incorporated
+the stacked LSTM model with the multi-task learning framework to prevent overfitting. Considering that the
+personalized data is limited, Shen et al. 32 investigated the amount of data required for a stacked LSTM model
+and proposed an incrementally retrained LSTM model for BGL forecasting, where the model was finetuned as
+the distribution of new data shifted. Li et al. 33 and Bhargav et al. 34 investigated the performance of temporal
+convolutional network (TCN), which is designed for capturing temporal features in time series with a lighter
+computational burden, in forecasting future BGLs. Talebi et al.35 extended the TCN-based BGL prediction model
+by integrating an attention mechanism, which improved the model’s ability in capturing both local and global
+temporal correlations in glycemic metabolism. Li et al.19 and Jaloli et al.36 proposed to forecast future BGLs with
+Scientific Reports |        (2026) 16:11404 2| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+a hybrid CNN and LSTM structure where the CNN layers were utilized to capture local patterns in the glycemic
+metabolism and LSTM was adopted to model the temporal dependencies. Sun et al.37 and Xie et al.38 investigated
+the efficiency of LSTM model, Bidirectional LSTM (BiLSTM), and TCN in short-term BGL prediction and
+found the RNN model had higher prediction accuracy compared to conventional machine learning models.
+Bhimireddy et al. 39 compared the performance of conventional BGL prediction models based on LSTM,
+BiLSTM, and CRNN with sequence-to-sequence (Seq2seq) models and found the Seq2seq models outperform
+the conventional DNN models. The Seq2seq models generally adopt an encoder-decoder structure where the
+encoder extracts complex features from input sequences and the decoder recovers future BGL sequences from
+the obtained deep features. As the future BGLs are predicted simultaneously, the Seq2seq models are more
+robust compared to conventional BGL forecast models.
+Motivated by the representation ability of encoder-decoder structures, Xu et al.40 proposed a glucose prediction
+model based on the encoder-decoder structure, where the LSTM was utilized to encode the input information
+and an attention-based decoder was designed to predict future BGLs. To address the challenge of limited data
+resources, He et al.41 developed a personalized autocorrelation encoder that mapped diverse physiological factors
+into a unified latent space to obtain sparse representations. Considering the potential influence of instability in
+glucose dynamics, Xue et al. 42 developed a BGL forecasting model based on Informer, where the periodic and
+trend features were extracted to enhance the prediction capacity of the model. Lee et al. 26 incorporated the
+Transformer encoder with a multi-task learning framework where temporal correlations in glycemic dynamics
+were captured by the Transformer encoder and further utilized for BGL prediction and abnormal glycemic
+events classification. Zhu et al.27 proposed a light-weight BGL prediction model by integrating LSTM encoder
+with self-attention mechanism, and the population model enabled a prolonged period on wearable devices. Bian
+et al.43 proposed a hybrid BGL prediction model with two encoders, where a stacked LSTM-based encoder was
+developed to obtain temporal features and a Transformer-based encoder was utilized to enhance long-term
+dependency. Karagoz et al. 44 conducted a study to investigate the performance of diverse Transformer-based
+models for BGL forecast against different lengths of history information and found that the best prediction
+performance was achieved with an input length of one week. Despite the extremely long history of information
+being utilized for predicting future BGLs, the potential disturbances within the prediction horizon are ignored,
+which may harm the long-term BGL forecast.
+Methods
+This work aims to develop a BGL prediction model where the potential disturbances can be encoded into the
+latent space and transferred through knowledge distillation for improving the model’s capacity. Particularly, a
+Transformer encoder-based teacher model was designed to mine the temporal correlations from the historical
+observations, together with the future disturbances. The obtained features were transposed to a shared decoder
+to ensure the latent representations were related to future BGLs. Then, the student model was developed through
+knowledge distillation to mimic the behaviors of the teacher model based solely on historical observations,
+therefore, incorporating information of future disturbances into the BGL forecasting model. The overall
+framework of the proposed BGL prediction model is depicted in Fig. 1.
+Feature extraction
+The variation of BGL is influenced by many factors, including meal intake, insulin infusion, physical activity,
+stress, etc. Among those factors, meal intake is the major source of glucose, and BGL usually increases rapidly
+after carbohydrate consumption. Differently, as the only hormone that promotes the transport, utilization,
+and storage of plasma glucose, BGL generally decreases after insulin infusion. To establish an accurate BGL
+forecasting model, the influence of those factors should be taken into account. However, the meal information is
+usually self-recorded by individuals with diabetes as a sparse impulse signal that happens 3-5 times per day. And
+Fig. 1. The framework of the proposed BGL prediction model, consisting of data processing, teacher and
+student encoders, shared decoders, and knowledge distillation.
+
+Scientific Reports |        (2026) 16:11404 3| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+the bolus insulin, including the meal and correction bolus, is usually given along with the meal, which is also
+sparse signals with a similar frequency as meal events. Despite the considerable influence of those sparse factors,
+it is challenging for the DNN models to learn directly from the sparse signals.
+To facilitate the utilization of meal and bolus information, we adopted physiological models to extract
+advanced features from sparse signals. The insulin on board (IOB), a physiological variable that is defined to
+describe the amount of active insulin remaining in the body, is utilized to summarize bolus information, as in
+many hybrid BGL prediction models. The pharmacokinetics of subcutaneously infused insulin are defined as
+follows45.
+
+˙S1 (t)= ubo (t) − kDIA S1 (t)
+˙S2 (t)= kDIA (S1 (t) − S2 (t))
+uiob (t)= S1 (t)+ S2 (t)
+ (1)
+where ubo and uiob represent bolus insulin and IOB, respectively, and S1 and S2 are the two absorption
+compartments. kDIA  defines the duration of insulin action. A similar physiological model for describing the
+amount of carbohydrate remaining in the body (COB) is adopted, which is defined as follows46.
+
+Ra (t)= ucarb Cbiot exp −t/tmax
+tmax2
+ucob (t)= ucarb Cbio −
+´ t
+tmeal
+Ra (t) dt  (2)
+where ucarb  and ucob are the amount of ingested carbohydrate and remaining active carbohydrate in the body,
+respectively. The Cbio and tmax represent the bio-availability and the time of the maximum appearance rate of
+glucose in the accessible glucose compartment.
+Detailed model structures
+Teacher encoder
+For medium- and long-term glucose prediction, potential disturbances such as carbohydrate intake and insulin
+administration exert a substantial influence on future blood glucose dynamics. To explicitly leverage the effects
+of such disturbances during training, a teacher encoder is designed to extract temporal representations from
+both historical observations xpast and future disturbance information xf uture. The overall structure of the
+teacher model is illustrated in Fig. 2(a), where Transformer-based encoders are employed to capture long-range
+temporal dependencies.
+The Transformer is a sequence-to-sequence architecture originally developed for natural language
+processing47. It consists of an encoder that learns contextualized representations through self-attention and
+feed-forward layers, and a decoder that generates outputs by selectively attending to relevant encoded features
+via cross-attention. Owing to its ability to retain global temporal context and identify informative time steps, the
+Transformer has demonstrated superior performance over recurrent neural networks for long sequential data.
+Consistent with prior studies in glucose prediction26, only the Transformer encoder is utilized in this work. Each
+encoder comprises an embedding layer, positional encoding, and stacked multi-head attention blocks, followed
+by normalization and residual connections.
+T o obtain comprehensive temporal representations from both past observations and future disturbances, two
+separate Transformer encoders are adopted. Each encoder applies multi-head self-attention to extract high-level
+temporal features, where the self-attention operation is defined as47:
+
+Attention(Q ,K ,V )= softmax
+(
+QKT
+√
+dk
+)
+V,
+Q = WQX,
+K = WK X,
+V = WV X,
+ (3)
+where Q, K, and V denote the query, key, and value matrices obtained from the input X, and WQ, WK , WV  are
+the corresponding weight matrices. dk  is the dimension of the key vectors. T o reduce computational complexity,
+the position-wise feed-forward layers following the attention blocks are replaced with one-dimensional
+convolutional layers.
+Beyond independent encoding, the teacher model further employs a cross-attention mechanism to
+fuse information from historical observations and future disturbances. Specifically, the encoded historical
+representations are used as queries, while the encoded future disturbance representations serve as keys and
+values, allowing the model to selectively attend to future disturbance patterns that are most relevant to the
+historical glucose context. This cross-attention operation enables the teacher encoder to learn disturbance-aware
+temporal representations by explicitly modeling the interaction between past physiological states and future
+exogenous inputs. The fused representations are then aggregated and passed to a shared decoder to generate
+future blood glucose predictions.
+Student encoder
+For real-world prediction, the model has access only to historical observations. The student encoder therefore
+mirrors the teacher encoder but processes only xpast (Fig. 2 (b)). It uses the same embedding and sinusoidal
+positional encoding layers as the teacher to preserve temporal ordering. The embedded inputs pass through
+identical stacks of multi-head attention and feed-forward blocks with residual connections, producing a
+historical latent representation.
+Scientific Reports |        (2026) 16:11404 4| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+To ensure the student learns rich temporal features despite missing future information, an additional
+MLP projection head with residual connections refines its output. This projection head aligns the student’s
+representation space with that of the teacher during knowledge distillation, narrowing the gap between
+disturbance-aware and historical-only features. In effect, the student encoder learns to approximate the teacher’s
+latent space and capture implicit disturbance effects without direct access to future inputs.
+Shared decoder
+A single shared decoder (Fig.  2c) maps the latent representations from both the teacher and student encoders
+to future BGL predictions. The decoder consists of stacked fully connected layers with nonlinear activation
+(ReLU), dropout for regularization, and a final linear output layer. The shared model ensures that both teacher
+and student benefit from the same decoding process, improving consistency between training and inference.
+Knowledge distillation process
+In practical deployment scenarios, future disturbance information such as meal intake and insulin administration
+is unavailable at inference time, even though it can be observed during offline training. This mismatch between
+training and deployment conditions limits the performance of conventional blood glucose forecasting models
+that rely solely on historical observations. To address this issue, we employ a knowledge distillation strategy
+that enables a deployable student model to internalize information learned under relaxed training assumptions.
+The teacher model is trained offline using both historical CGM measurements and future disturbance
+inputs. By observing future meals and insulin events, the teacher encoder learns disturbance-aware temporal
+representations that capture how exogenous factors shape subsequent glucose dynamics. These representations
+encode not only glucose trends but also the anticipated direction, magnitude, and temporal persistence of
+disturbance-induced effects.
+The student model shares the same sequence-to-sequence architecture as the teacher but operates under
+deployment constraints, using only historical CGM data as input. Since future disturbance information is
+Fig. 2. The detailed structures of the teacher, student encoders and shared decoder.
+
+Scientific Reports |        (2026) 16:11404 5| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+unavailable to the student, direct supervision using prediction loss alone is insufficient to transfer the teacher’s
+knowledge. Knowledge distillation is therefore introduced to bridge this information gap.
+Rather than distilling output predictions, we focus on transferring latent temporal representations learned
+by the teacher encoder. Let HT  and HS  denote the hidden representations produced by the teacher and
+student encoders, respectively. A latent distillation loss is defined to minimize the discrepancy between these
+representations:
+ LKD =
+HT − HS 2
+2 (4)
+This objective encourages the student to approximate the teacher’s disturbance-aware internal dynamics using
+historical information alone. By aligning its latent representations with those of the teacher, the student learns
+internal structures that reflect the underlying glucose trajectories typically response to following recent historical
+patterns. These structures implicitly encode expectations about the direction and intensity of upcoming glucose
+changes, as well as the temporal persistence of their effects, despite the absence of explicit future inputs. As
+a result, the student is able to approximate disturbance-aware behavior using historical observations alone,
+thereby mitigating the information loss caused by deployment constraints.
+The final training objective of the student model combines the standard prediction loss with the latent
+distillation loss, forming a joint optimization problem that balances forecasting accuracy and representation
+alignment, that is
+
+L = lpred + αlKD + βlsof t
+lpred = MSE (ˆySi ,y i)
+lKD = M AE (xS ,x T )
+lsof t = MSE (ˆySi , ˆyTi )
+xT = fT (xpast,x f uture)
+ˆyT = fsdec (xT )
+xS = fS (xpast)
+ˆyS = fsdec (xS )
+ (5)
+where lpred , lKD , and lsof t represent the ground-truth loss, knowledge distillation loss, and “soft label” loss,
+respectively. And the ground-truth of future BGLs, the BGLs forecast by the student and teacher are defined as
+y, ˆyS , and ˆyT , respectively. xT  and xS  are the future disturbance-aware temporal representations of the teacher
+and incomplete temporal features obtained by the student. The teacher, student, and shared decoder models are
+defined as fT , fS , and fsdec, respectively. Mean squared error was adopted for the prediction-related losses, and
+mean absolute error was chosen for knowledge distillation, forcing the student to learn same representations
+as the teacher. The losses are balanced by hyperparameters α and β, which can be determined through cross-
+validation or grid search. The prediction loss ensures that the student remains directly optimized for multi-step
+glucose forecasting, while the distillation term guides the learning process toward internal dynamics consistent
+with those of the disturbance-aware teacher. Through this joint objective, the student model acquires enhanced
+temporal representations that improve forecasting robustness under realistic inference conditions.
+Results
+Dataset and preprocess
+OhioT1DM dataset
+The OhioT1DM dataset 48 contains eight weeks of continuous data from 12 individuals living with T1DM (5
+female, 7 male; aged 20 60 years) under free-living conditions. The OhioT1DM dataset was naturally separated
+into training and testing datasets. The training dataset was utilized for model development and validation, and
+the testing dataset was adopted for testing the performance of the proposed model. All participants used insulin
+pump therapy (Medtronic 530G or 630G) and wore Medtronic Enlite CGM sensors, which recorded BGL every
+5 minutes. In addition to CGM readings and insulin information, the dataset includes physiological data from
+fitness bands, such as heart rate, galvanic skin response (GSR), skin temperature, and accelerometry, as well as
+self-reported events, including meal intake, sleep, work, stress, hypoglycemia, illness, and exercise. The dataset
+was originally divided into training and testing sets as summarized in Table 1. Basal, bolus, and self-reported
+meal information were aligned with CGM records at a uniform 5-minute sampling interval.
+Because of sensor replacement and communication issues, missing CGM segments occur in both the training
+and testing sets. In the training data, gaps shorter than 30 minutes were linearly interpolated from surrounding
+values, and longer gaps were discarded to avoid introducing additional noise. In the test data, the last available
+CGM value was carried forward until a new measurement became available, ensuring no leakage of future
+information into the model during evaluation. This pre-processing strategy maintains temporal consistency
+while minimizing bias from missing data, as done in most related works.
+AZT1D dataset
+The AZT1D dataset49 contains data collected from 25 subjects with T1DM who regulated their BGLs with the
+automated insulin delivery system. Most individuals provide information, including CGM readings (Dexcom
+G6 Pro) with a sampling time of 5 minutes, insulin administration, and carbohydrate intake, that lasts for over
+6-8 weeks, reflecting typical outpatient care practices. In order to evaluate the performance of the proposed
+method, the first 80% data were utilized for model development and the remaining 20% were keep for testing.
+Similar to the OhioT1DM dataset, there are potential missing values in the CGM readings. In this work,
+constant CGM readings lasting over 30 minutes were treated as missing values. For the training dataset, the gaps
+Scientific Reports |        (2026) 16:11404 6| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+shorter than 30 minutes were linearly interpolated from surrounding values, and longer gaps were discarded.
+For testing, the latest available CGM reading was carried forward until a new value became available, preventing
+information leakage.
+Experiment setting
+All methods were implemented in PyTorch and executed on a single NVIDIA RTX 5090 D GPU with CUDA
+version 12.9. The proposed BGL prediction model was compared with several state-of-the-art approaches,
+including an LSTM model 39, a BiLSTM model 39, a CRNN model 19, a Transformer model 26, and a zero-hold
+baseline where the most recent CGM value was used as the forecast. In addition, we examined the performance
+of (i) the traditional Seq2One regression modeling strategy, which predicts a single future target value from
+historical observations, and (ii) the Seq2seq modeling strategy, which forecasts the entire sequence of future
+targets simultaneously.
+For both the teacher and student encoders, input sequences were embedded into a 64-dimensional latent
+space. The number of multi-head attention units was set to 4. Each encoder block contained two 1D CNN
+layers, where features were firstly projected to 128 dimensions and then mapped back to 64. The number of
+encoder blocks was fixed at N1 = N2 = N3 =3 , determined through cross-validation on the training set. The
+hyperparameters α and β are jointly searched within [0.8, 0.5, 0.2, 0.1] and [0.5, 0.2, 0.1, 0.05, 0.01]. The shared
+decoder followed the same structure as in the CRNN model19.
+The glucose values reported by CGM, estimated IOB and COB within the 3-hour historical window were
+used to predict future BGL values up to 2 hours as a simultaneous sequence. The input and output of the models
+are normalized through min-max scaling. Models were trained with a batch size of 512, a learning rate of 0.0001
+using the Adam optimizer, and an early stopping criterion of no improvement in validation loss for 20 epochs
+or reaching the maximum training steps 200. All models were initially trained on the population data and
+subsequently fine-tuned on individual data to enable personalized BGL prediction.
+Experimental results
+The prediction accuracy of the BGL prediction models was evaluated by root mean squared error (RMSE), mean
+absolute error (MAE) and the Clarke error grid analysis, which are common metrics used in the field. The RMSE
+and MAE are defined as follows.
+
+RM SE =
+√ ∑N
+i=1
+(ˆyi−yi)2
+N
+M AE =
+∑N
+i=1
+|ˆyi−yi|
+N
+ (6)
+where ˆy and y are the forecast and measured BGLs and N is the total number of samples. The Clarke error grid
+analysis divides the distribution of measured glucose levels and estimated values into five zones based on clinical
+relevance, from clinically accurate to significant error. where ˆy and y are the forecast and measured BGLs and N
+is the total number of samples. The Clarke error grid analysis divides the distribution of measured glucose levels
+and estimated values into five zones based on clinical relevance, from clinically accurate to significant error.
+Results for OhioT1DM dataset
+The averaged value and standard deviation of RMSE ( mg/dL) and MAE ( mg/dL) across all 12 subjects for
+different BGL prediction models are summarized in Table 2 and 3. For all the investigated prediction horizons
+(PHs), the BGL forecast model based on DNN methods outperforms the zero-hold method in terms of RMSE
+and MAE. Among the Seq2One models, the BiLSTM model outperforms the LSTM model for short-term
+pID Gender Age Training Samples Testing Samples Missed CGM during Testing
+Released year: 2020
+540 male 20-40 11947 2884 8 stretches, 169 samples
+544 male 40-60 10623 2704 6 stretches, 131 samples
+552 male 20-40 9080 2352 10 stretches, 433 samples
+567 female 20-40 10858 2377 11 stretches, 481 samples
+584 male 40-60 12150 2653 15 stretches, 330 samples
+596 male 60-80 10877 2731 6 stretches, 258 samples
+Released year: 2018
+559 female 40-60 10796 2514 11 stretches, 362 samples
+563 male 40-60 12124 2570 3 stretches, 121 samples
+570 male 40-60 10982 2745 9 stretches, 134 samples
+575 female 40-60 11866 2590 10 stretches, 128 samples
+588 female 40-60 12640 2791 2 stretches, 89 samples
+591 female 40-60 10847 2760 4 stretches, 86 samples
+Table 1. Demographic information of the OhioT1DM dataset.
+
+Scientific Reports |        (2026) 16:11404 7| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+glucose prediction, and the consideration of local patterns and temporal features further improves the prediction
+accuracy, except for 30-minute-ahead forecast. Different from the conventional DNN models, the Transformer
+model retains information of the entire input sequence, thus achieving the lowest prediction error. Compared
+to the conventional Seq2One glucose forecast models, the Seq2seq models generally have smaller RMSEs and
+MAEs, indicating that those models outperform the classical ones in BGL prediction. For the conventional RNN
+models, the prediction errors are slightly smaller for medium-term forecasting (i.e., PH=90 and 120 min), while
+for PH=30 and 120 min, the prediction errors are greater compared to the Seq2One strategy. For the models with
+a more complex structure, the Seq2seq model has more accurate predictions, except for the case of PH=30 min,
+where the prediction error increases slightly.
+When the future disturbance information is announced to the BGL prediction model, a considerable
+improvement in the model forecast performance can be observed, where the RMSEs decrease from 18.48,
+30.98, 40.03, and 46.26 to 17.83, 28.81, 36.38, and 41.93 mg/dL for PH=30, 60, 90, and 120 minutes, respectively.
+Similarly, the MAEs also have a significant improvement. Compared to the teacher model, as the student model
+cannot observe disturbances directly, the forecast ability of the student model is weaker. Despite the weakness
+compared to the teacher, the student model still has lower prediction errors in contrast to all investigated Seq2seq
+and Seq2One models that ignore the influence of future disturbance on the variation of glucose dynamics for
+both short- and long-term predictions.
+The BGL values reported by the CGM sensors and forecast by the proposed model for different prediction
+horizons are compared in Fig.  3. Zone A and Zone B represent the regions where the predicted values can be
+utilized for diabetes management without causing safety issues. Zones C and D are the over- or under-estimate
+regions that may lead to overdose or underdose of insulin therapy. Zone E indicates a clinical error and cannot
+be used for clinical decision-making. For all the investigated prediction horizons, over 90% of estimated results
+of the proposed method are in the clinically accurate and acceptable regions, indicating the model can meet the
+requirement for diabetes management.
+Models PH=90 min PH=120 min
+RMSE MAE RMSE MAE
+Seq2One
+Zero-hold 49.21±5.53 37.28±4.09 57.11±6.13 43.77±4.52
+LSTM 41.02±3.76 31.24±3.18 46.75±4.47 36.33±3.61
+BiLSTM 41.29±3.85 31.44±3.07 46.98±4.59 36.70±3.66
+CRNN 41.00±4.25 31.13±3.46 46.74±4.28 36.29±3.43
+Transformer 40.71±4.29 30.98±3.38 46.30±4.67 36.09±3.72
+Seq2seq
+LSTM 41.28±4.53 30.97±3.49 47.61±4.83 36.46±3.81
+BiLSTM 40.99±4.55 30.99±3.57 47.28±5.34 36.51±4.17
+CRNN 40.00±4.05 30.43±3.36 46.38±4.55 36.02±3.70
+Transformer 40.03±4.17 30.30±3.22 46.26±4.77 35.67±3.64
+Proposed
+Teacher 36.38 ± 3.92∗ 27.68 ± 3.01∗ 41.93 ± 4.55∗ 32.42 ± 3.63∗
+Student 39.51 ± 3.97∗∗ 29.95 ± 3.42∗∗ 45.60 ± 4.53∗∗ 35.28 ± 3.71∗∗
+Table 3. The RMSE and MAE (Mean±STD) of glucose prediction models based on neural networks for long-
+term prediction with OhioT1DM dataset. *p<0.01,   **p<0.05
+
+Models PH=30 min PH=60 min
+RMSE MAE RMSE MAE
+Seq2One
+Zero-hold 23.32±2.78 17.01±1.98 38.41±4.47 28.68±3.30
+LSTM 18.63±2.20 13.14±1.47 32.73±3.42 24.26±2.67
+BiLSTM 18.52±2.16 13.09±1.46 32.02±3.58 23.65±2.91
+CRNN 19.08±1.91 13.53±1.38 31.98±3.88 23.65±3.19
+Transformer 18.34±2.16 12.98±1.51 31.15±3.35 22.88±2.65
+Seq2seq
+LSTM 18.77±2.22 13.20±1.43 31.85±3.62 23.27±2.76
+BiLSTM 18.81±2.51 13.26±1.58 31.56±3.64 23.21±2.85
+CRNN 18.57±2.38 13.09±1.54 30.99±3.39 22.87±2.69
+Transformer 18.48±2.26 13.10±1.45 30.98±3.39 22.85±2.56
+Proposed
+Teacher 17.83 ± 2.27∗ 12.73 ± 1.43∗ 28.81 ± 2.97∗ 21.50 ± 2.17∗
+Student 18.24±2.33 12.91±1.47 30.47±3.39 22.54±2.82
+Table 2. The RMSE and MAE (Mean±STD) of glucose prediction models based on neural networks for short-
+term prediction with OhioT1DM dataset. *p<0.01,    **p<0.05
+
+Scientific Reports |        (2026) 16:11404 8| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+Results for AZT1D dataset
+The prediction error metrics of the proposed method with the AZT1D dataset are summarized in Table  4 and
+5. Compared to the baseline Seq2seq models, the incorporation of future disturbances improves RMSE from
+19.49 mg/dL to 17.36 mg/dL for 30-minute-ahead prediction, 29.96 mg/dL to 24.51 mg/dL for 60-minute-
+ahead prediction. As the increase of PH, the RMSEs are 28.40 and 31.91 mg/dL for 90- and 120-minute-ahead
+prediction, significantly lower in contrast to the baseline models. Similar for the MAE, the improvements are
+1.52, 4.27, 6.33, and 6.58 mg/dL for 30- to 120-minute-ahead prediction, respectively.
+The Clarke error grid analysis of the proposed model with AZT1D dataset is summarized in Fig. 6. For all the
+investigated PHs, there are over 90% of forecasted BGL values are distributed in the clinical acceptable zones.
+As the increase of PH, the percentage of forecasted BGLs in the clinical dangerous zones increases slightly,
+from 1.41% for 30-minute-ahead prediction to 3.53% for 120-minute-ahead prediction. Overall, the results
+demonstrate that the proposed model enables prediction of future BGLs with high clinical acceptable rate.
+Fig. 3. Clarke error grid analysis of the proposed method with OhioT1DM dataset.
+
+Scientific Reports |        (2026) 16:11404 9| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+Discussion
+Seq2One and Seq2Seq are the two major modeling strategies in blood glucose forecasting, where target values are
+predicted separately or simultaneously. Among the Seq2One models investigated in this study, the Transformer-
+based model achieved the lowest prediction error (RMSE and MAE) for short- to long-term predictions, while
+the CRNN performed worst in short-term prediction. This may be because local features were pooled in CRNN,
+losing patterns critical for short-term forecasts. Similarly, bidirectional information in the BiLSTM did not
+improve medium- to long-term prediction, as reflected in its larger RMSEs and MAEs. By contrast, Seq2Seq
+models generally improved prediction accuracy, as simultaneous prediction of future BGLs forces the models to
+generalize over the entire sequence. However, we also observed some decline in short-term forecast ability with
+RNN-based Seq2Seq models despite their overall advantage in long-term predictions.
+From a clinical perspective, the infusion of subcutaneous insulin and the consumption of meals are among
+the strongest drivers of glucose excursions. Forecasting BGL without explicitly modeling these disturbances
+raises the risk of under- or over-estimating future glucose levels, which can lead to missed opportunities for
+corrective action or unnecessary interventions. By incorporating future disturbance information into the
+modeling process, our Transformer-based Seq2Seq model achieved significant improvements in short- to long-
+term predictions (RMSE improved by 0.65-4.33 mg/dL and MAE improved by 0.37-3.25 mg/dL with OhioT1DM
+dataset, RMSE improved by 2.11-7.64 mg/dL and MAE improved by 1.48-6.58 mg/dL with AZT1D dataset).
+The results indicate that disturbance-aware modeling particularly benefits medium- to long-term forecasts,
+even though future insulin and meal information is not inherently available in the historical data. Clinically,
+more accurate medium- to long-term forecasts can enable better timing of insulin boluses, meal planning, and
+proactive prevention of hypo- or hyperglycemia.
+When the knowledge obtained by the teacher encoder was transferred to the student model, the student,
+who lacks direct future disturbance inputs, was able to approximate disturbance-aware patterns and improve
+BGL forecasts. This demonstrates the practical deployability of our framework, that is, the student model can be
+implemented in real-world systems (e.g., decision-support or closed-loop insulin delivery systems) where only
+historical data is available, yet still benefits from knowledge distilled from richer datasets during training. As
+expected, for short-term prediction, the variables that may influence the changes of future BGLs have already
+been included in the model input, the improvement of model performance is not significant. However, as
+the prediction horizon becomes larger, a considerable difference can be observed in the prediction metrics,
+demonstrating the importance of incorporating future disturbance for long-term glucose forecasting.
+Figures  4 and 5 compared the predicted and measured BGL trajectories for 30- and 60-minute-ahead
+forecasts in subjects with the least and most missing gaps. For 30-minute-ahead prediction, the model closely
+tracked CGM measurements when sensor data was available. However, larger prediction errors emerged during
+missing CGM segments, which is expected given that zero-hold extrapolation is a weak imputation strategy. We
+also observed that prediction errors were larger when CGM trajectories saturated, and that sensor noise became
+more influential at longer horizons, even though predicted values continued to follow the measurements overall.
+Models PH=90 min PH=120 min
+RMSE MAE RMSE MAE
+Seq2seq
+LSTM 36.07±6.34 27.79±5.06 39.80±7.54 30.93±5.99
+BiLSTM 36.06±6.40 27.72±5.09 39.87±7.75 31.10±6.10
+CRNN 36.10±6.25 27.84±4.98 39.76±7.43 31.09±5.97
+Transformer 36.06±6.33 27.75±5.08 39.68±7.53 30.85±6.06
+Proposed
+Teacher 28.40 ± 4.82∗ 21.42 ± 3.69∗ 31.91 ± 5.87∗ 24.27 ± 4.38∗
+Student 35.90 ± 6.07∗∗ 27.54 ± 4.95∗∗ 39.47 ± 7.18∗∗ 30.66 ± 5.86∗∗
+Table 5. The RMSE and MAE (Mean±STD) of glucose prediction models based on neural networks for long-
+term prediction with AZT1DM dataset. *p<0.01,    **p<0.05
+
+Models PH=30 min PH=60 min
+RMSE MAE RMSE MAE
+Seq2seq
+LSTM 19.38±3.35 13.98±2.64 29.85±4.86 22.51±3.91
+BiLSTM 19.30±3.38 13.88±2.66 29.71±4.90 22.30±3.94
+CRNN 19.40±3.20 14.01±2.55 29.88±4.75 22.56±3.84
+Transformer 19.49±3.40 14.05±2.68 29.96±4.95 22.52±3.99
+Proposed
+Teacher 17.36 ± 2.84∗ 12.53 ± 2.19∗ 24.51 ± 3.73∗ 18.25 ± 2.94∗
+Student 19.38±3.28 13.97±2.60 29.77±4.72 22.43±3.85
+Table 4. The RMSE and MAE (Mean±STD) of glucose prediction models based on neural networks for short-
+term prediction with AZT1DM dataset. *p<0.01,    **p<0.05
+
+Scientific Reports |        (2026) 16:11404 10| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+The OhioT1DM dataset, released for the 2018 and 2020 BGL prediction challenges, has fostered significant
+progress in glucose forecasting. Table 6 summarizes published results ranging from conventional DNN models
+to advanced deep learning techniques. For short-term prediction (PH = 30 minutes), reported RMSEs and MAEs
+range from 18.32-20.57 mg/dL and 12.85-25.09 mg/dL, respectively. Incorporating reinforcement learning with
+a DNN model achieved the lowest forecast error at an RMSE of 18.32 mg/dL and MAE of 12.93 mg/dL across
+both datasets. In comparison, our proposed model achieved an RMSE of 18.24 mg/dL and MAE of 12.91 mg/
+dL, slightly outperforming previously published results. For 60-minute-ahead prediction horizons, our model’s
+improvement was even more pronounced. This consistent performance at longer horizons benefits from the
+knowledge distilled from the teacher and is clinically meaningful because it provides patients and clinicians with
+actionable insight over extended time frames, enabling proactive interventions.
+Accurate medium- and long-term blood glucose forecasting is critical for guiding insulin dosing, meal
+planning, and hypoglycemia prevention in individuals with diabetes. By transferring future-aware representations
+05 0 100 1502 00 2503 00 350 400
+Measured BGL [mg/dl]
+0
+50
+100
+150
+200
+250
+300
+350
+400Predicted BGL [mg/dl]
+A
+D
+EC
+EC
+D
+B
+B
+(a) 30-minute-ahead prediction (Zone A: 86.86%, Zone B: 11.72%,
+Zone C: 0, Zone D: 1.41%)
+05 01 00 1502 00 250 300 350 400
+Measured BGL [mg/dl]
+0
+50
+100
+150
+200
+250
+300
+350
+400Predicted BGL [mg/dl]
+A
+D
+EC
+EC
+D
+B
+B
+(b) 60-minute-ahead prediction (Zone A: 71.02%, Zone B: 26.84%,
+Zone C: 0.03%, ZoneD :2 .10%)
+05 0 100 1502 00 2503 00 350 400
+Measured BGL [mg/dl]
+0
+50
+100
+150
+200
+250
+300
+350
+400Predicted BGL [mg/dl]
+A
+D
+EC
+EC
+D
+B
+B
+(c) 90-minute-ahead prediction (Zone A: 61.94%, Zone B: 35.17%,
+Zone C: 0.12%, Zone D: 2.74%)
+05 01 00 1502 00 250 300 350 400
+Measured BGL [mg/dl]
+0
+50
+100
+150
+200
+250
+300
+350
+400Predicted BGL [mg/dl]
+A
+D
+EC
+EC
+D
+B
+B
+(d) 120-minute-ahead prediction( Zone A: 56.57%, Zone B: 39.86%,
+Zone C: 0.15%, ZoneD :3 .38%)
+Fig. 6. Clarke error grid analysis of the proposed method with AZT1D dataset.
+
+Scientific Reports |        (2026) 16:11404 11| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+from a teacher model to a student model usable with only historical inputs, the proposed framework brings
+advanced predictive capability into settings where real-time future disturbance data are unavailable. This
+approach could enhance clinical decision-support systems and inform closed-loop insulin delivery, ultimately
+improving safety, reducing adverse events, and supporting more proactive diabetes self-management.
+Despite the advantages of our proposed knowledge-distillation-based model, several limitations remain. The
+proposed model assumes that the individuals follow a regular daily routine. Even though it is the underlying
+assumption for predictive tasks, the behavior of the individual may change considerably. To mitigate the influence
+of abnormal patterns, future work will focus on incorporating announced disturbances into the model. Besides,
+to ensure fair comparisons, the model size was kept comparable to baselines, which may limit the full potential of
+the teacher-student framework. Future work will evaluate larger architectures and data augmentation techniques
+to enhance performance.
+Conclusion
+In this work, we developed a Transformer-based deep learning framework for short- to long-term blood glucose
+prediction that incorporates knowledge distillation to exploit future disturbance information during training.
+The teacher model learns disturbance-aware temporal representations by modeling the influence of anticipated
+events, such as meal intake and insulin delivery, on glucose dynamics, while the student model is trained to
+approximate these representations using historical data only. This design enables the student to capture future-
+relevant features without requiring access to future information at inference time. Experiments conducted on
+the OhioT1DM and AZT1D datasets demonstrate that the proposed framework yields consistent improvements
+over baseline deep learning models across multiple prediction horizons. The results suggest that knowledge
+distillation can serve as a practical mechanism for transferring future-aware representations to deployable
+models constrained to historical inputs. From a clinical perspective, the observed improvements are more
+pronounced for medium- to long-term forecasts, which may support proactive decision-making such as insulin
+adjustment and hypoglycemia risk management. Future work will investigate the incorporation of additional
+announced information and the evaluation of the proposed framework in real-time and closed-loop insulin
+delivery settings.
+Fig. 4. Illustration of forecasting trajectory of the proposed method for 30-minute-ahead prediction with
+OhioT1DM dataset.
+
+Scientific Reports |        (2026) 16:11404 12| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+Fig. 5. Illustration of forecasting trajectory of the proposed method for 60-minute-ahead prediction with
+OhioT1DM dataset.
+
+Scientific Reports |        (2026) 16:11404 13| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+Data availability
+The publicly available OhioT1DM dataset used in this research is accessible, followed by requesting a data use
+agreement at  h t t p s :  / / o h i o  . q u a l t  r i c s . c  o m / j f  e / f o r m  / S V _ 0 2  Q t W E V m  7 A R I K I l. The AZT1D dataset used in this  r e s
+e a r c h is publicly available at https://data.mendeley.com/datasets/gk9m674wcx/1.
+Code availability
+The code used for reproducing the results of this manuscript is available at  h t t p s :   /  / g i t h u  b . c o  m / X i a o   y u - S   U N -  N
+E U  / D i s t r  u b a  n c  e - A  w a r e -  B G L P . g i t .
+Received: 25 December 2025; Accepted: 23 February 2026
+References
+ 1. International Diabetes Federation. IDF Diabetes Atlas 11th edn (2025).
+Method published year dataset RMSE MAE
+PH = 30 min
+GLuNet33 2019 2018 19.28±2.76 –
+TCN38 2020 2018 19.97±2.83 –
+PBGTAM20 2023 2018 20.57 25.09
+RNN+KD50 2020 2020 19.21 13.07
+RCN+ARMA51 2020 2020 20.03 15.17
+CRNN+Multitask learning52 2022 2018+2020 18.8±2.8 13.2±2.2
+E3NN18 2022 2018+2020 18.92±2.12 13.46±1.49
+FCNN53 2022 2018+2020 18.64±2.60 13.25±1.67
+GluGAN54 2023 2018+2020 19.8±2.35 14.1±1.55
+EPS-TFT27 2024 2018+2020 19.1±2.5 13.1±1.6
+Deep RL55 2024 2018+2020 18.32 12.93
+GRU+DA56 2024 2018+2020 20.48 14.59
+iTDJL57 2025 2018+2020 18.58 12.85
+GATv2+GRU58 2025 2018+2020 18.97±2.43 13.34±1.68
+ours
+– 2018 17.83±2.08 12.93±1.60
+– 2020 18.65±2.50 12.90±1.33
+– 2018+2020 18.24±2.33 12.91±1.47
+PH = 60 min
+GLuNet33 2019 2018 31.83±3.49 –
+RNN+KD50 2020 2020 31.77 23.09
+RCN+ARMA51 2020 2020 34.89 26.41
+CRNN+Multitask learning52 2022 2018+2020 32.3±3.9 23.6±3.0
+E3NN18 2022 2018+2020 32.54±3.61 24.05±2.94
+FCNN53 2022 2018+2020 31.07±3.62 22.86±2.89
+GluGAN54 2023 2018+2020 33.43±3.56 24.80±2.72
+GRU+DA56 2024 2018+2020 34.16 25.54
+EPS-TFT27 2024 2019+2020 32.3±3.8 23.2±2.8
+iTDJL57 2025 2018+2020 31.12 22.50
+ours
+– 2018 30.76±3.96 22.98±3.38
+– 2020 30.17±2.67 22.10±2.02
+– 2018+2020 30.47±3.39 22.54±2.82
+PH = 120 min
+CRNN+Multitask learning52 2022 2018+2020 47.2±4.6 36.5±3.8
+BiLSTM59 2021 2020 55.70±2.98 43.76±1.81
+Dual LSTM59 2021 2020 63.79±3.53 48.63±1.73
+Dilated RNN59 2021 2020 56.41±2.31 45.63±1.66
+Physiological DNN59 2021 2020 54.70±2.27 45.05±1.79
+ours
+– 2018 46.74±5.27 36.60±4.04
+– 2020 44.47±3.28 33.95±2.77
+– 2018+2020 45.60±4.53 35.28±3.71
+Table 6. Summary of BGL prediction accuracy for OhioT1DM dataset.
+
+Scientific Reports |        (2026) 16:11404 14| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+ 2. Khalifa, M. & Albadawy, M. Artificial intelligence for diabetes: Enhancing prevention, diagnosis, and effective management.
+Comput. Methods Progr. Biomed. Update 5, 100141 (2024).
+ 3. Garg, S. K. & McVean, J. J. Development and future of automated insulin delivery (AID) systems. Diabetes Technol. Ther. 26, 1–6
+(2024).
+ 4. Jacobs, P . G. et al. Research gaps, challenges, and opportunities in automated insulin delivery systems. J. Diabetes Sci. Technol. 19,
+937–949 (2025).
+ 5. Roy, A. et al. An automated insulin delivery system with automatic meal bolus based on a hand-gesturing algorithm. Diabetes
+Technol. Ther. 26, 633–643 (2024).
+ 6. Thomas, A. & Heinemann, L. Algorithms for automated insulin delivery: An overview. J. Diabetes Sci. Technol. 16, 1228–1238
+(2022).
+ 7. Turksoy, K., Quinn, L., Littlejohn, E. & Cinar, A. Multivariable adaptive identification and control for artificial pancreas systems.
+IEEE Trans. Biomed. Eng. 61, 883–891 (2013).
+ 8. Sun, X., Cinar, A., Liu, J., Rashid, M. & Yu, X. Prior-knowledge-embedded model predictive control for blood glucose regulation:
+Towards efficient and safe artificial pancreas. Biomed. Signal Process. Control 82, 104551 (2023).
+ 9. Yu, X. et al. Model-fusion-based online glucose concentration predictions in people with type 1 diabetes. Control. Eng. Pract. 71,
+129–141 (2018).
+ 10. Hajizadeh, I. et al. Incorporating unannounced meals and exercise in adaptive learning of personalized models for multivariable
+artificial pancreas systems. J. Diabetes Sci. Technol. 12, 953–966 (2018).
+ 11. Zhao, C. & Yu, C. Rapid model identification for online subcutaneous glucose concentration prediction for new subjects with type
+I diabetes. IEEE Trans. Biomed. Eng. 62, 1333–1344 (2015).
+ 12. Bunescu, R., Struble, N., Marling, C., Shubrook, J. & Schwartz, F . Blood glucose level prediction using physiological models and
+support vector regression. In 2013 12th International Conference on Machine Learning and Applications  vol. 1 135–140 (IEEE,
+2013).
+ 13. Afsaneh, E., Sharifdini, A., Ghazzaghi, H. & Ghobadi, M. Z. Recent applications of machine learning and deep learning models in
+the prediction, diagnosis, and management of diabetes: a comprehensive review. Diabetol. Metab. Syndr. 14, 196 (2022).
+ 14. Langarica, S., Rodriguez-Fernandez, M., Núñez, F . & Doyle, F . J. III. A meta-learning approach to personalized blood glucose
+prediction in type 1 diabetes. Control. Eng. Pract. 135, 105498 (2023).
+ 15. De Bois, M., El Y acoubi, M. A. & Ammi, M. Adversarial multi-source transfer learning in healthcare: Application to glucose
+prediction for diabetic people. Comput. Methods Programs Biomed. 199, 105874 (2021).
+ 16. Deng, Y . et al. Deep transfer learning and data augmentation improve glucose levels prediction in type 2 diabetes patients. NPJ
+Digit. Med. 4, 109 (2021).
+ 17. Nemat, H., Khadem, H., Eissa, M. R., Elliott, J. & Benaissa, M. Blood glucose level prediction: Advanced deep-ensemble learning
+approach. IEEE J. Biomed. Health Inform. 26, 2758–2769 (2022).
+ 18. Zhu, T. et al. IoMT-enabled real-time blood glucose prediction with deep learning and edge computing. IEEE Internet Things J. 10,
+3706–3719 (2022).
+ 19. Li, K., Daniels, J., Liu, C., Herrero, P . & Georgiou, P . Convolutional recurrent neural networks for glucose prediction. IEEE J.
+Biomed. Health Inform. 24, 603–613 (2019).
+ 20. Y ang, G., Liu, S., Li, Y . & He, L. Short-term prediction method of blood glucose based on temporal multi-head attention mechanism
+for diabetic patients. Biomed. Signal Process. Control 82, 104552 (2023).
+ 21. Sergazinov, R., Armandpour, M. & Gaynanova, I. Gluformer: Transformer-based personalized glucose forecasting with uncertainty
+quantification. In ICASSP 2023–2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)  1–5
+(IEEE, 2023).
+ 22. Domanski, P . et al. Blood glucose prediction for type-1 diabetics using deep reinforcement learning. In 2023 IEEE International
+Conference on Digital Health (ICDH) 339–347 (IEEE, 2023).
+ 23. Zhang, M., Flores, K. B. & Tran, H. T. Deep learning and regression approaches to forecasting blood glucose levels for type 1
+diabetes. Biomed. Signal Process. Control 69, 102923 (2021).
+ 24. Lim, M. H., Cho, Y . M. & Kim, S. Multi-task disentangled autoencoder for time-series data in glucose dynamics. IEEE J. Biomed.
+Health Inform. 26, 4702–4713 (2022).
+ 25. Lu, Y . et al. A pretrained transformer model for decoding individual glucose dynamics from continuous glucose monitoring data.
+Natl. Sci. Rev. 12, nwaf039 (2025).
+ 26. Lee, S.-M., Kim, D.-Y . & Woo, J. Glucose transformer: Forecasting glucose level and events of hyperglycemia and hypoglycemia.
+IEEE J. Biomed. Health Inform. 27, 1600–1611 (2023).
+ 27. Zhu, T. et al. Population-specific glucose prediction in diabetes care with transformer-based deep learning on the edge. IEEE Trans.
+Biomed. Circuits Syst. 18, 236–246 (2024).
+ 28. Karagoz, M. A., Breton, M. D. & El Fathi, A. A comparative study of transformer-based models for multi-horizon blood glucose
+prediction. IFAC-PapersOnLine 59, 155–160 (2025).
+ 29. Rabby, M. F . et al. Stacked LSTM based deep recurrent neural network with kalman smoothing for blood glucose prediction. BMC
+Med. Inform. Decis. Mak. 21, 101 (2021).
+ 30. Wang, W ., Tong, M. & Yu, M. Blood glucose prediction with VMD and LSTM optimized by improved particle swarm optimization.
+IEEE Access 8, 217908–217916 (2020).
+ 31. Shuvo, M. M. H. & Islam, S. K. Deep multitask learning by stacked long short-term memory for predicting personalized blood
+glucose concentration. IEEE J. Biomed. Health Inform. 27, 1612–1623 (2023).
+ 32. Shen, Y . & Kleinberg, S. Personalized blood glucose forecasting from limited CGM data using incrementally retrained LSTM. IEEE
+Trans. Biomed. Eng. 72, 1266–1277 (2025).
+ 33. Li, K., Liu, C., Zhu, T., Herrero, P . & Georgiou, P . Glunet: A deep learning framework for accurate glucose forecasting. IEEE J.
+Biomed. Health Inform. 24, 414–423 (2019).
+ 34. Bhargav, S. et al. Temporal convolutional networks involving multi-patient approach for blood glucose level predictions. In 2021
+International Conference on Computational Performance Evaluation (ComPE) 288–294 (IEEE, 2021).
+ 35. Talebi Jouneghani, L., Ahangarkiasari, M. & Nikoofard, A. Blood glucose prediction for type 1 diabetes based on self attention-
+TCN module. Int. J. Mach. Learn. Cybern. 1–13 (2025).
+ 36. Jaloli, M. & Cescon, M. Long-term prediction of blood glucose levels in type 1 diabetes using a CNN-LSTM-based deep neural
+network. J. Diabetes Sci. Technol. 17, 1590–1601 (2023).
+ 37. Sun, Q., Jankovic, M. V ., Bally, L. & Mougiakakou, S. G. Predicting blood glucose with an LSTM and Bi-LSTM based deep neural
+network. In 2018 14th Symposium on Neural Networks and Applications (NEUREL) 1–5 (IEEE, 2018).
+ 38. Xie, J. & Wang, Q. Benchmarking machine learning algorithms on blood glucose prediction for type I diabetes in comparison with
+classical time-series models. IEEE Trans. Biomed. Eng. 67, 3101–3124 (2020).
+ 39. Bhimireddy, A., Sinha, P ., Oluwalade, B., Gichoya, J. W . & Purkayastha, S. Blood glucose level prediction as time-series modeling
+using sequence-to-sequence neural networks (CEUR Workshop Proceedings, 2020).
+ 40. Xu, H. et al. CGM-based blood glucose prediction model With LSTM encoder decoder architecture. IEEE Sens. J. 25, 5824–5839
+(2025).
+ 41. He, M. et al. Causalbg: Causal recurrent neural network for the blood glucose inference with IoT platform. IEEE Internet Things J.
+7, 598–610 (2019).
+Scientific Reports |        (2026) 16:11404 15| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/
+ 42. Xue, Y ., Guan, S. & Jia, W . BGformer: An improved informer model to enhance blood glucose prediction. J. Biomed. Inform. 157,
+104715 (2024).
+ 43. Bian, Q. et al. A hybrid Transformer-LSTM model apply to glucose prediction. PLoS ONE 19, e0310084 (2024).
+ 44. Karagoz, M. A., Breton, M. D. & Fathi, A. E. A Comparative study of transformer-based models for multi-horizon blood glucose
+prediction. IFAC-PapersOnLine 59, 155–160 (2025). 1st IFAC Workshop on Engineering Diabetes Technologies EDT 2025.
+ 45. Zisser, H. et al. Bolus calculator: A review of four “smart’’ insulin pumps. Diabetes Technol. Ther. 10, 441–444 (2008).
+ 46. Hovorka, R. et al. Nonlinear model predictive control of glucose concentration in subjects with type 1 diabetes. Physiol. Meas. 25,
+905–920 (2004).
+ 47. Vaswani, A. et al. Attention is all you need. Adv. Neural Inf. Process. Syst. 30 (2017).
+ 48. Marling, C. & Bunescu, R. The OhioT1DM dataset for blood glucose level prediction: Update 2020. In CEUR workshop proceedings
+2675, 71 (2020).
+ 49. Khamesian, S., Arefeen, A., Thompson, B. M., Grando, M. A. & Ghasemzadeh, H. AZT1D: A Real-World Dataset for Type 1
+Diabetes. arXiv preprint arXiv:2506.14789 (2025).
+ 50. Hameed, H. & Kleinberg, S. Investigating potentials and pitfalls of knowledge distillation across datasets for blood glucose
+forecasting. In Proceedings of the 5th annual workshop on knowledge discovery in healthcare data (2020).
+ 51. Ma, N. et al. Online blood glucose prediction using autoregressive moving average model with residual compensation network. In
+KDH@ECAI vol. 20, 151–155 (2020).
+ 52. Daniels, J., Herrero, P . & Georgiou, P . A multitask learning approach to personalized blood glucose prediction. IEEE J. Biomed.
+Health Inform. 26, 436–445 (2021).
+ 53. Zhu, T., Li, K., Herrero, P . & Georgiou, P . Personalized blood glucose prediction for type 1 diabetes using evidential deep learning
+and meta-learning. IEEE Trans. Biomed. Eng. 70, 193–204 (2022).
+ 54. Zhu, T. et al. Glugan: Generating personalized glucose time series using generative adversarial networks. IEEE J. Biomed. Health
+Inform. 27, 5122–5133 (2023).
+ 55. Domanski, P . et al. Advancing blood glucose prediction with neural architecture search and deep reinforcement learning for type
+1 diabetics. Biocybernet. Biomed. Eng. 44, 481–500 (2024).
+ 56. Giancotti, R. et al. Forecasting glucose values for patients with type 1 diabetes using heart rate data. Comput. Methods Programs
+Biomed. 257, 108438 (2024).
+ 57. Wen, S., Li, H. & Y ang, Y . Inter-temporal dynamic joint learning model considering intra-and inter-day mutable correlations for
+blood glucose level prediction. Biomed. Signal Process. Control 101, 107204 (2025).
+ 58. Piao, C. et al. Garnn: An interpretable graph attentive recurrent neural network for predicting blood glucose levels via multivariate
+time series. Neural Netw. 185, 107229 (2025).
+ 59. Tena, F ., Garnica, O., Lanchares, J. & Hidalgo, J. I. A critical review of the state-of-the-art on deep neural networks for blood
+glucose prediction in patients with diabetes. arXiv preprint arXiv:2109.02178 (2021).
+Author contributions
+Conceptualization, Methodology, Implementation, Visualization, and Writing original draft: X. S.; Data cura -
+tion, Writing review and editing, and Supervision: H. L. and X. Y . All authors have reviewed the manuscript.
+Funding
+This work was supported in part by the National Natural Science Foundation of China (Grant 62403144 and
+62573096), the Doctoral Start-up Foundation of Liaoning Province under Grant 2023-BSBA-128, the Funda -
+mental Research Funds for the Central Universities under Grant N2404030, and Noncommunicable Chronic
+Diseases-National Science and Technology Major Project (Grant 2024ZD0532003)
+Declarations
+Competing interests
+The authors declare no competing interests.
+Additional information
+Supplementary Information The online version contains supplementary material available at  h t t p s : / / d o i . o r g / 1
+0 . 1 0 3 8 / s 4 1 5 9 8 - 0 2 6 - 4 1 7 8 7 - 7     .
+Correspondence and requests for materials should be addressed to X.S.
+Reprints and permissions information is available at www.nature.com/reprints.
+Publisher’s note Springer Nature remains neutral with regard to jurisdictional claims in published maps and
+institutional affiliations.
+Open Access  This article is licensed under a Creative Commons Attribution-NonCommercial-NoDerivatives
+4.0 International License, which permits any non-commercial use, sharing, distribution and reproduction in
+any medium or format, as long as you give appropriate credit to the original author(s) and the source, provide
+a link to the Creative Commons licence, and indicate if you modified the licensed material. Y ou do not have
+permission under this licence to share adapted material derived from this article or parts of it. The images or
+other third party material in this article are included in the article’s Creative Commons licence, unless indicated
+otherwise in a credit line to the material. If material is not included in the article’s Creative Commons licence
+and your intended use is not permitted by statutory regulation or exceeds the permitted use, you will need to
+obtain permission directly from the copyright holder. To view a copy of this licence, visit  h t t p : / / c r e a t i v e c o m m o
+n s . o r g / l i c e n s e s / b y - n c - n d / 4 . 0 /     .
+© The Author(s) 2026
+Scientific Reports |        (2026) 16:11404 16| https://doi.org/10.1038/s41598-026-41787-7
+www.nature.com/scientificreports/

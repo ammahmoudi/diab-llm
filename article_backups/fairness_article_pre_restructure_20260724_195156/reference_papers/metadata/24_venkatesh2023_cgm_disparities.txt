@@ -1,0 +1,431 @@
+Open camera or QR reader and
+scan code to access this article
+and other resources online.
+BRIEF REPORT
+Disparities in Continuous Glucose Monitoring
+Use Among Women of Reproductive Age with Type 1
+Diabetes in the T1D Exchange
+Kartik K. Venkatesh, MD, PhD, 1 Camille E. Powe, MD, 2 Elizabeth Buschur, MD, 3
+Jiqiang Wu, MSc, 1 Mark B. Landon, MD, 1 Steven Gabbe, MD, 1 Kajal Gandhi, DO, MPH, 4
+William A. Grobman, MD, MBA, 1 and Naleef Fareed, PhD, MBA 5
+Abstract
+We identiﬁed characteristics associated with continuous glucose monitoring (CGM) use in women of reproduc-
+tive age with type 1 diabetes (T1D) in the T1D Exchange clinic registry from 2015 to 2018. Among 6643
+assessed women, the frequency of CGM increased from 2015 to 2018 (20.6% vs. 30.0%; adjusted odds ratios
+[aOR]: 1.72; conﬁdence interval [95% CI]: 1.51–1.95) and was more likely with recent pregnancy (45.3% vs.
+25.8%; aOR: 1.63; 95% CI: 1.23–2.16). Non-Hispanic Black and Hispanic race and ethnicity, younger age,
+lower educational attainment, lower income, and Medicaid insurance were associated with lower odds of CGM.
+The use of CGM was associated with lower odds of diabetic ketoacidosis and lower hemoglobin A1c without
+any difference in the odds of symptomatic severe hypoglycemia. In conclusion, although CGM use was asso-
+ciated with better glycemic control, the majority of reproductive-age women still did not use it. Those who did
+not use CGM were more likely to be those at greatest risk of adverse pregnancy outcomes.
+Keywords: Type 1 diabetes, Periconception, Pregnancy, Women, Disparities, Continuous glucose monitoring.
+Introduction
+O
+ptimal glycemic control with type 1 diabetes (T1D)
+in the periconception period is critical to prevent
+adverse pregnancy outcomes. 1,2 Guidelines suggest a pre-
+conception hemoglobin A1c (A1c) target of <6.5%.3 Hyper-
+glycemia even before the ﬁrst trimester is a causative factor
+for miscarriage and congenital malformations, and later
+in pregnancy increases the risk of adverse pregnancy out-
+comes.
+4–6 Nearly one in two pregnancies with T1D are not
+planned,7 and this frequency is over twofold higher among
+non-Hispanic Black and Hispanic women. 8 The problem is
+many women with T1D are not aware that they are pregnant
+during the early ﬁrst trimester,
+9 prenatal care with intensive
+glycemic control frequently does not begin until the late ﬁrst
+trimester,1,10,11 and the risks of congenital malformation and
+miscarriage due to inadequate glycemic control are deter-
+mined before prenatal care starts.
+4,6
+Continuous glucose monitoring (CGM) improves glyce-
+mic control and reduces adverse pregnancy outcomes in
+Departments of 1Obstetrics and Gynecology, 3Medicine, 4Pediatrics, and 5Biomedical Informatics, The Ohio State University, Columbus,
+Ohio, USA.
+2Department of Medicine, Massachusetts General Hospital, Harvard Medical School, Boston, Massachusetts, USA.
+Conference presentation: This manuscript will be presented as a poster (#787) at the Society of Maternal Fetal Medicine Annual
+Conference, February 10, 2023, San Francisco, CA.
+DIABETES TECHNOLOGY & THERAPEUTICS
+Volume 25, Number 3, 2023
+ª Mary Ann Liebert, Inc.
+DOI: 10.1089/dia.2022.0412
+201
+women with T1D. 12,13 CGM use for T1D in the United
+States has increased signiﬁcantly from 3% in 2006 to 40%
+in 2018. 14 Recent data on CGM use and related patient
+characteristics from women of reproductive age with T1D
+are lacking.
+15 CGM use has continued to lag for many indi-
+viduals who experience a higher burden of adverse social
+determinants of health, including inadequate insurance,
+lower educational attainment, systemic racism, and provider
+biases.
+14,16–18
+The objective of the current analysis was to identify
+sociodemographic, clinical, and glycemic-related character-
+istics associated with CGM use versus no CGM use in women
+of reproductive age with T1D.
+Methods
+We conducted a secondary analysis from the T1D
+Exchange clinic registry from >80 clinics across the United
+States.19 This prospective cohort collects clinical and labo-
+ratory data on adults and children with T1D. In this analysis,
+we included reproductive-age girls and women with T1D
+aged 15–45 years with data between 2015 and 2018. Each
+site received approval from an Institutional Review Board
+(IRB), and informed consent was obtained. For the current
+analysis, we utilized the publicly available dataset at https://
+public.jaeb.org/datasets/diabetes, which was reviewed and
+deemed exempt by the Biomedical Institutional Review
+Board at The Ohio State University (No. 2022E0847; date:
+September 12, 2022).
+Data was collected for the clinic registry central database
+from participants’ medical records. Demographic information
+was collected through self-reported questionnaires. Data on
+age and diabetes duration were collected from medical chart
+review. Diabetes management habits, including CGM use, and
+pregnancy status were reported by participants and conﬁrmed
+by medical records. A1c measurements closest to the assess-
+ment (3 months before 1 month after) were obtained from
+clinic medical records, and were assessed as a continuous
+measure and categorically as an A1c <6.5%, consistent with
+recommendations in the periconception period to prevent
+adverse pregnancy outcomes.
+3,20 Consistent with prior ana-
+lyses, a diagnosis of symptomatic severe hypoglycemia
+required loss of consciousness or seizure and a diagnosis of
+diabetic ketoacidosis required an overnight hospitalization.
+This analysis does not use data from more detailed question-
+naires, including pregnancy surveys, from the T1D Exchange.
+The outcome was CGM use versus no CGM use at the time
+of survey assessment reported by participants and conﬁrmed
+by medical records. We assessed sociodemographic (age,
+education, income, self-reported race, and ethnicity), clini-
+cal (body mass index [BMI], insulin delivery, T1D duration,
+T1D complications), and glycemic-related factors (diabetic
+ketoacidosis, symptomatic severe hypoglycemia, A1c) that
+were associated with CGM use compared to no CGM use.
+Unadjusted and adjusted odds ratios (OR, aOR) with conﬁ-
+dence intervals (95% CIs) were calculated. Models were
+adjusted for age, insurance status, educational attainment,
+and T1D duration. Imputation for missing data was perfor-
+med (n = 30 imputations) and estimates were combined using
+Rubin’s rule. All statistical analyses were performed using
+STATA (version 16.1; STATACORP, College Station, TX).
+Results
+Among 24,576 individuals with T1D, we excluded those
+who identiﬁed as male sex ( n = 17,888), were aged <15 or
+>45 years ( n = 5712), without sex recorded ( n = 32), identi-
+ﬁed as transgender ( n = 13), and did not have CGM use
+recorded ( n = 165), resulting in a ﬁnal analytic sample of
+6478 women (Supplementary Fig. S1). Overall, 5552 of these
+women were assessed in 2015–2016, 4761 in 2016–2017, and
+5877 in 2017–2018.
+The median age was 20.0 years (interquartile range [IQR]:
+17.0, 28.0), and 5.9% and 9.3% self-identiﬁed as non-
+Hispanic Black and Hispanic, respectively, and 19.6% were
+enrolled in Medicaid. The median duration of living with
+diabetes 11.5 years (IQR: 7.5, 16.8). Over two thirds
+(67.3%) reported current insulin pump use. A total of
+5.9% reported diabetic ketoacidosis and 1.6% symptom-
+atic severe hypoglycemia within the past 12 months. The
+mean A1c was 8.3% (IQR: 7.4, 9.6), which was lower with
+CGM use (7.6% [IQR: 7.0, 8.5] vs. 8.6% [IQR: 7.6, 10.0];
+P < 0.05)
+CGM use increased over time (2017–2018 vs. 2015–2016
+[reference]: 30.0% vs. 20.6%; aOR: 1.72; 95% CI: 1.51–
+1.95) (Fig. 1). Women who had recently been pregnant in
+the past 12 months were more likely to use CGM (45.3%
+vs. 25.8%; aOR: 1.63; 95% CI: 1.23–2.16). But, CGM use
+in those who had been pregnant remained stable across
+time (44.7% 2015–2016, 43.5% 2016–2017, and 46.5%
+2017–2018.
+Sociodemographic characteristics generally indicative of
+adverse social determinants of health were associated with
+lower adjusted odds of CGM use, including non-Hispanic
+Black (11.3% vs. 29.1%; aOR: 0.40; 95% CI: 0.28–0.56) and
+Hispanic compared to non-Hispanic White race and ethnicity
+(16.2% vs. 29.1%; aOR: 0.73; 95% CI: 0.57–0.92), lower
+educational attainment among those >18 years of age (for
+example, high school or less vs. graduate school or higher:
+17.6% vs. 44.3%; aOR: 0.45; 95% CI: 0.34–0.60), lower
+income (for example, <$35,000/year vs. $75,000/year: 24.1
+vs. 34.6%; aOR: 0.48; 95% CI: 0.39–0.59), and Medicaid
+insurance (9.6% vs. 31.1%; aOR: 0.30; 95% CI: 0.24–0.36)
+(Fig. 1). Odds of CGM use increased with age ( <20 years
+vs. >35 years: 18.6% vs. 43.1%; aOR: 2.66; 95% CI: 2.14–
+3.32).
+CGM use was associated with higher adjusted odds of
+insulin pump use (34.0% vs. 10.2%; aOR: 3.90; 95% CI:
+3.32–4.57), and a lower adjusted odds of current smoking
+(11.8% vs. 27.2%; aOR: 0.36; 95% CI: 0.23–0.58) (Fig. 1).
+CGM use was not associated with the duration of living
+with T1D and BMI. CGM use was not associated with clin-
+ical conditions associated with worse diabetes, including
+renal disease (glomerular ﬁltration rate <60 mL/min), reti-
+nopathy, neuropathy, and gastroparesis (data not shown).
+CGM use was associated with improved glycemic con-
+trol, including higher adjusted odds of A1c <6.5% versus
+‡6.5% (49.4% vs. 24.6%; aOR: 1.95; 95% CI: 1.57–2.44),
+as well as incrementally with each 1% improvement in A1c
+from ‡9.5% to £6.5% (Fig. 1). CGM use was associated
+with lower adjusted odds of diabetic ketoacidosis (12.9%
+vs. 27.2%; aOR: 0.57; 95% CI: 0.41–0.78). CGM use did
+not vary by symptomatic severe hypoglycemia, of which few
+cases occurred with an A1c <6.5% (5.7%).
+202 VENKATESH ET AL.
+FIG. 1. Sociodemographic, clinical, and glycemic characteristics associated with CGM use among women of reproductive age with T1D ( N = 6478). CGM, continuous
+glucose monitoring; T1D, type 1 diabetes.
+203
+Discussion
+In the T1D Exchange registry, reproductive-age women
+with T1D increased their use of CGM from 2015 to 2018.
+Moreover, those who used CGM demonstrated better gly-
+cemic control. Yet, most were still not using CGM, including
+those who were recently pregnant. Disconcertingly, women
+who were the least likely to use CGM were also those who
+were exposed to more adverse social determinants of health.
+These ﬁndings among women of reproductive age are
+consistent with prior studies conducted among adults and
+adolescents with T1D, including from the T1D Exchange
+Registry and T1DX-QI Collaborative, that found that those of
+lower socioeconomic status, younger age, and who identiﬁed
+as non-Hispanic Black and Hispanic were less likely to use
+CGM.
+18,21,22 Low CGM use by women who experience
+more adverse social determinants of health could contribute
+to persistent disparities in glycemic control, as well as ad-
+verse pregnancy outcomes. Possible reasons for disparities in
+CGM use may include systemic racism, diminished access to
+health care, psychosocial stressors, provider bias, inadequate
+patient-provider communication, and strict eligibility criteria
+that add additional hurdles to use for those who experience
+more unmet social needs.
+23–26
+In the current study, CGM use was associated with a higher
+likelihood of achieving an A1c in the optimal range for
+preconception. In addition, women who were recently preg-
+nant were more likely to use CGM. A prior analysis using
+baseline data from the TID Exchange Registry between 2010
+and 2013 found that CGM use was higher and median A1c
+was slightly lower among recently and ever pregnant indi-
+viduals compared to those who were never pregnant.
+27
+Nevertheless, most women were not at an optimal A1c level
+for preconception. The current analysis demonstrated that
+even if CGM use was more likely periconceptionally, CGM
+use still only occurred in a minority of these women.
+In the pregnancy arm of the T1D CONCEPTT trial, those
+randomized to CGM versus self-monitoring blood glucose
+had a signiﬁcant reduction in A1c, more time in target range,
+and less hyperglycemic events.
+19 Episodes of severe hypo-
+glycemia and diabetic ketoacidosis were similar between
+groups. In the smaller CONCEPTT trial arm of nonpregnant
+individuals planning pregnancy who were randomized to
+CGM, the point estimates were consistent with the preg-
+nancy arm but with wider CIs that included the null value.
+These ﬁndings of the current study emphasize that further
+research is needed to understand how to increase access
+to and uptake of CGM in general, and in particular among
+women who experience a higher burden of adverse social
+determinants of health.
+18 Encouragingly, CGM use may be
+increasing as among a subset of 47 pregnant women who
+completed a questionnaire as part of the TID Exchange, CGM
+use was 70% in 2016–2018.
+28 Nevertheless, preconception
+care could be an opportunity to increase CGM use by opti-
+mizing glycemic control before pregnancy. The problem
+remains that only 1 in 10 women of reproductive age with
+T1D in the United States receive any preconception care,
+and those who do are more likely to have higher educational
+attainment, be employed, and have private insurance.
+11
+C G Mc o n t i n u e st ol a c kU . S .F o o da n dD r u gA d m i n i s -
+tration approval for use in pregnancy, which may also limit
+access in the periconception period. In addition, patient-
+provider relationships that emphasize person-centered
+decision-making, open communication, and enhance patient
+engagement could increase CGM use. 29 Finally, standard
+and equitable care delivery that provides equal opportunity and
+access to diabetes technology could also increase CGM use.
+There are several limitations of this study. We conducted
+a serial cross-sectional analysis, and hence cannot com-
+ment on the temporality as well as causality between observed
+associations between patient characteristics and CGM use.
+We cannot determine whether patients had used but dis-
+continued CGM or whether they had been offered CGM but
+then declined this option. Because the T1D Exchange Reg-
+istry does not collect detailed reproductive health out-
+comes on follow-up surveys, those outcomes could not be
+assessed. We assessed individual factors associated with
+CGM use, and further studies are needed to understand inter-
+actions among the multiple factors associated with CGM use.
+The current analysis did not address additional technology
+features associated with CGM use, including duration of use,
+alarms, use of CGM to decide/adjust insulin dosing, device
+downloading, and mobile medical applications.
+The T1D Exchange Registry is a clinic-based and not
+population-based cohort, which may affect the generaliz-
+ability of the ﬁndings. The data source primarily included
+individuals treated at endocrinology centers that focused on
+TID care, and hence CGM use was likely higher than in the
+broader population of individuals with T1D. It is also pos-
+sible that the proportion meeting glycemic targets may be
+greater in this study population. These data are now at least
+4 years old, and CGM use has likely increased with greater
+insurance coverage. However, obtaining CGM access for
+those individuals who experience more adverse social deter-
+minants of health, including adequate insurance coverage,
+remains a persistent problem and may further increase dis-
+parities in equitable diabetes outcomes.
+In conclusion, CGM use has recently increased in
+reproductive-age women with T1D, and results in better
+glycemic control. Yet, most of these women were not using
+CGM, including in the periconception period, and the likeli-
+hood of use was related to multiple adverse social determi-
+nants of health. As innovative technologies raise the standards
+of care in T1D, further efforts that drive toward equitable
+care and outcomes will be needed not only to increase CGM
+use among reproductive-age women, but to then translate that
+use to improved maternal and neonatal outcomes.
+Authors’ Contributions
+K.K.V., N.F., and W.A.G.: review and editing, K.K.V.,
+C.E.P., E.B., and N.F.: Conceptualization; K.K.V., N.F.,
+S.G., and W.A.G.: writing—original draft; K.K.V., J.W., and
+W.A.G.: formal analysis; M.B.L., S.G., and K.G.: review and
+editing; K.K.V., J.W., N.F., and W.A.G.: methodology.
+Author Disclosure Statement
+No competing ﬁnancial interests exist.
+Funding Information
+K.K.V. was supported by the Care Innovation and Commu-
+nity Improvement Program at The Ohio State University. K.K.V.
+and N.F. were supported by AHRQ grant no. R01HS028822.
+204 VENKATESH ET AL.
+Supplementary Material
+Supplementary Figure S1
+References
+1. Morrison M, Hendrieckx C, Nankervis A, et al.: Factors
+associated with attendance for pre-pregnancy care and
+reasons for non-attendance among women with diabetes.
+Diabetes Res Clin Pract 2018;142:269–275.
+2. Murphy HR, Temple RC, Ball VE, et al.; and East Anglia
+Study group for Improving Pregnancy Outcomes in women
+with Diabetes (EASIPOD): Personal experiences of women
+with diabetes who do not attend pre-pregnancy care. Diabet
+Med 2010;27:92–100.
+3. American Diabetes Association: 14. Management of dia-
+betes in pregnancy: standards of medical care in diabetes—
+2020. Diabetes Care 2020;43(S1):S183–S192.
+4. Evers IM, de Valk HW, Visser GHA: Risk of complications
+of pregnancy in women with type 1 diabetes: nationwide
+prospective study in the Netherlands. Br Med J 2004;328:
+915.
+5. Davidson A, Park AL, Berger H, et al.: Risk of severe
+maternal morbidity or death in relation to elevated hemo-
+globin A1c preconception, and in early pregnancy: a
+population-based cohort study. PLoS Med 2020;17:
+e1003104.
+6. Davidson AJF, Park AL, Berger H, et al.: Association of
+improved periconception hemoglobin a1c with pregnancy
+outcomes in women with diabetes. JAMA Netw Open
+2020;3:e2030207.
+7. Murphy HR, Bell R, Dornhorst A, et al.: Pregnancy in dia-
+betes: challenges and opportunities for improving preg-
+nancy outcomes. Diabet Med 2018;35:292–299.
+8. Quinn DA, Sileanu FE, Zhao X, et al.: History of unin-
+tended pregnancy and patterns of contraceptive use among
+racial and ethnic minority women veterans. Am J Obstet
+Gynecol 2020;223:e13.
+9. Wahabi HA, Fayed A, Esmaeil S, et al.: Systematic review
+and meta-analysis of the effectiveness of pre-pregnancy
+care for women with diabetes for improving maternal and
+perinatal outcomes. PLoS One 2020;15:e0237571.
+10. Disney EA, Sanders JN, Turok DK, et al.: Preconception
+counseling, contraceptive counseling, and long-acting
+reversible contraception use in women with type I diabetes:
+a retrospective cohort study. Women’s Health Rep (New
+Rochelle, NY) 2020;1:334–340.
+11. Easter S, Rosenthal EW, Morton-Eggleston E, et al.: Dis-
+parities in care for publicly insured women with pregesta-
+tional diabetes. Obstet Gynecol 2017;130:946–952.
+12. Murphy HR, Rayman G, Lewis K, et al.: Effectiveness
+of continuous glucose monitoring in pregnant women with
+diabetes: randomised clinical trial. Br Med J 2008;337:
+a1680.
+13. Feig D, Donovan LE, Corcoy R, et al.: Continuous glu-
+cose monitoring in pregnant women with type 1 diabetes
+(CONCEPTT): a multicentre international randomised
+controlled trial. Lancet 2017;390:2346.
+14. Foster NC, Beck RW, Miller KM, et al.: State of type 1
+diabetes management and outcomes from the T1D exchange
+in 2016–2018. Diabetes Technol Ther 2019;21:66–72.
+15. Yamamoto J, Murphy HR: Beneﬁts of real-time continuous
+glucose monitoring in pregnancy. Diabetes Technol Ther
+2021;23:S8–S14.
+16. Heinemann L, Hans DeVries J: Reimbursement for con-
+tinuous glucose monitoring. Diabetes Technol Ther 2016;
+18(S2):S248–S252.
+17. Tanenbaum M, Commissariat PV: Barriers and facilitators
+to diabetes device adoption for people with type 1 diabetes.
+Curr Diab Rep 2022;22:291–299.
+18. DeSalvo D, Noor N, Xie C, et al.: Patient demographics
+and clinical outcomes among type 1 diabetes patients using
+continuous glucose monitors: data from T1D exchange
+real-world observational study. J Diabetes Sci Technol
+2021 (in press).
+19. Beck R, Tamborlane WV, Bergenstal RM, et al.; T1D
+Exchange Clinic Network: The T1D Exchange clinic reg-
+istry. J Clin Endocrinol Metab 2012;97:4383–4389.
+20. Bulletins—Obstetrics. ACoOaGCoP: ACOG Practice
+Bulletin No. 201: pregestational diabetes mellitus. Obstet
+Gynecol 2018;132:e228–e248.
+21. Agarwal S, Schechter C, Gonzalez J, et al.: Racial-ethnic
+disparities in diabetes technology use among young adults
+with type 1 diabetes. Diabetes Technol Ther 2021;23:306–
+313.
+22. Fantasia K, Wirunsawanya K, Lee C, et al.: Racial dis-
+parities in diabetes technology use and outcomes in type 1
+diabetes in a safety-net hospital. J Diabetes Sci Technol
+2021;15:1010–1017.
+23. Galindo RJPC, Aleppo G, Carlson AL, et al.: What’s wrong
+with this picture? A critical review of current centers for
+medicare & medicaid services coverage criteria for con-
+tinuous glucose monitoring. Diabetes Technol Ther 2021;
+23:652–660.
+24. Hall W, Chapman MV, Lee KM, et al.: Implicit racial/
+ethnic bias among health care professionals and its inﬂu-
+ence on health care outcomes: a systematic review. Am J
+Public Health 2015;105:e60–e76.
+25. Baig A, Locklin CA, Wilkes AE, et al.: ‘‘One Can Learn
+From Other People’s Experiences’’: latino adults’ prefer-
+ences for peer-based diabetes interventions. Diabetes Educ
+2012;38:733–741.
+26. Huang E, Brown SE, Thakur N, et al.: Racial/ethnic dif-
+ferences in concerns about current and future medications
+among patients with type 2 diabetes. Diabetes Care 2009;
+32:311–316.
+27. Polsky S, Wu M, Bode BW, et al.: Diabetes technology use
+among pregnant and nonpregnant women with T1D in the
+T1D exchange. Diabetes Technol Ther 2018;20:517–523.
+28. Levy C, Foster NC, DuBose SN, et al.: Changes in device
+uptake and glycemic control among pregnant women with
+type 1 diabetes: data from the T1D exchange. J Diabetes
+Sci Technol 2021;15:1297–1302.
+29. Miller V, Xiao R, Slick N, et al.: Youth involvement in
+the decision to start CGM predicts subsequent CGM use.
+Diabetes Care 2020;43:2355–2361.
+Address correspondence to:
+Kartik K. Venkatesh, MD, PhD
+Division of Maternal Fetal Medicine
+Department of Obstetrics and Gynecology
+The Ohio State University
+395 West 12th Avenue, Floor 5
+Columbus, OH 43210
+USA
+E-mail: kartik.venkatesh@osumc.edu
+CGM USE IN WOMEN OF REPRODUCTIVE AGE 205

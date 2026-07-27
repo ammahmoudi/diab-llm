@@ -30,6 +30,11 @@ MANIFEST
 *~
 .DS_Store
 
+# Local AI research integrations and generated research artifacts
+.research-tools/
+.research-data/
+.pipeline/
+
 # Logs and outputs
 logs/
 *.log

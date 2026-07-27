@@ -1,0 +1,1070 @@
+ 1
+TITLE:
+
+Clinical Targets for Continuous Glucose Monitoring Data Interpretation:
+Recommendations from the International Consensus on Time-in-Range
+
+RUNNING TITLE:
+
+CGM Time-In-Range Consensus
+
+AUTHORS:
+
+Tadej Battelino, Department of Pediatric Endocrinology, Diabetes and Metabolism,
+University Medical Centre-University Children’s Hospital, and Faculty of Medicine,
+University of Ljubljana, Slovenia
+Thomas Danne, Diabetes Centre for Children and Adolescents, AUF DER BULT, Kinder-
+und Jugendkrankenhaus, Hannover, Germany
+Stephanie A. Amiel, Diabetes Research Group, King's College London, London, United
+Kingdom
+Roy Beck, Jaeb Center for Health Research, Tampa, Florida, USA
+Richard M. Bergenstal, International Diabetes Center at Park Nicollet, Minneapolis, MN,
+USA
+Torben Biester, Diabetes Centre for Children and Adolescents, AUF DER BULT, Kinder-
+und Jugendkrankenhaus, Hannover, Germany
+Emanuele Bosi, Diabetes Research Institute, IRCCS San Raffaele Hospital, Vita-Salute San
+Raffaele University, Milan, Italy.
+Bruce Buckingham, Stanford Medical Center, Department of Pediatrics, Division of
+Endocrinology and Diabetes, Stanford, CA, U.S.A
+William Cefalu, American Diabetes Association, Alexandria, VA, USA
+Kelly L. Close, Close Concerns and diaTribe, San Francisco, California, USA
+Claudio Cobelli, Department of Information Engineering, University of Padova, Padova,
+Italy.
+ 2
+Eyal Dassau, Harvard John A. Paulson School of Engineering and Applied Sciences, Harvard
+University, Cambridge, Massachusetts, USA
+J. Hans DeVries, Profil, Neuss, Germany and Academic Medical Center, University of
+Amsterdam, Amsterdam, The Netherlands
+Kim Donaghue, The Children's Hospital at Westmead, University of Sydney, Australia,
+Klemen Dovc, Department of Pediatric Endocrinology, Diabetes and Metabolism, University
+Medical Centre-University Children’s Hospital, Ljubljana, Slovenia
+Francis J. Doyle III, Harvard John A. Paulson School of Engineering and Applied Sciences,
+Harvard University, Cambridge, Massachusetts, USA
+Satish Garg, University of Colorado Denver and Barbara Davis Center for Diabetes, Aurora,
+Colorado USA
+George Grunberger, Grunberger Diabetes Institute, Bloomfield Hills, Michigan, USA
+Simon Heller, Academic Unit of Diabetes, Endocrinology and Metabolism, University of
+Sheffield, Sheffield, United Kingdom
+Lutz Heinemann, Science Consulting in Diabetes, Neuss, Germany
+Irl B. Hirsch, Department of Medicine, Division of Metabolism, Endocrinology, & Nutrition,
+University of Washington School of Medicine, Seattle, Washington, USA
+Roman Hovorka, Wellcome Trust-MRC Institute of Metabolic Science, and Department of
+Paediatrics, University of Cambridge, Cambridge, United Kingdom
+Weiping Jia, Department of Endocrinology & Metabolism, Shanghai Clinical Center of
+Diabetes, Shanghai Diabetes Institute, Shanghai Key Laboratory of Diabetes Mellitus,
+Shanghai Jiao Tong University Affiliated Sixth People's Hospital, Shanghai, China
+Olga Kordonouri, Diabetes Centre for Children and Adolescents, AUF DER BULT, Kinder-
+und Jugendkrankenhaus, Hannover, Germany
+Boris Kovatchev, Center for Diabetes Technology, University of Virginia, Charlottesville,
+VA, U.S.A
+Aaron Kowalski, Juvenile Diabetes Research Foundation, New York, New York, USA
+Lori Laffel, Pediatric, Adolescent and Young Adult Section and Section on Clinical,
+Behavioral and Outcomes Research, Joslin Diabetes Center, Harvard Medical School,
+Boston, MA, U.S.A
+Brian Levine, Close Concerns and diaTribe, San Francisco, California, USA
+ 3
+Aleksander Mayorov, I.M. Sechenov First Moscow State Medical University, Moscow,
+Russia
+Chantal Mathieu, MD, Clinical and Experimental Endocrinology, KU Leuven, Leuven,
+Belgium
+Helen R. Murphy, Norwich Medical School, University of East Anglia, Norwich, United
+Kingdom
+Revital Nimri, The Jesse Z and Sara Lea Shafer Institute for Endocrinology and Diabetes,
+National Center for Childhood Diabetes, Schneider Children’s Medical Center of Israel,
+Petah Tikva, and Sackler Faculty of Medicine, Tel-Aviv University, Tel Aviv, Israel
+Kirsten Nørgaard, Steno Diabetes Center Copenhagen, Gentofte, Denmark
+Christopher G. Parkin, CGParkin Communications, Inc., Boulder City, NV, USA
+Eric Renard, Montpellier University Hospital, Department of Endocrinology, Diabetes,
+Nutrition, Montpellier, and Institute of Functional Genomics, University of Montpellier,
+Montpellier, and INSERM Clinical Investigation Centre, Montpellier, France.
+David Rodbard, Biomedical Informatics Consultants LLC, Potomac, Maryland, USA
+Banshi Saboo, DiaCare, Ahmedabad, Gujarat, India
+Desmond Schatz, University of Florida, Pediatric Endocrinology, Gainesville, FL, USA
+Keaton Stoner, dQ&A Market Research, Inc., San Francisco, California, USA
+Tatsuiko Urakami, Department of Pediatrics, Nihon University School of Medicine, Tokyo,
+Japan
+Stuart A. Weinzimer, Department of Pediatrics, Yale School of Medicine, New Haven,
+Connecticut, USA
+Moshe Phillip, The Jesse Z and Sara Lea Shafer Institute for Endocrinology and Diabetes,
+National Center for Childhood Diabetes, Schneider Children’s Medical Center of Israel,
+Petah Tikva, and Sackler Faculty of Medicine, Tel-Aviv University, Tel Aviv, Israel
+
+CORRESPONDING AUTHOR
+Tadej Battelino, Department of Pediatric Endocrinology, Diabetes and Metabolism,
+University Medical Centre-University Children’s Hospital, and Faculty of Medicine,
+University of Ljubljana, Slovenia, (+386 1 522 9235), tadej.battelino@mf.uni-lj.si
+
+ 4
+
+
+WORD COUNT
+
+
+FIGURES / TABLES
+2 Figures / 3 Tables
+
+ABBREVIATIONS
+A1C=glycated hemoglobin; AGP=ambulatory glucose profile; ATTD=Advanced Technologies
+& Treatments for Diabetes; AUC= area under the curve; CGM=continuous glucose monitoring;
+CI=confidence interval; DR=diabetic retinopathy; GMI=glucose management indicator;
+GV=glycemic variability; HBGI-high blood glucose index; HCL=hybrid closed-loop; iCGM=
+intermittently-scanned continuous glucose monitoring; MDI=multiple daily injections;
+NPDR=mild nonproliferative diabetic retinopathy; rtCGM=real-time continuous glucose
+monitoring; LBGI-low blood glucose index; SD=standard deviation; SGLT-2=sodium glucose
+cotransporter-2; TAR=time above range; TBR=time below range; TIR=time in range;
+VTDR=vision-threatening diabetic retinopathy
+
+
+
+ 5
+(ABSTRACT)
+
+Improvements in sensor accuracy, greater convenience and ease of use and expanding
+reimbursement have led to growing adoption of continuous glucose monitoring (CGM).
+However, successful utilization of CGM technology in routine clinical practice remains
+relatively low. This may be due in part to the lack of clear and agreed upon glycemic targets that
+both diabetes teams and people with diabetes can work towards. Although unified
+recommendations for use of key CGM metrics have been established in three separate peer
+reviewed articles, formal adoption by diabetes professional organizations, and guidance in the
+practical application of these metrics in clinical practice has been lacking. In February 2019, the
+Advanced Technologies & Treatments for Diabetes (ATTD) Congress convened an international
+panel of physicians, researchers, and individuals with diabetes who are expert in CGM
+technologies to address this issue. This article summarizes the ATTD consensus
+recommendations for relevant aspects of CGM data utilization and reporting among the various
+diabetes populations.
+
+ 6
+Adoption of continuous glucose monitoring (CGM), which includes both real-time CGM
+(rtCGM) and intermittently-scanned CGM (isCGM), has grown rapidly over the past few years
+due to improvements in sensor accuracy, greater convenience and ease of use and expanding
+reimbursement. Numerous studies have demonstrated significant clinical benefits of CGM use in
+people with diabetes regardless of insulin delivery method (1-15). In many countries, the benefits
+and utility of CGM are now recognized by national and international medical organizations for
+individuals with insulin-requiring diabetes and/or those at risk for hypoglycemia (16-21).
+However, despite increased CGM adoption (22; 23), successful utilization of CGM data in
+routine clinical practice remains relatively low. This may be due in part to the lack of clear and
+agreed upon glycemic targets toward which both diabetes teams and people with diabetes can
+work.
+In 2012 the Helmsley Charitable Trust sponsored the first expert panel to recommend the
+standardization of CGM metrics and CGM report visualization (24). This was followed by a
+series of CGM consensus statements refining the core CGM metrics but the conclusions were
+never in alignment. In 2017, several articles supported use of systematic approaches to CGM
+data evaluation (18-20). To date, the key CGM metrics remain as unified recommendations in
+three separate peer reviewed articles, yet formal adoption by diabetes professional organizations
+and guidance in the practical application of these metrics in clinical practice has been lacking
+(19).
+In February 2019, the Advanced Technologies and Treatments for Diabetes (ATTD)
+Congress convened an international panel of individuals with diabetes and clinicians and
+researchers expert in CGM. Our objective was to develop evidence-based, clinical CGM targets
+to supplement the currently agreed-upon metrics for CGM derived times in glucose ranges
+(within target range, below target range, above target range) in order to provide guidance for
+clinicians, researchers, and individuals with diabetes in utilizing, interpreting and reporting CGM
+data in routine clinical care and research. Importantly, in order to make the recommendations
+generalizable and comprehensive, the consensus panel included individuals living with diabetes
+and had international representation from physicians and researchers from all geographic
+regions.
+
+ 7
+ The panel was divided into subgroups to review literature and provid e evidence-based
+recommendations for relevant aspects of CGM data utilization and reporting among the various
+diabetes populations. Because long-term trials demonstrating how CGM metrics relate to and/or
+predict clinical outcomes have not been conducted, there is suggestive evidence from a number
+of recent studies, one a cross-sectional study correlating current retrospective 3-day TIR with
+varying degrees of diabetes retinopathy (25) and an analysis of the 7-point SMBG data from the
+DCCT (26) have shown correlations of time in target range (70-180 mg/dL [3.9-10.0 mmol/L])
+with diabetes complication.  Relationships between time in target range and A1C (25; 26) and
+number of severe and non-severe hypoglycemic events (27-31) have also been observed.
+Recommendations from each subgroup were then presented to the full panel and voted upon.
+This article summarizes the consensus recommendations and represents the panel members’
+evaluation of the issues.
+
+Need for Metrics Beyond A1C
+A1C is currently recognized as the key surrogate marker for the development of long-
+term diabetes complications in people with type 1 and type 2 diabetes and has been used the
+primary endpoint for many CGM studies (1; 3; 4; 6; 32; 33). While A1C reflects the average
+glucose over the last 2-3 months, its limitation is the lack of  information about acute glycemic
+excursions and the acute complications of  hypo- and hyperglycemia. A1C also fails to identify
+the magnitude and frequency of intra- and inter-day glucose variation (34; 35). Moreover, certain
+conditions such as anemia (36), hemoglobinopathies (37), iron deficiency (38), and pregnancy
+(39) can confound A1C measurements. Importantly, as reported by Beck and colleagues, the
+A1C test can at times fail to accurately reflect mean glucose even when none of these conditions
+are present (40). Despite these limitations, A1C is the only prospectively evaluated tool for
+assessing the risk for diabetes complications and its importance in clinical decision-making
+should not be undervalued. Rather, the utility of A1C is further enhanced when used in
+combination with CGM data.
+Unlike A1C measurement, use of CGM allows for the direct observation of glycemic
+excursions and daily profiles, which can inform on immediate therapy decisions and/or lifestyle
+modifications. CGM also provides the ability to assess glucose variability (GV) and identify
+patterns of hypo- and hyperglycemia.
+ 8
+ Effective use of CGM data to optimize clinical outcomes re quires the user to interpret the
+collected data and act upon them appropriately. This requires: 1) common metrics for assessment
+of CGM glycemic status; 2) graphical visualization of the glucose data and CGM daily profile;
+and 3) clear evidence-based clinical targets.
+
+Standardization of CGM Metrics
+In February 2017, the Advanced Technologies and Treatments for Diabetes (ATTD)
+Congress convened an international panel of expert clinicians and researchers to define core
+metrics for assessing CGM data (18). (Table 1)
+
+Table 1. Standardized CGM Metrics
+2017 International Consensus on CGM Metrics (18)
+ 1. Number of Days CGM Worn
+ 2. Percentage of time CGM is active
+ 3. Mean Glucose
+ 4. Estimated A1c (eA1C)
+ 5. Glycemic Variability (%CV or SD)
+ 6. Time >250 mg/dL (>13.9 mmol/L)
+ 7. Time >180 mg/dL (>10.0 mmol/L)
+ 8. Time 70-180 mg/dL (3.9-10.0 mmol/L)
+ 9. Time <70 mg/dL (<3.9 mmol/L)
+10. Time <54 mg/dL (<3.0 mmol/L)
+11. LBGI & HBGI (risk indices)
+12. Episodes (hypoglycemia and hyperglycemia) 15 min
+13. Area under the curve (AUC)
+14. Time Blocks (24-h, day, night)
+Use of Ambulatory Glucose Profile (AGP) for CGM report
+ CV=Coefficient of variation; SD=standard deviation; LBGI =low blood glucose index; HBGI=high blood glucose index.
+
+ 9
+ The list of core CGM metrics has now been streamlined f or use in clinical practice based
+on the expert opinion of this International Consensus Group (18). Of the 14 core metrics, the
+panel selected that 10 metrics that may be most useful in clinical practice (Table 2).
+
+Table 2. Standardized CGM Metrics for Clinical Care
+2019 Core CGM Metrics for Clinical Care  (18)
+ 1. Number of Days CGM Worn (recommend 14 days) (41; 42)
+
+ 2. Percentage of time CGM is active (recommend 70% of data from 14 days) (41; 42).
+ 3. Mean Glucose
+ 4. Glucose Management Indicator (GMI) (43)
+ 5. Glycemic Variability (%CV) Target <36% (44)*
+ 6. Time Above Range (TAR) -  % of readings and time >250 mg/dL (>13.9 mmol/L)                    Level 2
+ 7. Time Above Range (TAR) -  % of readings and time 181-250 mg/dL (10.1-13.9 mmol/L)
+
+Level 1
+ 8. Time In Range (TIR)  -  % of readings and time 70-180 mg/dL (3.9-10.0 mmol/L)
+
+In Range
+ 9. Time Below Range (TBR) -  % of readings and time 54-69 mg/dL (3.0-3.8 mmol/L)
+
+Level 1
+10. Time Below Range (TBR) - % of readings and time <54 mg/dL (<3.0 mmol/L)
+
+Level 2
+Use of Ambulatory Glucose Profile (AGP) for CGM report
+ CV=Coefficient of variation; SD=standard deviation; LBGI =low blood glucose index; HBGI=high blood glucose index.
+* Some studies suggest that lower %CV targets (<33%) provide additional protection against hypoglycemia for
+those receiving insulin or sulfonylureas: <33% (44-46)
+
+Fundamental to accurate and meaningful interpretation of CGM is ensuring that adequate
+glucose data are available for evaluation. As shown in studies, >70% use of CGM over the recent
+14 days correlates strongly with 3 months of mean glucose, time in ranges, and hyperglycemia
+metrics (41; 42). In individuals with type 1 diabetes, correlations are weaker for hypoglycemia
+and glycemic variability; however, these correlations have not been shown to increase with
+longer sampling periods (42). Longer CGM data collection periods may be required for
+individuals with more variable glycemic control (e.g., 4 weeks of data to investigate
+hypoglycemia exposure).
+ 10
+Time in Ranges
+The development of blood glucose testing in 1965 provided individuals with diabetes the
+ability to obtain immediate information about their current glucose levels and adjust their therapy
+accordingly. Over the past decades, national and international medical organization have been
+successful in developing, harmonizing, and disseminating standardized glycemic targets based
+on risk for acute and chronic complications. CGM technology greatly expands the ability to
+assess glycemic control throughout the day, presenting critical data to inform daily treatment
+decisions and quantifying time below, within, and above the established glycemic targets.
+Although each of the core metrics established in the 2017 ATTD consensus conference
+(18) provides important information about various aspects of glycemic status, it is often
+impractical to assess and fully utilize many of these metrics in real-world clinical practices. To
+streamline data interpretation, the consensus panel identified “time in ranges” as a composite
+metric of glycemic control that provides more actionable information than A1C alone. The panel
+agreed that establishing target percentages of time in the various glycemic ranges with the ability
+to adjust the percentage cutpoints to address the specific needs of special diabetes populations
+(e.g., pregnancy, high-risk) would facilitate safe and effective therapeutic decision-making
+within the parameters of the established glycemic goals.
+The composite metric includes three key CGM measurements: percentage of reading and
+time per day within target glucose range (TIR), time below target glucose range (TBR), and time
+above target glucose range (TAR) (Table 3). The primary goal for effective and safe glucose
+control is to increase the TIR while reducing the TBR. The consensus group agreed that
+expressing time in the various ranges can be done as the percentage (%) of CGM, average hours
+and minutes spent in each range or both, depending on the circumstances.
+It was agreed that CGM based glycemic targets must be personalized to meet the needs of
+each individual with diabetes. In addition, the group reached consensus on glycemic cutpoints (a
+target range of 70-180 mg/dL [3.9-10.0 mmol/L] for individuals with type 1 diabetes and type 2
+diabetes and 63-140 mg/dL [3.5-7.8 mmol/L] during pregnancy, along with a set of targets for
+the time per day [% of CGM readings or minutes/hrs]) individuals with type 1 diabetes and type
+2 diabetes (Table 3) and women during pregnancy (Table 4) should strive to achieve. It should
+be noted that premeal and postprandial targets remain for diabetes in pregnancy (ADA Standards
+ 11
+of medical care-2019. Diabetes Care 2019: 42 (Suppl 1)) in addition to the new TIR targets for
+overall glycemia.
+
+
+
+
+Table 3. Recommended cutpoints for assessment of glycemic control: Type 1 / Type 2 and
+Older / High-Risk Individuals
+
+Diabetes
+Group
+Time in Range (TIR) Time Below Range (TBR) Time Above Range (TAR)
+% of readings
+time/day
+Target
+Range
+% of readings
+time /day
+Below Target
+Level
+% of readings
+time/ day
+Above Target
+Level
+Type 1* / Type 2 >70%
+>16hr, 48 min
+70-180 mg/dL
+3.9 -10.0 mmol/L
+<4%
+<1 hr
+<70 mg/dL
+<3.9 mmol/L
+<25%
+<6 hr
+>180 mg/dL
+>10.0 mmol/L
+<1%
+<15 min
+<54 mg/dL
+<3.0 mmol/L
+<5%
+<1 hr, 12 min
+>250 mg/dL
+>13.9 mmol/L
+Older/High-Risk
+Type 1 / Type 2
+>50%
+>12 hr
+70-180 mg/dL
+3.9-10 mmol/L
+<1%
+<15 min
+<70 mg/dL
+<3.9 mmol/L
+<10%
+<2 hr, 24 min
+>250 mg/dL
+>13.9 mmol/L
+Each incremental 5% increase in TIR is associated with clinically significant benefits for
+Type 1 / Type 2 (25; 26)
+* For age <25 yr., if the A1C goal is 7.5%  then set TIR target to ĂƉƉƌŽǆŝŵĂƚĞůǇ ϲϬй͘ ;“ĞĞ ͞CůŝŶŝĐĂů AƉƉůŝĐĂƚŝŽŶƐ ŽĨ TŝŵĞƐ
+ŝŶ RĂŶŐĞ͟ in the text for additional information regarding target goal setting in pediatric management)
+
+
+ Table 4. Consensus guidance on cutpoints for assessment of glycemic control: Pregnancy
+
+Diabetes
+Group
+Time in Range (TIR) Time Below Range (TBR) Time Above Range (TAR)
+% of readings
+time/day
+Target
+Range
+% of readings
+time /day
+Below Target
+Level
+% of readings
+time/ day
+Above Target
+Level
+Pregnancy
+Type 1 §
+>70%
+>16 hr, 48 min
+63-140 mg/dLΏ
+3.5-7.8 mmol/LΏ
+<4%
+<1 hr
+<63 mg/dLΏ
+<3.5 mmol/LΏ <25%
+<6 hr
+>140 mg/dL
+>7.8 mmol/L <1%
+<15 min
+<54 mg/dL
+<3.0 mmol/L
+Pregnancy §
+Type 2 / GDM
+see Pregnancy
+section
+63-ϭϰϬ ŵŐͬĚLΏ
+3.5-ϳ͘ϴ ŵŵŽůͬLΏ
+ see Pregnancy
+section
+фϲϯ ŵŐͬĚLΏ
+<3.5 ŵŵŽůͬLΏ  see Pregnancy
+section
+>140 mg/dL
+>7.8 mmol/L <54 mg/dL
+<3.0 mmol/L
+Each incremental 5% increase in TIR is associated with clinically significant benefits for
+Pregnancy Type 1 (47; 48)
+Ώ Glucose levels are physiologically lower during pregnancy
+§ Percentages of time in range are based on limited evidence. More research is needed.
+
+
+ 12
+Although the composite metric includes TIR, TBR and TAR, achieving the TBR and TIR
+goals would result in reduced time spent above range and thereby improve glycemic control.
+However, some clinicians may choose to target the reduction of the high glucose values and
+minimize hypoglycemia, thereby arriving at more time in the target range. In both approaches,
+the first priority is to reduce TBR to target levels and then address TIR or TAR targets.
+ Note that for people with type 1 diabetes, the targets are  informed by the ability to reach
+the targets with hybrid closed-loop therapy (11), the first example of which is now commercially
+available, with several more systems in final stages of testing. Importantly, recent studies have
+shown the potential of reaching these targets with CGM in individuals using multiple daily
+injections (MDI) (6). In type 2 diabetes, there is generally less glycemic variability and
+hypoglycemia than in type 1 diabetes (46). Thus, people with type 2 diabetes can often achieve
+more time in target range while minimizing hypoglycemia (4). As demonstrated by Beck et al.,
+individuals with type 2 diabetes increased their TIR by 10.3% (from 55.6% to 61.3%) after 24
+weeks of CGM use with slight reductions in TBR (4). Most recently, the beneficial effects of
+new medications, such as sodium glucose cotransporter-2 (SGLT-2) agents have helped
+individuals with type 1 diabetes increase TIR (49-51). Targets for type 1 diabetes and type 2
+diabetes were close enough to combine them into one set of targets, outside of pregnancy.
+ Another way to visualize the CGM-derived targets for the four c ategories of diabetes is
+shown in Figure 1 which displays and compares the targets for time in range (TIR - green), time
+below range (TBR - 2 categories in light and dark red) and time above range (TAR -2 categories
+in yellow and orange). It becomes clear at a glance that there are different expectations for the
+various time in ranges relating to safety concerns and efficacy based on currently available
+therapies and medical practice.
+
+
+ 13
+Figure 1. International consensus on time in range: CGM-based targets for different types of
+diabetes
+
+
+Clinical Validity of Measures
+ To fundamentally change clinical care with use of the ne w metrics, it would be important
+to demonstrate that the metrics relate to and predict clinical outcomes. In this regard, longer-term
+studies relating to time spent within specific CGM glycemic ranges, diabetes complications, and
+other outcomes are required. However, there is evidence from a number of recent studies that
+have shown correlations of TIR (70-180 mg/dL [3.9-10.0 mmol/L]) with diabetes complications
+(52; 53) as well as a relationship between TIR and A1C (25; 26). Although there is no evidence
+regarding time in range for older and/or high-risk individuals, numerous studies have shown the
+elevated risk for hypoglycemia in these populations (54-59). We have lowered the TIR target
+from >70% to >50% and reduced TBR to <1/%  at <70 mg/dL (<3.9 mmol/L) to place greater
+emphasis on reducing hypoglycemia with less emphasis on maintaining target glucose levels
+(Table 3).
+
+Type 1 Diabetes and Type 2 Diabetes
+Association with Complications
+
+ 14
+ Associations between TIR and progression of both diabeti c retinopathy (DR) and
+development of microalbuminuria were reported by Beck and colleagues, using the Diabetes
+Control and Complications Trial (DCCT) data set (7-point blood glucose profiles) to validate the
+use of TIR as an outcome measure for clinical trials (53). Their analysis showed that the hazard
+rate for retinopathy progression increased by 64% for each 10% reduction in TIR. The hazard
+rate for microalbuminuria development increased by 40% for 10% reduction in TIR. A post-hoc
+analysis of the same DCCT data set showed a link between glucose of <70 mg/dL (<3.9 mmol/L)
+and <54 mg/dL (<3.0 mmol/L) and an increased risk for severe hypoglycemia (60).
+ Similar associations between DR and TIR were reported in  a recent study by Lu and
+colleague in which 3,262 individuals with type 2 diabetes were evaluated for DR, which was
+graded as: non-DR; mild nonproliferative DR (NPDR); moderate NPDR; or vision-threatening
+DR (VTDR) (52). Results showed that individuals with more advanced DR spent significantly
+less time within target (70-180 mg/dL [3.9-10.0 mmol/L) and that prevalence of DR decreased
+with increasing TIR.
+
+Relationship Between TIR and A1C
+ Analyses were conducted utilizing datasets from four randomize d trials encompassing
+545 adults with type 1 diabetes who had central-laboratory measurements of A1C (25). TIR (70-
+180 mg/dL [3.9-10.0 mmol/L]) of 70% and 50% strongly corresponded with an A1C of
+approximately 7% (53 mmol/mol) and 8% (64 mmol/mol), respectively. An increase in TIR of
+10% (2.4 hours per day) corresponded to a decrease in A1C of approximately 0.5% (5.0
+mmol/mol); similar associations were seen in an analysis of 18 RCTs by Vigersky et al. that
+included over 2,500 individuals with type 1 diabetes and type 2 diabetes over a wide range of
+ages and A1C levels (26). (Table 4)
+
+
+
+
+
+
+
+
+
+ 15
+Table 4. Estimate of A1C for a given TIR level based on type 1 diabetes and type 2 diabetes
+studies
+
+Beck et al. (n=545 type 1 diabetes participants) (25) Vigersky et al. (n=1,137 type 1/type 2 participants) (26)
+TIR
+70-180 mg/dL
+(3.9-10.0 mmol/L)
+A1C
+% (mmol/mol)
+
+95% CI for
+predicted values
+TIR
+70-180 mg/dL
+(3.9-10.0 mmol/L)
+A1C
+% (mmol/mol)
+
+20% 9.4 (79) (8.0, 10.7) 20% 10.6 (92)
+30% 8.9 (74) (7.6, 10.2) 30% 9.8 (84)
+40% 8.4 (68) (7.1, 9.7) 40% 9.0 (75)
+50% 7.9 (63) (6.6, 9.2) 50% 8.3 (67)
+60% 7.4 (57) (6.1, 8.8) 60% 7.5 (59)
+70% 7.0 (53) (5.6, 8.3) 70% 6.7 (50)
+80% 6.5 (48) (5.2, 7.8) 80% 5.9 (42)
+90% 6.0 (42) (4.7, 7.3) 90% 5.1 (32)
+Every 10% increase in TIR = 0.5% (5.5 mmol/mol) A1C
+reduction
+Every 10% increase in TIR = 0.8% (8.7 mmol/mol) A1C
+reduction
+*The difference between findings from the two studies likely stems from differences in number of studies analyzed
+and subjects included (RCTs with type 1 vs. RCTs with type 1/type 2 with CGM and SMBG).
+
+Pregnancy
+ During pregnancy, the ambition is to safely increase TIR as  quickly as possible, while
+reducing TAR and glycemic variability. The first longitudinal CGM data demonstrated a 13-
+percentage point increase in TIR (43% to 56% TIR 70-140 mg/dL [3.9-7.8 mmol/L]) (61). The
+TBR < 50 mg/dL reduced from 6% to 4%, although the higher TBR <70 mg/dL was high (13-
+15%) using older generation sensors. With improved sensor accuracy, recent type 1 diabetes
+pregnancy studies report a lower threshold of <63 mg/dL (<3.5 mmol/L) for TBR and ≥63
+mg/dL (≥3.5 mmol/L) for TIR (47; 48). Data from Sweden, and the CONCEPTT control group,
+report 50% TIR in the first trimester, improving to 60% TIR in the third trimester, reflecting
+contemporary antenatal care. Of note, these data confirm that the TBR <63 mg/dL (<3.5
+mmol/L) recommendation of <4% is safely achievable, especially after the first trimester.
+Furthermore, 33% of women achieved the recommendation of 70% TIR 63-140 mg/dL (3.5-7.8
+mmol/L) in the final (>34) weeks of pregnancy. Preliminary data suggest that closed-loop may
+allow pregnant women to safely achieve 70% TIR, at an earlier (>24 weeks) gestation (62; 63).
+ 16
+Law et al analyzed data from two early CGM trials (64; 65) describing the associations between
+CGM measures and risk of large for gestational age (LGA) infants. Taken together, the Swedish
+and CONCEPTT data confirm that a 5-7% higher TIR during the second and third trimesters is
+associated with decreased risk of LGA and neonatal outcomes, including macrosomia, shoulder
+dystocia, neonatal hypoglycemia and NICU admissions. More data are needed to define the
+clinical CGM targets for pregnant women with type 2 diabetes, who spend one third less time
+hyperglycemic than women with type 1 diabetes, and achieve TIR of 90%  (61). Because of the
+lack of evidence on CGM targets for women with GDM or type 2 diabetes in pregnancy,
+percentages of time spent in range, below range, and above range have not been included in this
+report. Recent data suggest that even more stringent targets (66) and greater attention to
+overnight glucose profiles may be required to normalize outcomes in pregnant women with
+gestational diabetes (67).
+
+Older and/or High-Risk Individuals with Diabetes
+Older and/or high-risk individuals with diabetes are at notably higher risk for severe
+hypoglycemia due to age, duration of diabetes, duration of insulin therapy, and greater
+prevalence of hypoglycemia unawareness (54-58). The increased risk of severe hypoglycemia is
+compounded by cognitive and physical impairments and other co-morbidities (56; 59). High-risk
+individuals include those with a higher risk of complications, comorbid conditions (e.g.,
+cognitive deficits, renal disease, joint disease, osteoporosis, fracture, and/or cardiovascular
+disease), and often require assisted care, which can complicate treatment regimens (59).
+Therefore, when setting glycemic for high-risk and/or elderly people, it is important to
+individualize and be conservative, with a strong focus on reducing the percentage of time spent
+<70 mg/dL (<3.9 mmol/L) and preventing excessive hyperglycemia.
+
+Standardization of CGM Data Presentation
+As noted above, in 2013, a panel of clinicians with expertise in CGM published
+recommendations for use of the Ambulatory Glucose Profile (AGP) as a template for data
+presentation and visualization. Originally created by Mazze et. al. (68), the standardized AGP
+report was further developed by the International Diabetes Center and now incorporates all the
+core CGM metrics and targets along with a 14-day composite glucose profile as an integral
+ 17
+component of clinical decision making (24). This recommendation was later endorsed at the
+aforementioned international consensus conference on CGM metrics (18) and is referenced as an
+example in the American Diabetes Association (ADA) 2019 Standards of Care (16) and in an
+update to the American Association of Clinical Endocrinologists (AACE) consensus on use of
+CGM (69). The AGP report, in slightly modified formats, has been adopted by most of the CGM
+device manufacturers in their download software. An example of the AGP report, updated to
+incorporate targets, is presented in Figure 2. In the AGP report, glucose ranges are defined as
+“Very High” (Level 2), “High” (Level 1), “Low” (Level 1) and “Very Low” (Level 2). A
+“mmol/L” version is provided in Supplemental Figure 1.
+
+Figure 2. Ambulatory Glucose Profile
+
+ 18
+
+
+There is a general consensus that a useful CGM report is one that can be understood by
+clinician and people with diabetes. While there may be some terms (e.g., glucose variability) that
+are less familiar for many people with diabetes to understand, the value of a single-page report
+that the medical team can review and file in the electronic medical record and can be used as a
+shared decision-making tool with people with diabetes was considered to be of value (70-73).
+More detailed reports (e.g., adjustable data ranges, detailed daily reports) should remain
+available for individualized review by or with people with diabetes.
+
+Clinical Application of Time in Ranges
+
+ 19
+Despite its demonstrated value, clinical utilization of CGM data has remained
+suboptimal. Although time constraints and reimbursement issues are clearly obstacles, clinician
+inexperience in data interpretation and lack of standardization software for visualization of CGM
+data have also played a role (74). The proposed standardized report enables clinicians to readily
+identify important metrics such as the percentage of time spent within, below and above each
+individual’s target range, allowing for greater personalization of therapy through shared decision
+making.
+Using the standardized report the clinician can also address glucose variability (e.g.,
+%CV metric) (75) or use glucose management indicator (GMI) metric (43) to discuss the
+possible discrepancies noted in glucose exposure derived from CGM data versus the individual’s
+laboratory-measured A1C (40; 76). With appropriate educational materials, time and experience,
+clinicians will develop a systematic approach to CGM data analysis and the most effective ways
+to discuss the data with patients in person or remotely.
+
+Goal Setting
+ Numerous studies have demonstrated the clinical benefits of early achievement of near-
+normal glycemic control in individuals with type 1 diabetes and type 2 diabetes (77-83).
+However, when advising people with diabetes, goal-setting must be collaborative and take into
+account the individual needs/capabilities of each patient and start with the goals that are most
+achievable. An early study by DeWalt and colleagues found that setting small, achievable goals
+not only enhances people’s ability to cope with their diabetes, but that people with diabetes who
+set and achieved their goals often initiated additional behavioral changes on their own (84). One
+approach to consider is the S.M.A .R.T. Goal (Specific, Measurable, Achievable, Relevant, Time
+bound) intervention, which is directly applicable to setting targets for times in ranges. First
+described by Lawlor and Hornyak in 2012 (85), this approach incorporates four key components
+of behavioral change relevant to goal setting: 1) the goal is specific and defines exactly what is to
+be achieved; 2) the goal is measurable and there is tangible evidence when it has been achieved;
+3) the goal is achievable but stretches the patient slightly so that he/she feels challenged; and 4)
+the goal should be attainable over a short period of time.
+Effective goals should utilize CGM data to identify specific instances for the patient to
+take measurable action to prevent hypoglycemia. Although analysis of the AGP reports provides
+ 20
+an opportunity for meaningful discussion, individuals should be counseled to look at patterns
+throughout the day to see when low glucose events are occurring and make adjustments in their
+therapy to reduce these events.
+When applying the CGM metrics in clinical practice, it may be more meaningful and
+motivating to communicate to people with diabetes the importance of working to reduce the time
+spent <70 mg/dL (<3.9 mmol/L) to less than one hour per day and less than 15 minutes per day
+<54 mg/dL (<3.0 mmol/L) rather than using <4% and <1% respectively, as the goal. However, as
+discussed earlier, targets must be personalized to meet the needs and capabilities of each person,
+focusing on small steps and small successes. Individuals with diabetes should work with their
+physician and/or educator to develop a SMART goal to reduce time below range.
+Individualized goals are particularly important for pediatric and young adult populations.
+The International Society for Pediatric Diabetes (ISPAD) recommends that targets for
+individuals ≤25 years aim for the lowest achievable A1C without undue exposure to severe
+hypoglycemia balances with quality of life and burden of care (86). An A1C target of 7.0% (53
+mmol/mol) can be used in children, adolescents and adults ≤25 years who have access to
+comprehensive care (86).  However, a higher A1C goal (e.g., <7.5% [<58 mmol/mol] may be
+more appropriate in the following situations: inability to articulate hypoglycemia symptoms;
+hypoglycemia; hypoglycemia unawareness; history of severe hypoglycemia, lack of access to
+analog insulins and/or advanced insulin delivery technology, inability to regularly check glucose
+(86). This would equate to a TIR target of  ~60% (Table 4).
+ The consensus group recognized that achieving the targets fo r the various time in ranges
+is aspirational in some situations and many individuals will require ongoing support, both
+educational and technological, from their healthcare team. Importantly, as demonstrated by Beck
+et al. (25), Vigersky et al. (26) and Feig et al. (47), even small, incremental improvements yield
+significant glycemic benefits. Therefore, when advising individuals with diabetes (particularly
+children, adolescents, high-risk) about their glycemic goals, it important to take a step-wise
+approach, emphasizing that what may appear to be small, incremental successes (e.g. 5%
+increase in TIR) are, in fact, clinically significant in improving their glycemic control (25; 26;
+47). However, when counseling women planning pregnancy and pregnant women, greater
+emphasis should be placed on getting to goal as soon as possible (47; 48).
+
+ 21
+Conclusions
+ Use of CGM continues to expand in clinical practice. As a  component of diabetes self-
+management, daily use of CGM provides the ability to obtain immediate feedback on current
+glucose levels, direction and rate of change in glucose levels. This information allows people
+with diabetes to optimize dietary intake and exercise, make informed therapy decisions regarding
+meal-time and correction of insulin dosing and, importantly, react immediately and appropriately
+to mitigate or prevent acute glycemic events (87-89). Retrospective analysis of CGM data,
+utilizing standardized data management tools such as the AGP, enables clinicians and people
+with diabetes to work collaboratively in identifying problem areas and then set achievable goals
+(71-73). We conclude that, in clinical practice, time in ranges (within target range, below range,
+above range) are both appropriate and useful as clinical targets and outcome measurements that
+complement A1C for a wide range of people with diabetes, and that the target values specified in
+this paper should be considered an integral component of CGM data analysis and day-to-day
+treatment decision making.
+
+Author Contributions
+ T.B., R.M.B., W.C., T.D., S.G., L.H. I.M..B., C.M., H.M., S.A., R.N., K.D., C.G.P. and
+M.P. wrote and revised the initial manuscript drafts. All authors reviewed, provided input, and
+approved the final manuscript. T.B. is the guarantor of this work and takes full responsibility for
+the integrity of the information included in the report.
+
+
+Acknowledgements
+ The consensus group participants wish to thank Advanced Te chnologies and Treatments
+for Diabetes (ATTD) for organizing and coordinating the meeting. We also wish to thank Rachel
+Naveh for assistance in organizing the meeting. We would like to thank Courtney Lias from the
+U.S. Food and Drug Administration for her participation as an observer at the consensus
+conference.
+
+Funding
+ 22
+ Support for the CGM consensus conference and development of this manuscript was
+provided by the Advanced Technologies and Treatments for Diabetes (ATTD) Congress. Abbott
+Diabetes Care, Astra Zeneca, Dexcom Inc., Eli Lilly & Company, Insulet Corporation,
+Medtronic, Novo Nordisk, Roche Diabetes Care, and Sanofi provided funding to ATTD to
+support the consensus meeting. All consensus participants were reimbursed for travel to the
+ATTD conference and one night lodging; no honoraria were provided. Editorial support was
+provided by Christopher G. Parkin, MS, CGParkin Communications, Inc.
+
+Financial Disclosures
+Tadej Battelino - T.B. has received honoraria for participation on advisory boards for Novo
+Nordisk, Sanofi, Eli Lilly & Company, Boehringer, Medtronic and Bayer Health Care and as a
+speaker for Astra Zeneca, Eli Lilly & Company, Bayer, Novo Nordisk, Medtronic, Sanofi and
+Roche. TB owns stocks of DreamMed Diabetes; his institution has received research grant
+support and travel expenses from Abbott Diabetes Care, Medtronic, Novo Nordisk, GluSense,
+Sanofi, Sandoz and Diamyd.
+Thomas Danne - T.D. has received speaker honoraria, research support and consulting fees from
+Abbott Diabetes Care, Bayer, BMS, AstraZeneca, Boehringer Ingelheim, Dexcom, Eli Lilly &
+Company, Medtronic, Novo Nordisk, Sanofi, and Roche Diabetes Care; he is a shareholder of
+DreaMed Diabetes.
+Stephanie A. Amiel -  S.A.A. declared no conflicts of interest.
+Roy Beck - R.W.B. is an employee the Jaeb Center for Health Research, which has received
+grant support from Dexcom, Animas, Bigfoot, Tandem, non-financial study support from
+Dexcom, Abbott Diabetes Care, and Roche Diabetes Care, and consulting fees from Eli Lilly and
+Company and Insulet; he has no personal financial arrangements with any company.
+Richard M. Bergenstal - R.M.B. has received research funding and served as a consultant and
+served on advisory boards for Abbott Diabetes Care, Becton-Dickinson, DexCom, Eli Lilly and
+Company, Glooko, Helmsley Charitable Trust, Hygieia, Johnson & Johnson, Medtronic, Merck,
+Novo Nordisk, Roche, Sanofi, and Senseonics; his employer, non-profit HealthPartners Institute,
+contracts for his services and no personal income goes to R.M.B.
+Torben Biester -  T.B. declared no conflicts of interest.
+Emanuele Bosi -  E.B. received honoraria for participation on advisory boards and speaker
+bureaus from Abbott Diabetes Care, Astra Zeneca, Medtronic, Novartis, Roche, and Sanofi.
+Bruce Buckingham -  B.B. declared no conflicts of interest.
+William Cefalu - W.C. declared no conflicts of interest.
+Kelly L. Close -  K.L.C. is an employee of Close Concerns and diaTribe, which receive funding
+CGM manufacturers, including Medtronic, Dexcom and Abbott Diabetes Care.
+Claudio Cobelli -  C.C. declared no conflicts of interest.
+ 23
+Eyal Dassau -  E.D. has received consulting fees and honoraria for participation on advisory
+boards for Animas, Insulet, Eli Lilly and Company and research support from Dexcom, Insulet,
+Animas, Xeris.
+J. Hans DeVries -  J.H.DV. has received speaker honoraria and research support and has
+consulted for Abbott Diabetes Care, Dexcom, Medtronic, MSD, Novo Nordisk, Sanofi, Roche,
+Senseonics and Zealand.
+Kim Donaghue -  K.D. declared no conflicts of interest.
+Klemen Dovc -  K.D. declared no conflicts of interest.
+Francis J. Doyle III - F.J.DIII. has received consulting fees from ModeAGC and research
+support from Dexcom, Insulet, Animas, and Xeris.
+Satish Garg - S.G. has received consulting fees and honoraria for participation on advisory
+boards for Medtronic, Roche Diabetes Care, Merck, Lexicon, Novo-Nordisk, Sanofi, Mannkind,
+Senseonics, Zealand, and Eli Lilly and Company and research grants from Eli Lilly and
+Company, Novo-Nordisk, Merck, Lexicon, Medtronic, Dario, NCI, T1D Exchange, NIDDK,
+JDRF, Animas, Dexcom, and Sanofi.
+George Grunberger -  G.G. has received consultiong fees from Novo Nordisk and Medtronic
+and honoraria for participation on speaker bureaus from Novo Nordisk, Eli Lilly and Company,
+Boehringer Ingelheim, and Sanofi.
+Simon Heller - S.H. declared no conflicts of interest.
+Lutz Heinemann - L.H. declared no conflicts of interest.
+Irl B. Hirsch - L.B.H. declared no conflicts of interest.
+Roman Hovorka - R.H. reports having received speaker honoraria from Eli Lilly and Company
+Lilly, Novo Nordisk and Astra Zeneca, serving on advisory panel for Eli Lilly and Company and
+Novo Nordisk, and receiving license fees from BBraun and Medtronic.
+Weiping Jia -  W.J. declared no conflicts of interest.
+Olga Kordonouri - O.K. declared no conflicts of interest.
+Boris Kovatchev - B.K. declared no conflicts of interest.
+Aaron Kowalski - A.K. declared no conflicts of interest.
+Brian Levine - B.L. is an employee of Close Concerns and diaTribe, which receive funding
+CGM manufacturers, including Medtronic, Dexcom and Abbott Diabetes Care.
+Aleksander Mayorov -  A.M. declared no conflicts of interest.
+Chantal Mathieu -  C. M. serves or has served on the advisory panel or speaker’s bureau for
+Novo Nordisk, Sanofi, Merck Sharp and Dohme Ltd., Eli Lilly and Company,
+Novartis,  AstraZeneca, Boehringer Ingelheim, Hanmi Pharmaceuticals, Roche, Medtronic,
+ActoBio Therapeutics, Pfizer, Dianax and UCB. Financial compensation for these activities has
+been received by KU Leuven.
+Helen R. Murphy - H.R.M. received honoraria from participation on advisory boards for
+Medtronic and research support from Dexcom, Medtronic, Abbott Diabetes Care, and Johnson &
+Johnson.
+ 24
+Revital Nimri - R.N. declared no conflicts of interest.
+Kirsten Nørgaard - K.N. owns shares in Novo Nordisk and has received consulting fees from
+Medtronic, Abbott Diabetes Care and Novo Nordisk, speaker honoraria from Medtronic, Roche
+Diabetes Care, Rubin Medical, Sanofi, Novo Nordisk, Zealand Pharma and Bayer, and research
+support from Novo Nordisk, Zealand Pharma, Medtronic, and Roche Diabetes Care.
+Christopher G. Parkin - C.G.P. has received consulting fees from Dexcom, Diasome, Onduo,
+Proteus, Roche Diabetes Care, and Senseonics.
+Eric Renard - E.R. has received consulting fees from A. Menarini Diagnostics, Abbott Diabetes
+Care, Becton-Dickinson, Cellnovo, Dexcom Inc., Eli Lilly and Company, Insulet Inc., Johnson &
+Johnson, Medtronic, Novo-Nordisk, Roche, Sanofi and research support from Abbott Diabetes
+Care, Dexcom, Insulet, and Roche.
+David Rodbard - D.R. has received consulting fees from Eli Lilly and Company and Better
+Therapeutics.
+Banshi Saboo - B.S. declared no conflicts of interest
+Desmond Schatz - D.S. declared no conflicts of interest.
+Keaton Stoner - K.S. declared no conflicts of interest.
+Tatsuiko Urakami - T.U. declared no conflicts of interest.
+Stuart A. Weinzimer -  S.A.W. has received consulting fees from Insulet.
+Moshe Phillip - M.P. is a member of the Advisory Board of AstraZeneca, Sanofi, Medtronic, Eli
+Lilly, Novo Nordisk, Insulet and is a consultant to RSP Systems A/S, Qulab Medical, and Pfizer.
+The Institute headed by MP received research support from Medtronic, Novo Nordisk, Eli Lilly,
+Dexcom, Sanofi, Insulet, OPKO, DreaMed Diabetes, Bristol-Myers Squibb, and Merck. MP is a
+stock/shareholder of DreaMed Diabetes, NG Solutions and Nutriteen Professionals and reports
+two patent applications.
+
+
+
+
+
+
+
+
+
+ 25
+References
+1. Lind M, Polonsky W, Hirsch IB. Continuous glucose monitoring vs conventional therapy for
+glycemic control in adults with type 1 diabetes treated with multiple daily insulin injections: the
+GOLD randomized clinical trial. JAMA 2017;317(4):379-387
+2. Aleppo G, Ruedy KJ, Riddlesworth TD, et al. REPLACE-BG: A randomized trial comparing
+continuous glucose monitoring with and without routine blood glucose monitoring in adults
+with well-controlled type 1 diabetes. Diabetes Care 2017;40(4):538-545.
+3. Beck RW, Riddlesworth T, Ruedy K, et al. Effect of continuous glucose monitoring on glycemic
+control in adults with type 1 diabetes using insulin injections: The DIAMOND randomized
+clinical trial. JAMA 2017; 317:371-378.
+4. Beck RW, Riddlesworth TD, Ruedy K, et al. Continuous glucose monitoring versus usual care
+in patients with type 2 diabetes receiving multiple daily insulin injections: a randomized trial.
+Ann Intern Med 2017;167:365-374.
+5. Polonsky WH, Hessler D, Ruedy KJ, Beck RW, for the DIAMOND Study Group. The impact of
+continuous glucose monitoring on markers of quality of life in adults with type 1 diabetes:
+further findings from the DIAMOND randomized clinical trial. Diabetes Care 2017; 40:736-741.
+ϲ͘ ŠŽƵƉĂů J͕ PĞƚƌƵǎĞůŬŽǀĄ L͕ FůĞŬĂē M͕ Ğƚ Ăů͘ CŽŵƉĂƌŝƐŽŶ ŽĨ ĚŝĨĨĞƌĞŶƚ ƚƌĞĂƚŵĞŶƚ ŵŽĚĂůŝƚŝĞƐ ĨŽƌ
+type 1 diabetes, including sensor-augmented insulin regimens, in 52 weeks of follow-up: a
+COMISAIR study. Diabetes Technol Ther. 2016;18(9):532-538.
+7. van Beers CA, DeVries JH, Kleijer SJ, et al. Continuous glucose monitoring for patients with
+type 1 diabetes and impaired awareness of hypoglycaemia (IN CONTROL): a randomised, open-
+label, crossover trial. Lancet Diabetes Endocrinol. 2016;4(11):893-902.
+8. Bolinder J, Antuna R, Geelhoed-Duijvestijn P, Kröger J, Weitgasser R. Novel glucose-sensing
+technology and hypoglycemia in type 1 diabetes: a multicentre, non-masked, randomised
+controlled trial. Lancet 2016;388:2254-2263.
+9. Haak T, Hanaire H, Ajjan R, Hermanns N, Riveline JP, Rayman G. Flash glucose-sensing
+technology as a replacement for blood glucose monitoring for the management of insulin-
+treated type 2 diabetes: a multicenter, open-label randomized controlled trial. Diabetes Ther
+2017;8(1):55-73.
+10. Choudhary P, Olsen BS, Conget I, et al. Hypoglycemia prevention and user acceptance of an
+insulin pump system with predictive low glucose management. Diabetes Technol Ther
+2016;18(5):288-291.
+11. Bergenstal RM, Garg S, Weinzimer SA, et al. Safety of a hybrid closed-loop insulin delivery
+system in patients with type 1 diabetes. JAMA. 2016;316:1407-1408.
+12. Heinemann L, Guido Freckmann G, Gabriele Faber-Heinemann G, et al. Benefits of
+continuous glucose monitoring use in adults with type 1 diabetes and impaired hypoglycaemia
+awareness and/or severe hypoglycaemia treated with multiple daily insulin injections: Results
+of the multicentre, randomised controlled HypoDE study. The Lancet 2018 (In Press).
+13. Reddy M, Jugnee N, El Laboudi A, Spanudakis E, Anantharaja S, Oliver N. A randomised
+controlled pilot study of continuous glucose monitoring and flash glucose monitoring in people
+with type 1 diabetes and impaired awareness of hypoglycaemia. Diabet Med. 2017 Dec 12. doi:
+10.1111/dme.13561. [Epub ahead of print].
+ 26
+14. Battelino T, Nimri R, Dovc K, Phillip M, Bratina N. Prevention of Hypoglycemia with
+Predictive Low Glucose Insulin Suspension in Children with Type 1 Diabetes: A Randomized
+Controlled Trial. Diabetes Care. 2017;40(6):764-770.
+15. Dovc K, Cargnelutti K, Sturm A, Selb J, Bratina N, Battelino T. Continuous glucose monitoring
+use and glucose variability in pre-school children with type 1 diabetes. Diabetes Res Clin Pract.
+2019 Jan;147:76-80.
+16. American Diabetes Association. 7. Diabetes technology. Standards of medical care-2019.
+Diabetes Care 2019: 42 (Suppl 1): S71-S80.
+17. Fonseca VA, Grunberger G, Anhalt H, et al. for the Consensus Conference Writing
+Committee. Continuous Glucose Monitoring: A Consensus Conference of the American
+Association of Clinical Endocrinologists and American College of Endocrinology. Endocr Pract.
+2016;22(8):1008-1021.
+18. Danne T, Nimri R, Battelino T, et al. International Consensus on Use of Continuous Glucose
+Monitoring. Diabetes Care. 2017;40(12):1631-1640.
+19. Petrie JR, Peters AL, Bergenstal RM, Holl RW, Fleming A, Heinemann L. Improving the
+Clinical Value and Utility of CGM Systems: Issues and Recommendations. A Joint Statement of
+the European Association for the Study of Diabetes and the American Diabetes Association
+Diabetes Technology Working Group. Diabetes Care 2017;40:1614ʹ1621.
+20. Agiostratidou G, Anhalt H, Ball D, et al. Standardizing Clinically Meaningful Outcome
+Measures Beyond HbA1c for Type 1 Diabetes: A Consensus Report of the American Association
+of Clinical Endocrinologists, the American Association of Diabetes Educators, the American
+Diabetes Association, the Endocrine Society, JDRF International, the Leona M. and Harry B.
+Helmsley Charitable Trust, the Pediatric Endocrine Society, and the T1D Exchange. Diabetes
+Care 2017; 40(12):1622-1630.
+21. Sherr JL, Tauschmann M, Battelino T, et al. ISPAD Clinical Practice Consensus Guidelines
+2018: Diabetes Technologies. Pediatr Diabetes. 2018;19(Suppl 27):302-325.
+22. Foster NC, Beck RW, Miller KM, et al. State of Type 1 Diabetes Management and Outcomes
+from the T1D Exchange in 2016ʹ2018. Diabetes Technol Ther 2019; 1 Feb
+2019https://doi.org/10.1089/dia.2018.0384.
+23. Foster NC, Miller K, Dimeglio L, et al. Marked Increases in CGM Use Has Not Prevented
+Increases in HbA1c Levels in Participants in the T1D Exchange (T1DX) Clinic Network. Diabetes
+2018;67(Suppl 1). https://doi.org/10.2337/db18-1689-P. Accessed April 1, 2019.
+24. Bergenstal RM, Ahmann AJ, Bailey T, et al. Recommendations for standardizing glucose
+reporting and analysis to optimize clinical decision making in diabetes: the Ambulatory Glucose
+Profile (AGP). Diabetes Technol Ther. 2013;15(3):198-211.
+25. Beck RW, Bergenstal RM, Cheng P, Kollman C, Carlson AL, Johnson ML, Rodbard D. The
+Relationships Between Time in Range, Hyperglycemia Metrics, and HbA1c. J Diabetes Sci
+Technol. 2019 Jan 13:1932296818822496. doi: 10.1177/1932296818822496. [Epub ahead of
+print].
+26. Vigersky RA, McMahon C. The Relationship of Hemoglobin A1C to Time-in-Range in Patients
+with Diabetes. Diabetes Technol Ther. 2019;21(2):81-85.
+27. Brod M, Christensen T, Thomsen TL, Bushnell DM. The impact of non-severe hypoglycemic
+events on work productivity and diabetes management. Value Health. 2011;14(5):665-671.
+ 27
+28. Brod M, Rana A, Barnett AH. Impact of self-treated hypoglycaemia in type 2 diabetes: A
+multinational survey in patients and physicians. Curr Med Res Opin. 2012;28:1947-1958.
+29. Seaquist ER, Anderson J, Childs B, et al. Hypoglycemia and diabetes: a report of a workgroup
+of the American Diabetes Association and the Endocrine Society. Diabetes Care 2013;36:1384ʹ
+1395.
+30. International Hypoglycaemia Study Group. Glucose concentrations ŽĨ ůĞƐƐ ƚŚĂŶ ϯ͘ϬരŵŵŽůͬL
+;ϱϰരŵŐͬĚLͿ ƐŚŽƵůĚ ďĞ ƌĞƉŽƌƚĞĚ ŝŶ ĐůŝŶŝĐĂů ƚƌŝĂůƐ͗ A ũŽŝŶƚ ƉŽƐŝƚŝŽŶ ƐƚĂƚĞŵĞŶƚ ŽĨ ƚŚĞ AŵĞƌŝĐĂŶ
+Diabetes Association and the European Association for the Study of Diabetes. Diabetes Care, 40
+(2017), pp. 155-157.
+31. Novodvorsky P, Bernjak A, Chow E, et al. Diurnal differences in risk of cardiac arrhythmias
+during spontaneous hypoglycemia in young people with type 1 diabetes. Diabetes Care
+2017;40:655ʹ662.
+32. Battelino T, Conget I, Olsen B, et al. The use and efficacy of continuous glucose monitoring
+in type 1 diabetes treated with insulin pump therapy: a randomised controlled trial.
+Diabetologia 2012;55(12):3155-3162.
+33. Bergenstal RM, Tamborlane WV, Ahmann A, et al. Sensoraugmented pump therapy for A1C
+reduction (Star 3) study: results from the 6-month continuation phase. Diabetes Care.
+2011;34:2403-2405.
+34. Cox DJ, Kovatchev BP, Julian DM, et al. Frequency of severe hypoglycemia in insulin
+dependent diabetes mellitus can be predicted from self-monitoring blood glucose data. J Clin
+Endocrinol Metab 1994;79:1659-1662.
+35. Qu Y, Jacober SJ, Zhang Q, Wolka LL, DeVries JH. Rate of hypoglycemia in insulin-treated
+patients with type 2 diabetes can be predicted from glycemic variability data. Diabetes Technol
+Ther 2012.;14(11):1008-1012.
+36. National Diabetes Information Clearinghouse (NDIC). Sickle cell trait and other
+hemoglobinopathies and diabetes: important information for providers [Internet]. Available
+from http://diabetes.niddk.nih.gov/dm/pubs/hemovari-A1C/index.aspx. Accessed January 12,
+2018.
+37. Bry L, Chen PC, Sacks DB. Effects of hemoglobin variants and chemically modified
+derivatives on assays for glycohemoglobin. Clin Chem 2001;47(2):153-163.
+38. Ford ES, Cowie CC, Li C, Handelsman Y, Bloomgarden ZT. Iron-deficiency anemia, non-iron-
+deficiency anemia and HbA1c among adults in the US. J Diabetes 2011;3(1):67-73.
+39. Nielsen LR, Ekbom P, Damm P, et al. HbA1c levels are significantly lower in early and late
+pregnancy. Diabetes Care 2005;27(5):1200-1201.
+40. Beck RW, Connor CG, Mullen DM, Wesley DM, Bergenstal RM. The fallacy of average: how
+using HbA1c alone to assess glycemic control can be misleading. Diabetes Care 2017;40:994-
+999
+41. Xing D, Kollman C, Beck RW, et al. Optimal sampling intervals to assess long-term glycemic
+control using continuous glucose monitoring. Diabetes Technol Ther 2011;13:351-358.
+42. Riddlesworth TD, Beck RW, Gal RL, et al. Optimal Sampling Duration for Continuous Glucose
+Monitoring to Determine Long-Term Glycemic Control. Diabetes Technol Ther. 2018;20(4):314-
+316.
+43. Bergenstal RM, Beck RW, Close KL, et al. Glucose Management Indicator (GMI):a new term
+for estimating A1C from continuous glucose monitoring. Diabetes Care 2018;41:2275ʹ2280.
+ 28
+44. Monnier L, Colette C, Wojtusciszyn A, et al. Toward defining the threshold between low and
+high glucose variability in diabetes. Diabetes Care 2017;40:832ʹ838.
+45. Rodbard D. Hypo- and hyperglycemia in relation to the mean, standard deviation,
+coefficient of variation, and nature of the glucose distribution. Diabetes Technol Ther. 2012
+Oct;14(10):868-876.
+46. Rama Chandran S, Tay WL, Lye WK, et al. Beyond HbA1c: Comparing Glycemic Variability
+and Glycemic Indices in Predicting Hypoglycemia in Type 1 and Type 2 Diabetes. Diabetes
+Technol Ther. 2018 May;20(5):353-362.
+47. Feig DS, Donovan LE, Corcoy R, et al. Continuous glucose monitoring in pregnant women
+with type 1 diabetes (CONCEPTT): a multicentre international randomised controlled trial.
+Lancet. 2017;390:2347-2359.
+48. Kristensen K, Ögge LE, Sengpiel V, et al. Continuous glucose monitoring in pregnant women
+with type 1 diabetes: an observational cohort study of 186 pregnancies. Diabetologia 2019
+https://doi.org/10.1007/s00125-019-4850-0. Accessed April 4, 2019.
+49. Famulla S, Pieber TR, Eilbracht J, et al. Glucose Exposure and Variability with Empagliflozin
+as Adjunct to Insulin in Patients with Type 1 Diabetes: Continuous Glucose Monitoring Data
+from a 4-Week, Randomized, Placebo-Controlled Trial (EASE-1). Diabetes Technol Ther. 2017
+Jan;19(1):49-60.
+50. Dandona P, Mathieu C, Phillip M, et al. Efficacy and safety of dapagliflozin in patients with
+inadequately controlled type 1 diabetes: the DEPICT-1 52-week study. Diabetes Care
+2018;41(12):2552-2559.
+51. Mathieu M, Dandona P, Moshe P, et al. Glucose Variables in Type 1 Diabetes Studies with
+Dapagliflozin: Pooled Analysis of Continuous Glucose Monitoring Data from DEPICT-1 and 2.
+Diabetes Care 2019 (IN PRESS).
+52. Lu J, Ma X, Zhou J, et al. Association of time in range, as assessed by continuous glucose
+monitoring, with diabetic retinopathy in type 2 diabetes. Diabetes Care. 2018;41(11):2370-
+2376.
+53. Beck RW, Bergenstal RM, Riddlesworth TD, et al. Validation of time in range as an outcome
+measure for diabetes clinical trials. Diabetes Care. 2018 Oct 23. pii: dc181444. doi:
+10.2337/dc18-1444. [Epub ahead of print].
+http://care.diabetesjournals.org/content/early/2018/10/17/dc18-1444.long. Accessed
+November 15, 2018.
+54. Weinstock RS, DuBose SN, Bergenstal RM, et al. Risk Factors Associated With Severe
+Hypoglycemia in Older Adults With Type 1 Diabetes. Diabetes Care 2016;39(4):603-610.
+55. Bremer JP, Jauch-Chara K, Hallschmid M, Schmid S, Schultes B. Hypoglycemia unawareness
+in older compared with middle-aged patients with type 2 diabetes. Diabetes Care 2009;
+32:1513-1517.
+56. Punthakee Z, Miller ME, Launer LJ, et al. Poor cognitive function and risk of severe
+hypoglycemia in type 2 diabetes: post hoc epidemiologic analysis of the ACCORD trial. Diabetes
+Care 2012; 35:787-793.
+57. Giorda CB, Ozzello A, Gentile S, et al. Incidence and risk factors for severe and symptomatic
+hypoglycemia in type 1 diabetes. Results of the HYPOS-1 study. Acta Diabetol 2015; 52:845-853.
+ 29
+58. Cariou B, Fontaine P, Eschwege E, et al. Frequency and predictors of confirmed
+hypoglycaemia in type 1 and insulin-treated type 2 diabetes mellitus patients in a real-life
+setting: results from the DIALOG study. Diabetes Metab 2015; 41:116-125.
+59. Abdelhafiz AH, Rodrşguez-MaŹas L, Morley JE, Sinclair AJ.  Hypoglycemia in Older People - A
+Less Well Recognized Risk Factor for Frailty. Aging Dis 2015;6(20;156-167.
+60. Beck RW, Bergenstal RM, Riddlesworth TD, Kollman C. The association of biochemical
+hypoglycemia with the subsequent risk of a severe hypoglycemic event: analysis of the DCCT
+data set. Diabetes Technol Ther. 2019 Jan;21(1):1-5. doi: 10.1089/dia.2018.0362. Epub 2018
+Dec 21.
+61. Murphy HR, Rayman G, Duffield K, et al. Changes in the glycemic profiles of women with
+type 1 and type 2 diabetes during pregnancy. Diabetes Care. 2007;30(11):2785-2791.
+62. Stewart ZA, Wilinska ME, Hartnell S, et al. Closed-Loop Insulin Delivery during Pregnancy in
+Women with Type 1 Diabetes. N Engl J Med. 2016;375(7):644-654.
+63. Stewart ZA, Wilinska ME, Hartnell S, et al. Day-and-Night Closed-Loop Insulin Delivery in a
+Broad Population of Pregnant Women With Type 1 Diabetes: A Randomized Controlled
+Crossover Trial. Diabetes Care 2018;41(7):1391-1399.
+64. Murphy HR, Rayman G, Lewis K, et al. Effectiveness of continuous glucose monitoring in
+pregnant women with diabetes: randomised clinical trial. BMJ 2008;337:a1680.
+65. Secher AL, Ringholm L, Andersen HU, Damm P, Mathiesen ER. The Effect of Real-Time
+Continuous Glucose Monitoring in Pregnant Women With Diabetes: A randomized controlled
+trial. Diabetes Care 2013;36(7):1877-1883.
+66. Paramasivam SS, Chinna K, Singh AKK, et al. Continuous glucose monitoring results in lower
+HbA1c in Malaysian women with insulin-treated gestational diabetes: a randomized controlled
+trial. Diabet Med 2018;35(8):1118-1129.
+67. Law GR, Alnaji A, Alrefaii L, et al. Suboptimal Nocturnal Glucose Control Is Associated With
+Large for Gestational Age in Treated Gestational Diabetes Mellitus. Diabetes Care
+2019;42(5):810-815.
+68. Mazze RS, Lucido D, Langer O, Hartmann K, Rodbard D. Ambulatory glucose profile:
+representation of verified self-monitored blood glucose data. Diabetes Care. 1987;10(1):111-
+117.
+69. Fonseca V, Grunberger G. Standard Glucose Reporting: Follow-up to the February 2016
+AACE CGM Consensus Conference. Endocrine Practice 2017;23(5):629-632
+70. Mullen DM, Bergenstal R, Criego A, Arnold KC, Goland R, Richter S. Time Savings Using a
+Standardized Glucose Reporting System and Ambulatory Glucose Profile. J Diabetes Sci Technol.
+2018;12(3):614-621.
+71. Carlson AL, Mullen DM, Bergenstal RM.  Clinical Use of Continuous Glucose Monitoring in
+Adults with Type 2 Diabetes.  Diabetes Technol Ther 2017;19(S2):S4-S1.
+72. Hirsch IB, Verderese CA. Professional flash continuous glucose monitoring with ambulatory
+glucose profile reporting to supplement A1C: rationale and practical implementation. Endocr
+Pract 2017;23:1333ʹ1344.
+73. Kruger DF, Edelman SV, Hinnen DA, Parkin CG. Reference guide for integrating continuous
+glucose monitoring into clinical practice. Diabetes Educ. 2019 Feb;45(suppl 1):3S-20S.
+74. Rodbard D. Continuous Glucose Monitoring: A Review of Successes, Challenges, and
+Opportunities. Diabetes Technol Ther 2016;18(Suppl 2):S2-3-S2-13.
+ 30
+75. Rodbard D. Glucose Variability: A Review of Clinical Applications and Research
+Developments. Diabetes Technol Ther. 2018;20(S2):S25-S215.
+76. Cohen RM, Franco RS, Smith EP, Higgins JM. When HbA1c and Blood Glucose Do Not Match:
+How Much Is Determined by Race, by Genetics, by Differences in Mean Red Blood Cell Age? J
+Clin Endocrinol Metab. 2019;104(3):707-710.
+77. Svensson E, Baggesen LM, Johnsen SP, et al. Early Glycemic Control and Magnitude of
+HbA1c Reduction Predict Cardiovascular Events and Mortality: Population-Based Cohort Study
+of 24,752 Metformin Initiator. Diabetes Care 2017;40(6):800-807.
+78. Safford MM, Shewchuk R, Qu H, et al. Reasons for not intensifying medications:
+ĚŝĨĨĞƌĞŶƚŝĂƚŝŶŐ ͞ĐůŝŶŝĐĂů ŝŶĞƌƚŝĂ͟ ĨƌŽŵ ĂƉƉƌŽƉƌŝĂƚĞ ĐĂƌĞ͘ J GĞŶ IŶƚĞƌŶ MĞĚ͘ ϮϬϬϳ͖ϮϮ͗ϭϲϰϴʹ1655.
+79. Diabetes Control and Complications Trial Research Group. The effect of intensive treatment
+of diabetes on the development and progression of long-term complications of insulin-
+dependent diabetes mellitus. N Engl J Med 1993;329, 977-986
+80. UK Prospective Diabetes Study (UKPDS) Group. Intensive blood-glucose control with
+sulphonlylureas or insulin compared with conventional treatment and risk of complications in
+patients with type 2 diabetes (UKPDS 33). Lancet 1998;352(9131):837-853.
+81. Holman RR, Paul SK, Bethel A, Matthews DR, Neil HAW. 10-Year Follow-up of Intensive
+Glucose Control in Type 2 Diabetes. N Engl J Med 2008; 359:1577-1589.
+82. Ismail-Beigi F, Craven T, Banerji MA, et al. Effect of intensive treatment of hyperglycaemia
+on microvascular outcomes in type 2 diabetes: an analysis of the ACCORD randomised trial.
+Lancet. 2010;376(9739):419-430.
+83. Hayward RA, Reaven PD, Wiitala WL, et al. Follow-up of glycemic control and cardiovascular
+outcomes in type 2 diabetes. N Engl J Med. 2015;372:2197-2206.
+84. DeWalt DA, Davis TC, Wallace AS, et al.  Goal setting in diabetes self-management: Taking
+the baby steps to success. Patient Educ Couns 2009;77(2):218-223.
+85. Lawlor KB, Hornyak MJ. SMART goals: how the application of SMART goals can contribute to
+achievement of student learning outcomes. Developments in Business Simulation and
+Experiential Learning 2012;39:259-267
+86. DiMeglio LA, Acerini C, Codner E, et al. ISPAD Clinical Practice Consensus Guidelines 2018:
+Glycemic control targets and glucose monitoring for children, adolescents, and young adults
+with diabetes. Pediatr Diabetes. 2018;19(Suppl 270:105-114.
+87. Aleppo G, Laffel LM, Ahmann AJ, et al. Practical approach to using trend arrows on the
+Dexcom G5 CGM system for the management of adults with diabetes. J Endocr Soc.
+2017;20;1(12):1445-1460.
+88. Laffel LM, Aleppo G, Buckingham BA, et al. A Practical Approach to Using Trend Arrows on
+the Dexcom G5 CGM System to Manage Children and Adolescents With Diabetes.  J Endocr Soc.
+2017;1(12):1461-1476.
+89. Kudva YC, Ahmann AJ, Bergenstal RM, et al. Approach to using trend arrows in the FreeStyle
+Libre Flash Glucose Monitoring Systems in adults.J Endocr Soc 2018;14;2(12):1320-1337.
