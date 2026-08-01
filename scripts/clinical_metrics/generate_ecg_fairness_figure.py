@@ -17,20 +17,77 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+# Use Times New Roman so figure typography matches the IEEEtran document body
+# (the `ptm` family). Register all four variants so bold/italic labels use real,
+# matching glyphs instead of matplotlib's synthesized faux weights. A local
+# `fonts/` copy is preferred when present; otherwise the system msttcorefonts
+# install is used.
+from matplotlib import font_manager
+
+_TNR_DIR_CANDIDATES = (
+    Path(__file__).resolve().parent / "fonts",
+    Path("/usr/share/fonts/truetype/msttcorefonts"),
+)
+_TNR_FILES = (
+    "Times_New_Roman.ttf",
+    "Times_New_Roman_Bold.ttf",
+    "Times_New_Roman_Italic.ttf",
+    "Times_New_Roman_Bold_Italic.ttf",
+)
+for _dir in _TNR_DIR_CANDIDATES:
+    if all((_dir / _f).exists() for _f in _TNR_FILES):
+        for _f in _TNR_FILES:
+            font_manager.fontManager.addfont(str(_dir / _f))
+        break
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "figure.facecolor": "white",
+    "axes.facecolor": "white",
+    "savefig.facecolor": "white",
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+})
+
 DEFAULT_INPUT = Path("experiments/mitbih_binary_ectopy_five_seed/multiseed_per_seed_summary.csv")
 DEFAULT_OUTPUT = Path("fairness_article/figures/generated/fig_ecg_fairness_summary")
 VARIANT_NAMES = {
+    "teacher": "Teacher",
+    "student": "Student (no KD)",
     "KD": "Standard KD",
     "T1": "EBTD",
     "O2": "GCOA",
     "T1+O2": "EBTD+GCOA",
 }
 METHODS = list(VARIANT_NAMES.values())
-GROUP_COLORS = {"Female": "#2A7F9E", "Male": "#789D3C"}
-SEED_COLOR = "#455A64"
-MEAN_COLOR = "#C7511F"
-GRID_COLOR = "#D7E0E5"
-ERROR_COLOR = "#263238"
+DISPLAY_LABELS = [
+    "Teacher", "Student\n(no KD)", "Standard\nKD", "EBTD", "GCOA", "EBTD+\nGCOA"
+]
+GROUP_COLORS = {"Female": "#006795", "Male": "#306627"}
+SEED_COLOR = "#737373"
+MEAN_COLOR = "#DD7432"
+GRID_COLOR = "#E0E0E0"
+ERROR_COLOR = "#737373"
+AXIS_COLOR = "#404040"
+PAIR_LINE_COLOR = "#BFBFBF"
+
+
+def style_fig3_axis(axis: plt.Axes) -> None:
+    """Apply Figure 3's neutral grid and arrow-ended axis treatment."""
+    axis.spines[["top", "right", "bottom", "left"]].set_visible(False)
+    axis.tick_params(axis="both", length=0, width=0, pad=3, labelsize=7.5, colors=AXIS_COLOR)
+    axis.grid(True, axis="both", color=GRID_COLOR, linewidth=0.4)
+    axis.set_axisbelow(True)
+    arrow = dict(
+        arrowstyle="->", color=AXIS_COLOR, linewidth=0.8,
+        mutation_scale=8, shrinkA=0, shrinkB=0,
+    )
+    axis.annotate("", xy=(1.015, 0), xytext=(0, 0), xycoords="axes fraction",
+                  arrowprops=arrow, annotation_clip=False)
+    axis.annotate("", xy=(0, 1.025), xytext=(0, 0), xycoords="axes fraction",
+                  arrowprops=arrow, annotation_clip=False)
 
 
 def load_results(path: Path) -> pd.DataFrame:
@@ -74,7 +131,7 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
         .reindex(columns=METHODS)
     )
 
-    figure, (recall_axis, eo_axis) = plt.subplots(1, 2, figsize=(7.35, 3.35), constrained_layout=True)
+    figure, (recall_axis, eo_axis) = plt.subplots(2, 1, figsize=(3.5, 5.25), constrained_layout=True)
     method_positions = np.arange(len(METHODS))
     offsets = {"Female": -0.18, "Male": 0.18}
     for sex in GROUP_COLORS:
@@ -87,9 +144,9 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
             yerr=subset["sd"],
             capsize=2.5,
             color=GROUP_COLORS[sex],
-            edgecolor=ERROR_COLOR,
+            edgecolor=AXIS_COLOR,
             linewidth=0.6,
-            error_kw={"elinewidth": 0.85, "ecolor": ERROR_COLOR},
+            error_kw={"elinewidth": 0.55, "capthick": 0.55, "ecolor": ERROR_COLOR},
             label=sex,
         )
         points = results[results["sex"] == sex]
@@ -98,33 +155,30 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
             recall_axis.scatter(
                 np.full(values.size, positions[index]),
                 values,
-                s=16,
+                s=18,
                 color=SEED_COLOR,
-                alpha=0.78,
+                alpha=1.0,
                 edgecolors="white",
-                linewidths=0.35,
+                linewidths=0.6,
                 zorder=4,
             )
 
-    recall_axis.set_title("(a) Group-specific ectopy detection", fontsize=10, fontweight="bold", pad=12)
-    recall_axis.set_xticks(method_positions, METHODS, fontsize=8)
-    recall_axis.set_ylabel("Ectopy recall (higher better)", fontsize=9)
+    recall_axis.set_title("(a) Group-specific ectopy detection", fontsize=9, fontweight="bold", pad=7)
+    recall_axis.set_xticks(method_positions, DISPLAY_LABELS, fontsize=6.5)
+    recall_axis.set_ylabel("Ectopy recall (higher better)", fontsize=8)
     recall_axis.set_ylim(0, 1)
     recall_axis.set_yticks(np.arange(0, 1.01, 0.2))
-    recall_axis.tick_params(axis="y", labelsize=8)
-    recall_axis.grid(axis="y", color=GRID_COLOR, linewidth=0.7)
-    recall_axis.set_axisbelow(True)
-    recall_axis.spines[["top", "right"]].set_visible(False)
+    style_fig3_axis(recall_axis)
     recall_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=2, fontsize=8,
-        frameon=True, facecolor="white", edgecolor="#90A4AE", framealpha=1,
-        handlelength=1.1, columnspacing=1.0, borderpad=0.45,
+        loc="upper center", bbox_to_anchor=(0.5, -0.11), ncol=2, fontsize=7.5,
+        frameon=False, handlelength=1.1, handletextpad=0.45,
+        columnspacing=1.0, borderaxespad=0,
     )
 
     eo_positions = np.arange(len(METHODS))
     for _, values in eo_by_seed.iterrows():
-        eo_axis.plot(eo_positions, values.to_numpy(), color="#B0BEC5", linewidth=0.9, alpha=0.9, zorder=1)
-        eo_axis.scatter(eo_positions, values.to_numpy(), color=SEED_COLOR, s=18, edgecolors="white", linewidths=0.35, zorder=2)
+        eo_axis.plot(eo_positions, values.to_numpy(), color=PAIR_LINE_COLOR, linewidth=0.55, alpha=1.0, zorder=1)
+        eo_axis.scatter(eo_positions, values.to_numpy(), color=SEED_COLOR, s=18, edgecolors="white", linewidths=0.6, zorder=2)
     means = eo_by_seed.mean(axis=0).to_numpy()
     sds = eo_by_seed.std(axis=0, ddof=1).to_numpy()
     eo_axis.errorbar(
@@ -133,30 +187,32 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
         yerr=sds,
         fmt="D",
         markersize=5.5,
+        markerfacecolor=MEAN_COLOR,
+        markeredgecolor="white",
+        markeredgewidth=0.6,
         color=MEAN_COLOR,
-        ecolor=MEAN_COLOR,
-        capsize=3,
-        linewidth=1.1,
+        ecolor=ERROR_COLOR,
+        elinewidth=0.55,
+        capsize=2.5,
+        capthick=0.55,
+        linestyle="none",
         zorder=3,
-        label="Mean +/- SD",
+        label="Mean ± SD",
     )
-    eo_axis.set_title("(b) Ectopy EO endpoint", fontsize=10, fontweight="bold", pad=12)
-    eo_axis.set_xticks(eo_positions, METHODS, fontsize=8)
-    eo_axis.set_ylabel("Female/male EO gap (lower better)", fontsize=9)
+    eo_axis.set_title("(b) Ectopy EO endpoint", fontsize=9, fontweight="bold", pad=7)
+    eo_axis.set_xticks(eo_positions, DISPLAY_LABELS, fontsize=6.5)
+    eo_axis.set_ylabel("Female/male EO gap (lower better)", fontsize=8)
     eo_axis.set_ylim(0, 0.28)
     eo_axis.set_yticks(np.arange(0, 0.281, 0.05))
-    eo_axis.tick_params(axis="y", labelsize=8)
-    eo_axis.grid(axis="y", color=GRID_COLOR, linewidth=0.7)
-    eo_axis.set_axisbelow(True)
-    eo_axis.spines[["top", "right"]].set_visible(False)
+    style_fig3_axis(eo_axis)
     eo_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=8,
-        frameon=True, facecolor="white", edgecolor="#90A4AE", framealpha=1,
-        borderpad=0.45,
+        loc="upper center", bbox_to_anchor=(0.5, -0.11), fontsize=7.5,
+        frameon=False, handlelength=1.1, handletextpad=0.45, borderaxespad=0,
     )
 
     output_prefix.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_prefix.with_suffix(".pdf"), bbox_inches="tight")
+    figure.savefig(output_prefix.with_suffix(".eps"), format="eps", bbox_inches="tight")
     figure.savefig(output_prefix.with_suffix(".png"), dpi=400, bbox_inches="tight")
     plt.close(figure)
     return summary

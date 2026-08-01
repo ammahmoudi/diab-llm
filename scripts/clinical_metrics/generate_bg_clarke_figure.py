@@ -27,6 +27,40 @@ import pandas as pd
 from matplotlib.colors import ListedColormap
 from py_agata.error import clarke
 
+# Use Times New Roman so figure typography matches the IEEEtran document body
+# (the `ptm` family). Register all four variants so bold/italic labels use real,
+# matching glyphs instead of matplotlib's synthesized faux weights. A local
+# `fonts/` copy is preferred when present; otherwise the system msttcorefonts
+# install is used.
+from matplotlib import font_manager
+
+_TNR_DIR_CANDIDATES = (
+    Path(__file__).resolve().parent / "fonts",
+    Path("/usr/share/fonts/truetype/msttcorefonts"),
+)
+_TNR_FILES = (
+    "Times_New_Roman.ttf",
+    "Times_New_Roman_Bold.ttf",
+    "Times_New_Roman_Italic.ttf",
+    "Times_New_Roman_Bold_Italic.ttf",
+)
+for _dir in _TNR_DIR_CANDIDATES:
+    if all((_dir / _f).exists() for _f in _TNR_FILES):
+        for _f in _TNR_FILES:
+            font_manager.fontManager.addfont(str(_dir / _f))
+        break
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "figure.facecolor": "white",
+    "axes.facecolor": "white",
+    "savefig.facecolor": "white",
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+})
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
@@ -41,25 +75,90 @@ SEEDS = ("238822", "247659", "427368", "809906", "831363")
 METHODS = {
     "Standard KD": "bert_to_bert-tiny_all_patients_seed{seed}",
     "EBTD": "bert_to_bert-tiny_all_patients_fair_teacher_seed{seed}",
+    "GCOA": "bert_to_bert-tiny_all_patients_o2_gender_seed{seed}",
     "EBTD+GCOA": "bert_to_bert-tiny_all_patients_o2_gender_fair_teacher_seed{seed}",
+}
+REFERENCE_METHODS = ("Teacher", "Student (no KD)")
+FAIRNESS_METHODS = (*REFERENCE_METHODS, *METHODS)
+TEACHER_STUDENT_SUITE = Path("teacher_student_multiseed")
+TEACHER_STUDENT_PHASES = {
+    "Teacher": "phase_1_teacher",
+    "Student (no KD)": "phase_2_student",
 }
 LOCKED_METHOD_NAMES = {
     "Standard KD": "Baseline KD (no fairness)",
     "EBTD": "Distilled from Fair Teacher (T1)",
+    "GCOA": "Standalone O2 Calibration Head",
     "EBTD+GCOA": "Distilled from Fair Teacher + O2 Calibration Head",
 }
 ZONE_NAMES = np.array(["A", "B", "C", "D", "E"])
 ZONE_COLORS = np.array(["#2A9D8F", "#E9C46A", "#F4A261", "#E76F51", "#9D0208"])
 GENDER = {patient: details["gender"] for patient, details in get_ohiot1dm_default_data().items()}
 HYPOGLYCEMIA_THRESHOLD = 70.0
-GROUP_COLORS = {"Female": "#2A7F9E", "Male": "#789D3C"}
-SEED_COLOR = "#455A64"
-MEAN_COLOR = "#C7511F"
-GRID_COLOR = "#D7E0E5"
-ERROR_COLOR = "#263238"
+GROUP_COLORS = {"Female": "#006795", "Male": "#306627"}
+SEED_COLOR = "#737373"
+MEAN_COLOR = "#DD7432"
+GRID_COLOR = "#E0E0E0"
+ERROR_COLOR = "#737373"
+AXIS_COLOR = "#404040"
+PAIR_LINE_COLOR = "#BFBFBF"
+
+
+def load_reference_group_tprs(suite_dir: Path) -> pd.DataFrame:
+    """Load teacher and standalone-student recalls from their five-seed suite."""
+    rows: list[dict[str, float | int | str]] = []
+    inference_subpath = Path("per_patient_inference/time_llm_per_patient_inference_ohiot1dm")
+    for method, phase in TEACHER_STUDENT_PHASES.items():
+        for seed in SEEDS:
+            inference_root = suite_dir / f"seed_{seed}" / phase / inference_subpath
+            paths = sorted(inference_root.glob("**/inference_results_reformatted.csv"))
+            patients = {next(part for part in path.parts if part.startswith("patient_")) for path in paths}
+            if len(paths) != 12 or len(patients) != 12:
+                raise ValueError(
+                    f"{method}, seed {seed}: expected 12 patient inference files, found {len(paths)}"
+                )
+            by_group: dict[str, dict[str, list[np.ndarray]]] = {
+                group: {"reference": [], "forecast": []} for group in GROUP_COLORS
+            }
+            for path in paths:
+                reference, forecast = paired_values(path)
+                patient = next(
+                    part.removeprefix("patient_") for part in path.parts if part.startswith("patient_")
+                )
+                group = GENDER.get(patient)
+                if group not in by_group:
+                    raise ValueError(f"{method}, seed {seed}: unknown patient group for {patient}")
+                by_group[group]["reference"].append(reference)
+                by_group[group]["forecast"].append(forecast)
+            for group, values in by_group.items():
+                reference = np.concatenate(values["reference"])
+                forecast = np.concatenate(values["forecast"])
+                positives = reference < HYPOGLYCEMIA_THRESHOLD
+                tpr = float(np.mean(forecast[positives] < HYPOGLYCEMIA_THRESHOLD))
+                rows.append(
+                    {"method": method, "seed": seed, "sex": group, "hypoglycemia_tpr": tpr}
+                )
+    return pd.DataFrame(rows)
+
+
+def style_fig3_axis(axis: plt.Axes) -> None:
+    """Apply Figure 3's neutral grid and arrow-ended axis treatment."""
+    axis.spines[["top", "right", "bottom", "left"]].set_visible(False)
+    axis.tick_params(axis="both", length=0, width=0, pad=3, labelsize=7.5, colors=AXIS_COLOR)
+    axis.grid(True, axis="both", color=GRID_COLOR, linewidth=0.4)
+    axis.set_axisbelow(True)
+    arrow = dict(
+        arrowstyle="->", color=AXIS_COLOR, linewidth=0.8,
+        mutation_scale=8, shrinkA=0, shrinkB=0,
+    )
+    axis.annotate("", xy=(1.015, 0), xytext=(0, 0), xycoords="axes fraction",
+                  arrowprops=arrow, annotation_clip=False)
+    axis.annotate("", xy=(0, 1.025), xytext=(0, 0), xycoords="axes fraction",
+                  arrowprops=arrow, annotation_clip=False)
 METHOD_FILE_STEMS = {
     "Standard KD": "standard_kd",
     "EBTD": "ebtd_t1",
+    "GCOA": "gcoa",
     "EBTD+GCOA": "ebtd_gcoa",
 }
 
@@ -247,7 +346,7 @@ def draw_clarke_boundaries(axis: plt.Axes) -> None:
     d_x = np.linspace(175 / 3, 70, 50)
     axis.plot(d_x, 1.2 * d_x, **line)
     for label, xy in {"A": (265, 275), "B": (300, 180), "C": (145, 330), "D": (45, 160), "E": (245, 35)}.items():
-        axis.text(*xy, label, color="#343A40", fontsize=9, fontweight="bold", ha="center", va="center", zorder=4)
+        axis.text(*xy, label, color="#343A40", fontsize=7, fontweight="bold", ha="center", va="center", zorder=4)
 
 
 def plot_clarke_figure(predictions: pd.DataFrame, method: str, output_prefix: Path, sample_size: int) -> None:
@@ -269,15 +368,15 @@ def plot_clarke_figure(predictions: pd.DataFrame, method: str, output_prefix: Pa
     axis.set_xlim(0, 400)
     axis.set_ylim(0, 400)
     axis.set_aspect("equal", adjustable="box")
-    axis.set_title(method, fontsize=11, fontweight="bold", pad=5)
-    axis.set_xlabel("Reference glucose (mg/dL)", fontsize=9)
-    axis.set_ylabel("Forecast glucose (mg/dL)", fontsize=9)
-    axis.tick_params(labelsize=8)
+    axis.set_title(method, fontsize=8, fontweight="bold", pad=5)
+    axis.set_xlabel("Reference glucose (mg/dL)", fontsize=7)
+    axis.set_ylabel("Forecast glucose (mg/dL)", fontsize=7)
+    axis.tick_params(labelsize=6.5)
     handles = [plt.Line2D([], [], marker="o", linestyle="", markersize=5, color=color, label=f"Zone {zone}")
                for zone, color in zip(ZONE_NAMES, ZONE_COLORS)]
     axis.legend(
         handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.17),
-        ncol=5, frameon=True, fontsize=6.7, handletextpad=0.3,
+        ncol=5, frameon=True, fontsize=5.5, handletextpad=0.3,
         columnspacing=0.65, borderpad=0.35,
     )
 
@@ -294,7 +393,7 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
         .reset_index()
     )
     eo_by_seed = pd.DataFrame(index=pd.Index(SEEDS, name="seed"))
-    for method in METHODS:
+    for method in FAIRNESS_METHODS:
         sex_tprs = (
             group_tprs[group_tprs["method"] == method]
             .pivot(index="seed", columns="sex", values="hypoglycemia_tpr")
@@ -302,69 +401,68 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
         )
         eo_by_seed[method] = (sex_tprs["Female"] - sex_tprs["Male"]).abs()
 
-    figure, (tpr_axis, eo_axis) = plt.subplots(1, 2, figsize=(7.35, 3.35), constrained_layout=True)
-    method_positions = np.arange(len(METHODS))
+    figure, (tpr_axis, eo_axis) = plt.subplots(2, 1, figsize=(3.5, 5.25), constrained_layout=True)
+    method_positions = np.arange(len(FAIRNESS_METHODS))
     offsets = {"Female": -0.18, "Male": 0.18}
     for sex in GROUP_COLORS:
-        subset = summary[summary["sex"] == sex].set_index("method").loc[list(METHODS)]
+        subset = summary[summary["sex"] == sex].set_index("method").loc[list(FAIRNESS_METHODS)]
         positions = method_positions + offsets[sex]
         tpr_axis.bar(
             positions, subset["mean"], width=0.32,
             yerr=subset["sd"], capsize=2.5, color=GROUP_COLORS[sex],
-            edgecolor=ERROR_COLOR, linewidth=0.6,
-            error_kw={"elinewidth": 0.85, "ecolor": ERROR_COLOR}, label=sex,
+            edgecolor=AXIS_COLOR, linewidth=0.6,
+            error_kw={"elinewidth": 0.55, "capthick": 0.55, "ecolor": ERROR_COLOR}, label=sex,
         )
-        values = group_tprs[group_tprs["sex"] == sex].set_index("method").loc[list(METHODS)]
-        for method_index, method in enumerate(METHODS):
+        values = group_tprs[group_tprs["sex"] == sex].set_index("method").loc[list(FAIRNESS_METHODS)]
+        for method_index, method in enumerate(FAIRNESS_METHODS):
             seed_values = values.loc[method]
             if isinstance(seed_values, pd.Series):
                 tpr_axis.scatter(
                     np.full(len(seed_values), positions[method_index]),
-                    seed_values["hypoglycemia_tpr"], s=16, color=SEED_COLOR, alpha=0.78,
-                    edgecolors="white", linewidths=0.35, zorder=4,
+                    seed_values["hypoglycemia_tpr"], s=18, color=SEED_COLOR, alpha=1.0,
+                    edgecolors="white", linewidths=0.6, zorder=4,
                 )
 
-    tpr_axis.set_title("(a) Group-specific detection", fontsize=10, fontweight="bold", pad=12)
-    tpr_axis.set_xticks(method_positions, ["Standard KD", "EBTD", "EBTD+GCOA"], fontsize=8)
-    tpr_axis.set_ylabel("Hypoglycemia TPR (higher better)", fontsize=9)
+    tpr_axis.set_title("(a) Group-specific detection", fontsize=9, fontweight="bold", pad=7)
+    display_labels = [
+        "Teacher", "Student\n(no KD)", "Standard\nKD", "EBTD", "GCOA", "EBTD+\nGCOA"
+    ]
+    tpr_axis.set_xticks(method_positions, display_labels, fontsize=6.5)
+    tpr_axis.set_ylabel("Hypoglycemia TPR (higher better)", fontsize=8)
     tpr_axis.set_ylim(0, 1)
     tpr_axis.set_yticks(np.arange(0, 1.01, 0.2))
-    tpr_axis.tick_params(axis="y", labelsize=8)
-    tpr_axis.grid(axis="y", color=GRID_COLOR, linewidth=0.7)
-    tpr_axis.set_axisbelow(True)
-    tpr_axis.spines[["top", "right"]].set_visible(False)
+    style_fig3_axis(tpr_axis)
     tpr_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=2, fontsize=8,
-        frameon=True, facecolor="white", edgecolor="#90A4AE", framealpha=1,
-        handlelength=1.1, columnspacing=1.0, borderpad=0.45,
+        loc="upper center", bbox_to_anchor=(0.5, -0.11), ncol=2, fontsize=7.5,
+        frameon=False, handlelength=1.1, handletextpad=0.45,
+        columnspacing=1.0, borderaxespad=0,
     )
 
-    eo_positions = np.arange(len(METHODS))
+    eo_positions = np.arange(len(FAIRNESS_METHODS))
     for _, values in eo_by_seed.iterrows():
-        eo_axis.plot(eo_positions, values.to_numpy(), color="#B0BEC5", linewidth=0.9, alpha=0.9, zorder=1)
-        eo_axis.scatter(eo_positions, values.to_numpy(), color=SEED_COLOR, s=18, edgecolors="white", linewidths=0.35, zorder=2)
+        eo_axis.plot(eo_positions, values.to_numpy(), color=PAIR_LINE_COLOR, linewidth=0.55, alpha=1.0, zorder=1)
+        eo_axis.scatter(eo_positions, values.to_numpy(), color=SEED_COLOR, s=18, edgecolors="white", linewidths=0.6, zorder=2)
     eo_means = eo_by_seed.mean(axis=0).to_numpy()
     eo_sds = eo_by_seed.std(axis=0, ddof=0).to_numpy()
     eo_axis.errorbar(
         eo_positions, eo_means, yerr=eo_sds, fmt="D", markersize=5.5,
-        color=MEAN_COLOR, ecolor=MEAN_COLOR, capsize=3, linewidth=1.2, zorder=3,
-        label="Mean +/- SD",
+        markerfacecolor=MEAN_COLOR, markeredgecolor="white", markeredgewidth=0.6,
+        color=MEAN_COLOR, ecolor=ERROR_COLOR, elinewidth=0.55,
+        capsize=2.5, capthick=0.55, linestyle="none", zorder=3,
+        label="Mean ± SD",
     )
-    eo_axis.set_title("(b) Primary fairness endpoint", fontsize=10, fontweight="bold", pad=12)
-    eo_axis.set_xticks(eo_positions, ["Standard KD", "EBTD", "EBTD+GCOA"], fontsize=8)
-    eo_axis.set_ylabel("Raw EO gap (lower better)", fontsize=9)
+    eo_axis.set_title("(b) Primary fairness endpoint", fontsize=9, fontweight="bold", pad=7)
+    eo_axis.set_xticks(eo_positions, display_labels, fontsize=6.5)
+    eo_axis.set_ylabel("Raw EO gap (lower better)", fontsize=8)
     eo_axis.set_ylim(0, 0.28)
     eo_axis.set_yticks(np.arange(0, 0.281, 0.05))
-    eo_axis.tick_params(axis="y", labelsize=8)
-    eo_axis.grid(axis="y", color=GRID_COLOR, linewidth=0.7)
-    eo_axis.set_axisbelow(True)
-    eo_axis.spines[["top", "right"]].set_visible(False)
+    style_fig3_axis(eo_axis)
     eo_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.22), fontsize=8,
-        frameon=True, facecolor="white", edgecolor="#90A4AE", framealpha=1,
-        borderpad=0.45,
+        loc="upper center", bbox_to_anchor=(0.5, -0.11), fontsize=7.5,
+        frameon=False, handlelength=1.1, handletextpad=0.45, borderaxespad=0,
     )
     figure.savefig(output_prefix.with_suffix(".pdf"), bbox_inches="tight")
+    figure.savefig(output_prefix.with_suffix(".eps"), format="eps", bbox_inches="tight")
     figure.savefig(output_prefix.with_suffix(".png"), dpi=400, bbox_inches="tight")
     plt.close(figure)
     return summary
@@ -373,6 +471,7 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a validated five-seed BG Clarke Error Grid figure.")
     parser.add_argument("--pipeline-root", type=Path, default=PIPELINE_ROOT)
+    parser.add_argument("--teacher-student-suite", type=Path, default=TEACHER_STUDENT_SUITE)
     parser.add_argument("--output-dir", type=Path, default=Path("fairness_article/figures/generated"))
     parser.add_argument("--sample-size", type=int, default=25000, help="Display-only points per method panel.")
     args = parser.parse_args()
@@ -391,6 +490,7 @@ def main() -> None:
     all_predictions = pd.concat(prediction_frames, ignore_index=True)
     summaries = pd.concat(summary_frames, ignore_index=True)
     audits = pd.concat(audit_frames, ignore_index=True)
+    group_tpr_frames.insert(0, load_reference_group_tprs(args.teacher_student_suite))
     group_tprs = pd.concat(group_tpr_frames, ignore_index=True)
     rmse_checks = verify_locked_rmse(audits, args.pipeline_root.parent / "multiseed_robustness_results.csv")
     args.output_dir.mkdir(parents=True, exist_ok=True)
