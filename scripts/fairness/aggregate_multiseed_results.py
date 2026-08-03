@@ -31,6 +31,7 @@ from scripts.fairness.compute_fairness_comparison import analyze_run  # noqa: E4
 METHODS = [
     ("Baseline KD (no fairness)", "bert_to_bert-tiny_all_patients_seed{seed}"),
     ("Distilled from Fair Teacher (T1)", "bert_to_bert-tiny_all_patients_fair_teacher_seed{seed}"),
+    ("Standalone O2 Calibration Head", "bert_to_bert-tiny_all_patients_o2_gender_seed{seed}"),
     ("Distilled from Fair Teacher + O2 Calibration Head", "bert_to_bert-tiny_all_patients_o2_gender_fair_teacher_seed{seed}"),
 ]
 

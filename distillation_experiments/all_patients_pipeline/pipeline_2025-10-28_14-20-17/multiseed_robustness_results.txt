@@ -5,5 +5,7 @@ Baseline KD (no fairness)                       23.528 ± 0.270   0.217 ± 0.006
     (n=5) per-seed EO_raw: [0.2152, 0.2249, 0.2178, 0.2071, 0.2219]
 Distilled from Fair Teacher (T1)                22.845 ± 0.331   0.201 ± 0.008   0.057 ± 0.006
     (n=5) per-seed EO_raw: [0.1919, 0.1943, 0.2121, 0.2079, 0.2001]
+Standalone O2 Calibration Head                  23.377 ± 0.262   0.129 ± 0.014   0.057 ± 0.005
+    (n=5) per-seed EO_raw: [0.1219, 0.151, 0.1344, 0.1093, 0.1283]
 Distilled from Fair Teacher + O2 Calibration    22.942 ± 0.667   0.118 ± 0.033   0.045 ± 0.004
     (n=5) per-seed EO_raw: [0.1154, 0.1551, 0.1528, 0.0718, 0.0944]

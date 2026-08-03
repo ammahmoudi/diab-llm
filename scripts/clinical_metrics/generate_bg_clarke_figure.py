@@ -155,6 +155,16 @@ def style_fig3_axis(axis: plt.Axes) -> None:
                   arrowprops=arrow, annotation_clip=False)
     axis.annotate("", xy=(0, 1.025), xytext=(0, 0), xycoords="axes fraction",
                   arrowprops=arrow, annotation_clip=False)
+
+
+def save_axis_pdf(figure: plt.Figure, axis: plt.Axes, path: Path) -> None:
+    """Save one panel, including its labels and legend, as a vector PDF."""
+    figure.canvas.draw()
+    renderer = figure.canvas.get_renderer()
+    bounds = axis.get_tightbbox(renderer).expanded(1.04, 1.04)
+    figure.savefig(path, bbox_inches=bounds.transformed(figure.dpi_scale_trans.inverted()))
+
+
 METHOD_FILE_STEMS = {
     "Standard KD": "standard_kd",
     "EBTD": "ebtd_t1",
@@ -423,7 +433,7 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
                     edgecolors="white", linewidths=0.6, zorder=4,
                 )
 
-    tpr_axis.set_title("(a) Group-specific detection", fontsize=9, fontweight="bold", pad=7)
+    tpr_axis.set_title("Group-specific detection", fontsize=9, fontweight="bold", pad=7)
     display_labels = [
         "Teacher", "Student\n(no KD)", "Standard\nKD", "EBTD", "GCOA", "EBTD+\nGCOA"
     ]
@@ -433,7 +443,7 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
     tpr_axis.set_yticks(np.arange(0, 1.01, 0.2))
     style_fig3_axis(tpr_axis)
     tpr_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.11), ncol=2, fontsize=7.5,
+        loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=2, fontsize=7.5,
         frameon=False, handlelength=1.1, handletextpad=0.45,
         columnspacing=1.0, borderaxespad=0,
     )
@@ -451,19 +461,29 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
         capsize=2.5, capthick=0.55, linestyle="none", zorder=3,
         label="Mean ± SD",
     )
-    eo_axis.set_title("(b) Primary fairness endpoint", fontsize=9, fontweight="bold", pad=7)
+    eo_axis.set_title("Primary fairness endpoint", fontsize=9, fontweight="bold", pad=7)
     eo_axis.set_xticks(eo_positions, display_labels, fontsize=6.5)
     eo_axis.set_ylabel("Raw EO gap (lower better)", fontsize=8)
     eo_axis.set_ylim(0, 0.28)
     eo_axis.set_yticks(np.arange(0, 0.281, 0.05))
     style_fig3_axis(eo_axis)
     eo_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.11), fontsize=7.5,
+        loc="upper center", bbox_to_anchor=(0.5, -0.16), fontsize=7.5,
         frameon=False, handlelength=1.1, handletextpad=0.45, borderaxespad=0,
     )
     figure.savefig(output_prefix.with_suffix(".pdf"), bbox_inches="tight")
     figure.savefig(output_prefix.with_suffix(".eps"), format="eps", bbox_inches="tight")
     figure.savefig(output_prefix.with_suffix(".png"), dpi=400, bbox_inches="tight")
+    save_axis_pdf(
+        figure,
+        tpr_axis,
+        output_prefix.parent / "fig_bg_group_hypoglycemia_detection.pdf",
+    )
+    save_axis_pdf(
+        figure,
+        eo_axis,
+        output_prefix.parent / "fig_bg_hypoglycemia_eo_gap.pdf",
+    )
     plt.close(figure)
     return summary
 

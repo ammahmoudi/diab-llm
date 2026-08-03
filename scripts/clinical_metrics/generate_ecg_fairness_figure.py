@@ -90,6 +90,14 @@ def style_fig3_axis(axis: plt.Axes) -> None:
                   arrowprops=arrow, annotation_clip=False)
 
 
+def save_axis_pdf(figure: plt.Figure, axis: plt.Axes, path: Path) -> None:
+    """Save one panel, including its labels and legend, as a vector PDF."""
+    figure.canvas.draw()
+    renderer = figure.canvas.get_renderer()
+    bounds = axis.get_tightbbox(renderer).expanded(1.04, 1.04)
+    figure.savefig(path, bbox_inches=bounds.transformed(figure.dpi_scale_trans.inverted()))
+
+
 def load_results(path: Path) -> pd.DataFrame:
     """Extract per-seed sex recall and EO values from the locked summary."""
     rows: list[dict[str, float | int | str]] = []
@@ -163,14 +171,14 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
                 zorder=4,
             )
 
-    recall_axis.set_title("(a) Group-specific ectopy detection", fontsize=9, fontweight="bold", pad=7)
+    recall_axis.set_title("Group-specific ectopy detection", fontsize=9, fontweight="bold", pad=7)
     recall_axis.set_xticks(method_positions, DISPLAY_LABELS, fontsize=6.5)
     recall_axis.set_ylabel("Ectopy recall (higher better)", fontsize=8)
     recall_axis.set_ylim(0, 1)
     recall_axis.set_yticks(np.arange(0, 1.01, 0.2))
     style_fig3_axis(recall_axis)
     recall_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.11), ncol=2, fontsize=7.5,
+        loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=2, fontsize=7.5,
         frameon=False, handlelength=1.1, handletextpad=0.45,
         columnspacing=1.0, borderaxespad=0,
     )
@@ -199,14 +207,14 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
         zorder=3,
         label="Mean ± SD",
     )
-    eo_axis.set_title("(b) Ectopy EO endpoint", fontsize=9, fontweight="bold", pad=7)
+    eo_axis.set_title("Ectopy EO endpoint", fontsize=9, fontweight="bold", pad=7)
     eo_axis.set_xticks(eo_positions, DISPLAY_LABELS, fontsize=6.5)
     eo_axis.set_ylabel("Female/male EO gap (lower better)", fontsize=8)
     eo_axis.set_ylim(0, 0.28)
     eo_axis.set_yticks(np.arange(0, 0.281, 0.05))
     style_fig3_axis(eo_axis)
     eo_axis.legend(
-        loc="upper center", bbox_to_anchor=(0.5, -0.11), fontsize=7.5,
+        loc="upper center", bbox_to_anchor=(0.5, -0.16), fontsize=7.5,
         frameon=False, handlelength=1.1, handletextpad=0.45, borderaxespad=0,
     )
 
@@ -214,6 +222,16 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
     figure.savefig(output_prefix.with_suffix(".pdf"), bbox_inches="tight")
     figure.savefig(output_prefix.with_suffix(".eps"), format="eps", bbox_inches="tight")
     figure.savefig(output_prefix.with_suffix(".png"), dpi=400, bbox_inches="tight")
+    save_axis_pdf(
+        figure,
+        recall_axis,
+        output_prefix.parent / "fig_ecg_group_ectopy_detection.pdf",
+    )
+    save_axis_pdf(
+        figure,
+        eo_axis,
+        output_prefix.parent / "fig_ecg_ectopy_eo_gap.pdf",
+    )
     plt.close(figure)
     return summary
 
