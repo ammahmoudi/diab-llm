@@ -171,7 +171,6 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
                 zorder=4,
             )
 
-    recall_axis.set_title("Group-specific ectopy detection", fontsize=9, fontweight="bold", pad=7)
     recall_axis.set_xticks(method_positions, DISPLAY_LABELS, fontsize=6.5)
     recall_axis.set_ylabel("Ectopy recall (higher better)", fontsize=8)
     recall_axis.set_ylim(0, 1)
@@ -207,7 +206,6 @@ def plot_fairness_summary(results: pd.DataFrame, output_prefix: Path) -> pd.Data
         zorder=3,
         label="Mean ± SD",
     )
-    eo_axis.set_title("Ectopy EO endpoint", fontsize=9, fontweight="bold", pad=7)
     eo_axis.set_xticks(eo_positions, DISPLAY_LABELS, fontsize=6.5)
     eo_axis.set_ylabel("Female/male EO gap (lower better)", fontsize=8)
     eo_axis.set_ylim(0, 0.28)

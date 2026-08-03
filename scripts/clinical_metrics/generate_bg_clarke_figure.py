@@ -433,7 +433,6 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
                     edgecolors="white", linewidths=0.6, zorder=4,
                 )
 
-    tpr_axis.set_title("Group-specific detection", fontsize=9, fontweight="bold", pad=7)
     display_labels = [
         "Teacher", "Student\n(no KD)", "Standard\nKD", "EBTD", "GCOA", "EBTD+\nGCOA"
     ]
@@ -461,7 +460,6 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
         capsize=2.5, capthick=0.55, linestyle="none", zorder=3,
         label="Mean ± SD",
     )
-    eo_axis.set_title("Primary fairness endpoint", fontsize=9, fontweight="bold", pad=7)
     eo_axis.set_xticks(eo_positions, display_labels, fontsize=6.5)
     eo_axis.set_ylabel("Raw EO gap (lower better)", fontsize=8)
     eo_axis.set_ylim(0, 0.28)
