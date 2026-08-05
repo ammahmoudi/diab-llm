@@ -90,6 +90,7 @@ analysis_results/
 minilm_distil_experiments/
 efficiency_test_results/
 efficiency_toolkit/results/efficiency_analysis_results/
+/teacher_student_multiseed/
 
 # Model artifacts
 *.pth
@@ -117,3 +118,4 @@ notebooks/outputs/*
 vx/
 *.zip
 diab-llm-article/*
+scripts/clinical_metrics/fonts/uhv*.ttf
