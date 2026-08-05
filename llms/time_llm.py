@@ -14,7 +14,7 @@ from torch.optim import lr_scheduler
 from tqdm import tqdm
 from data_processing.refromat_results import reformat_results
 from utils.result_saver import save_results_and_generate_plots
-from utils.time_llm_utils import EarlyStopping, adjust_learning_rate, vali
+from utils.time_llm_utils import EarlyStopping, adjust_learning_rate, model_for_checkpoint, vali
 from utils.file_utils import load_txt_content
 from utils.timefeatures import decode_manual_time_features, decode_time_features
 
@@ -344,7 +344,7 @@ class TimeLLM(TimeSeriesLLM):
         # Final checkpoint save
         final_checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pth")
         self.logger.info(f"Saving final model checkpoint at {final_checkpoint_path}.")
-        model_to_save = self.accelerator.unwrap_model(self.llm_model)
+        model_to_save = model_for_checkpoint(self.accelerator, self.llm_model)
         torch.save(model_to_save.state_dict(), final_checkpoint_path)
 
         return final_checkpoint_path, train_loss_l, val_loss_l

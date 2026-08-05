@@ -5,6 +5,12 @@ import torch
 from tqdm import tqdm
 
 
+def model_for_checkpoint(accelerator, model):
+    if accelerator is None or accelerator.num_processes == 1:
+        return model
+    return accelerator.unwrap_model(model)
+
+
 def adjust_learning_rate(accelerator, optimizer, scheduler, epoch, args, printout=True):
     if args.lradj == "type1":
         lr_adjust = {epoch: args.learning_rate * (0.5 ** ((epoch - 1) // 1))}
@@ -84,11 +90,8 @@ class EarlyStopping:
                     f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
                 )
 
-        if self.accelerator is not None:
-            model = self.accelerator.unwrap_model(model)
-            torch.save(model.state_dict(), path + "/" + "checkpoint")
-        else:
-            torch.save(model.state_dict(), path + "/" + "checkpoint")
+        model_to_save = model_for_checkpoint(self.accelerator, model)
+        torch.save(model_to_save.state_dict(), path + "/" + "checkpoint")
         self.val_loss_min = val_loss
 
 
