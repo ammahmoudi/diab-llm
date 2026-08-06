@@ -18,6 +18,7 @@ reports sex-stratified hypoglycemia detection recall and the paired raw EO gaps.
 from __future__ import annotations
 
 import argparse
+import csv
 import sys
 from pathlib import Path
 
@@ -64,7 +65,21 @@ plt.rcParams.update({
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from fairness.utils.analyzer_utils import get_ohiot1dm_default_data
+
+def load_patient_genders() -> dict[str, str]:
+    """Load the OhioT1DM patient-sex mapping without importing training code."""
+    metadata_path = ROOT / "data" / "ohiot1dm" / "data.csv"
+    if metadata_path.exists():
+        with metadata_path.open(newline="") as metadata_file:
+            return {
+                str(row["ID"]).strip(): row["Gender"].strip().capitalize()
+                for row in csv.DictReader(metadata_file)
+            }
+    return {
+        "540": "Male", "544": "Male", "552": "Male", "559": "Female",
+        "563": "Male", "567": "Female", "570": "Male", "575": "Female",
+        "584": "Male", "588": "Female", "591": "Female", "596": "Male",
+    }
 
 PIPELINE_ROOT = Path(
     "distillation_experiments/all_patients_pipeline/pipeline_2025-10-28_14-20-17"
@@ -93,7 +108,7 @@ LOCKED_METHOD_NAMES = {
 }
 ZONE_NAMES = np.array(["A", "B", "C", "D", "E"])
 ZONE_COLORS = np.array(["#2A9D8F", "#E9C46A", "#F4A261", "#E76F51", "#9D0208"])
-GENDER = {patient: details["gender"] for patient, details in get_ohiot1dm_default_data().items()}
+GENDER = load_patient_genders()
 HYPOGLYCEMIA_THRESHOLD = 70.0
 GROUP_COLORS = {"Female": "#006795", "Male": "#306627"}
 SEED_COLOR = "#737373"
@@ -423,15 +438,16 @@ def plot_fairness_summary(group_tprs: pd.DataFrame, output_prefix: Path) -> pd.D
             edgecolor=AXIS_COLOR, linewidth=0.6,
             error_kw={"elinewidth": 0.55, "capthick": 0.55, "ecolor": ERROR_COLOR}, label=sex,
         )
-        values = group_tprs[group_tprs["sex"] == sex].set_index("method").loc[list(FAIRNESS_METHODS)]
+        points = group_tprs[group_tprs["sex"] == sex]
         for method_index, method in enumerate(FAIRNESS_METHODS):
-            seed_values = values.loc[method]
-            if isinstance(seed_values, pd.Series):
-                tpr_axis.scatter(
-                    np.full(len(seed_values), positions[method_index]),
-                    seed_values["hypoglycemia_tpr"], s=18, color=SEED_COLOR, alpha=1.0,
-                    edgecolors="white", linewidths=0.6, zorder=4,
-                )
+            values = points.loc[
+                points["method"] == method, "hypoglycemia_tpr"
+            ].to_numpy()
+            tpr_axis.scatter(
+                np.full(values.size, positions[method_index]),
+                values, s=18, color=SEED_COLOR, alpha=1.0,
+                edgecolors="white", linewidths=0.6, zorder=4,
+            )
 
     display_labels = [
         "Teacher", "Student\n(no KD)", "Standard\nKD", "EBTD", "GCOA", "EBTD+\nGCOA"
