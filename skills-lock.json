@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-slides": {
+      "source": "zarazhangrui/frontend-slides",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "000d3359f7e63d5671f76270d7db249bc0593e6610fdbf601c3cf656e8f603b5"
+    },
+    "pptx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pptx/SKILL.md",
+      "computedHash": "82eaf5daede5a1779aa17ccf06597cb209a0c2bd41d3a2f18bd45e0301a387fb"
+    },
+    "slide-design-skill": {
+      "source": "SlideSpeak/slide-design-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "fef2e4ebea87e3175ebb7ea04476f4120e2b267bf74eff10eb8b6c5d8749cc8d"
+    },
+    "slidespeak": {
+      "source": "SlideSpeak/skills",
+      "sourceType": "github",
+      "skillPath": "skills/slidespeak/SKILL.md",
+      "computedHash": "54e1e2d1e6c3b0bbbeae5d7f39c9144d1f420ca83b9d7f8c3f98f2a7bfe0de71"
+    }
+  }
+}

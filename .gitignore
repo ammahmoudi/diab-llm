@@ -34,6 +34,7 @@ MANIFEST
 .research-tools/
 .research-data/
 .pipeline/
+.claude/settings.local.json
 
 # Logs and outputs
 logs/

@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabLLM — Animated Paper Presentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,650;6..72,700&display=swap" rel="stylesheet">
+<style>
+/* === THEME TOKENS === */
+:root {
+  --stage-bg: #061521;
+  --slide-bg: #f5f8f8;
+  --navy: #071e2c;
+  --navy-2: #0d2c3a;
+  --ink: #132735;
+  --muted: #536b76;
+  --teal: #087f83;
+  --teal-2: #18a5a2;
+  --mint: #83d8ca;
+  --coral: #ef765f;
+  --amber: #edc66c;
+  --violet: #846a9a;
+  --paper: #f5f8f8;
+  --white: #ffffff;
+  --line: #c8d7da;
+  --danger: #c84f4f;
+  --font-display: 'Newsreader', serif;
+  --font-body: 'Manrope', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --ease: cubic-bezier(.16,1,.3,1);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+@media print {
+    html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+    .deck-viewport { position: static; overflow: visible; background: #fff; }
+    .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+    .slide { position: relative; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; width: 1920px; height: 1080px; break-after: page; page-break-after: always; }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    .deck-controls, .edit-hotzone, .edit-toggle, .notes-panel { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .2s !important; }
+}
+
+/* === SHARED SLIDE CHROME === */
+.slide.light { background: var(--paper); color: var(--ink); }
+.slide.dark { background: var(--navy); color: var(--white); }
+.slide::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='.025'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .45;
+  mix-blend-mode: multiply;
+}
+.chrome { position: absolute; z-index: 20; font: 500 15px var(--font-mono); letter-spacing: .04em; color: var(--muted); }
+.dark .chrome { color: #9cb4bf; }
+.chrome.left { left: 76px; bottom: 34px; }
+.chrome.right { right: 78px; bottom: 34px; text-align: right; }
+.slide-no { position: absolute; right: 78px; top: 48px; z-index: 20; font: 500 15px var(--font-mono); color: #78909b; }
+.kicker { position: absolute; left: 76px; top: 54px; z-index: 8; color: var(--teal); font: 700 17px var(--font-body); letter-spacing: .16em; text-transform: uppercase; }
+.dark .kicker { color: var(--amber); }
+.title { position: absolute; left: 76px; top: 94px; width: 1660px; z-index: 8; font: 700 54px/1.03 var(--font-display); letter-spacing: -.025em; color: var(--ink); }
+.architecture-slide .title { top:92px; width:1665px; font-size:46px; line-height:1.02; }
+.architecture-slide .pipeline-shell { top:205px; }
+.dark .title { color: var(--white); }
+.source { position: absolute; left: 76px; bottom: 67px; width: 1580px; z-index: 12; font: 500 14px/1.25 var(--font-body); color: #6f838b; }
+.dark .source { color: #a4bac4; }
+.gridlines { position: absolute; inset: 0; opacity: .07; background-image: linear-gradient(var(--teal) 1px, transparent 1px), linear-gradient(90deg, var(--teal) 1px, transparent 1px); background-size: 60px 60px; }
+
+/* === REVEAL MOTION === */
+.reveal, .reveal-left, .reveal-scale, .draw-in { opacity: 0; transition: opacity .62s var(--ease), transform .72s var(--ease), filter .72s var(--ease); }
+.reveal { transform: translateY(34px); }
+.reveal-left { transform: translateX(-48px); }
+.reveal-scale { transform: scale(.92); filter: blur(5px); }
+.visible .reveal, .visible .reveal-left, .visible .reveal-scale { opacity: 1; transform: translate(0,0) scale(1); filter: blur(0); }
+.visible [data-delay="1"] { transition-delay: .08s; }
+.visible [data-delay="2"] { transition-delay: .17s; }
+.visible [data-delay="3"] { transition-delay: .26s; }
+.visible [data-delay="4"] { transition-delay: .35s; }
+.visible [data-delay="5"] { transition-delay: .44s; }
+.visible [data-delay="6"] { transition-delay: .53s; }
+.flow-line { stroke-dasharray: 12 12; animation: flow 1.15s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -24; } }
+.pulse { animation: pulse 2.1s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{ transform: scale(1); opacity:.72 } 50%{ transform: scale(1.08); opacity:1 } }
+.float { animation: float 4.5s ease-in-out infinite; }
+@keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-18px) } }
+
+/* === COMPONENTS === */
+.card { background: rgba(255,255,255,.91); border: 2px solid var(--line); border-radius: 24px; box-shadow: 0 22px 55px rgba(7,30,44,.10); overflow:hidden; }
+.dark-card { background: rgba(13,44,58,.82); border: 2px solid rgba(131,216,202,.22); border-radius: 24px; box-shadow: 0 22px 60px rgba(0,0,0,.18); }
+.pill { display: inline-flex; min-height: 50px; padding: 0 24px; align-items: center; justify-content: center; border-radius: 16px; font: 700 19px var(--font-body); }
+.metric-value { font: 700 64px/1 var(--font-display); letter-spacing: -.03em; }
+.metric-label { margin-top: 13px; font: 700 20px var(--font-body); }
+.metric-detail { margin-top: 9px; font: 500 15px var(--font-body); color: var(--muted); }
+.chart { width: 100%; height: 100%; overflow: visible; }
+.chart text { font-family: var(--font-body); fill: var(--muted); }
+.chart .axis { stroke: #9db0b8; stroke-width: 2; }
+.chart .grid { stroke: #d7e2e4; stroke-width: 2; }
+.chart .bar { transform-box: fill-box; transform-origin: left center; transform: scaleX(0); transition: transform .9s var(--ease); }
+.visible .chart .bar { transform: scaleX(1); }
+.chart .column { transform-box: fill-box; transform-origin: center bottom; transform: scaleY(0); transition: transform .9s var(--ease); }
+.visible .chart .column { transform: scaleY(1); }
+.chart .line-path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1600; stroke-dashoffset: 1600; transition: stroke-dashoffset 1.5s var(--ease); }
+.visible .chart .line-path { stroke-dashoffset: 0; }
+.chart .dot { opacity: 0; transform-box: fill-box; transform-origin: center; transform: scale(0); transition: opacity .2s ease, transform .35s var(--ease); }
+.visible .chart .dot { opacity: 1; transform: scale(1); }
+
+/* === TITLE SLIDE === */
+.hero-title { position: absolute; left: 95px; top: 102px; z-index: 8; width: 1000px; font: 700 118px/.9 var(--font-display); letter-spacing: -.055em; color: var(--white); }
+.hero-sub { position: absolute; left: 102px; top: 343px; z-index: 8; width: 1030px; font: 600 42px/1.16 var(--font-body); color: #d9e9ed; }
+.hero-author { position: absolute; left: 104px; top: 620px; z-index: 8; font: 700 25px var(--font-body); color: var(--amber); }
+.hero-meta { position: absolute; left: 104px; top: 672px; z-index: 8; font: 500 21px var(--font-body); color: #cfdee3; }
+.hero-orbit { position:absolute; right:-110px; top:-130px; width:910px; height:910px; border-radius:50%; border:110px solid rgba(8,127,131,.58); }
+.hero-orbit.two { right:-170px; top:605px; width:580px; height:580px; border-width:75px; border-color:rgba(239,118,95,.72); }
+.hero-glyph { position:absolute; right:180px; top:230px; width:480px; height:480px; z-index:4; }
+
+/* === NAVIGATION + NOTES === */
+.deck-controls { display:flex; gap:14px; align-items:center; background:rgba(4,18,28,.82); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,.15); padding:10px 14px; border-radius:18px; opacity:0; transition:opacity .25s ease; }
+body:hover .deck-controls, .deck-controls:focus-within { opacity:1; }
+.deck-controls button { border:0; width:42px; height:36px; border-radius:10px; background:#153746; color:#fff; cursor:pointer; font:700 17px var(--font-body); }
+.deck-controls button:hover { background:var(--teal); }
+.progress { width:170px; height:5px; border-radius:99px; background:#274552; overflow:hidden; }
+.progress > i { display:block; height:100%; background:var(--amber); transform-origin:left; transition:transform .35s var(--ease); }
+.counter { min-width:68px; color:#dbe7ea; font:500 13px var(--font-mono); text-align:center; }
+.notes-panel { position:fixed; z-index:1100; right:18px; top:18px; width:min(520px,44vw); max-height:44vh; overflow:auto; padding:20px 22px; border-radius:18px; background:rgba(5,22,32,.95); color:#e5eef1; border:1px solid rgba(255,255,255,.15); box-shadow:0 20px 60px rgba(0,0,0,.35); transform:translateX(calc(100% + 30px)); transition:transform .35s var(--ease); font:500 14px/1.55 var(--font-body); }
+.notes-panel.open { transform:translateX(0); }
+.notes-panel h3 { font:700 18px var(--font-display); color:var(--amber); margin-bottom:8px; }
+.edit-hotzone { position:fixed; top:0; left:0; width:80px; height:80px; z-index:10000; cursor:pointer; }
+.edit-toggle { position:fixed; top:18px; left:18px; z-index:10001; opacity:0; pointer-events:none; transition:opacity .3s ease; border:1px solid rgba(255,255,255,.2); color:#fff; background:#0d2c3a; width:46px; height:46px; border-radius:13px; cursor:pointer; }
+.edit-toggle.show, .edit-toggle.active { opacity:1; pointer-events:auto; }
+.editing [data-editable="true"] { outline:2px dashed var(--amber); outline-offset:5px; cursor:text; }
+
+/* === SLIDE-SPECIFIC LAYOUTS === */
+.problem-panel { position:absolute; top:248px; width:790px; height:610px; padding:32px; }
+.problem-panel.past { left:84px; }
+.problem-panel.future { left:1045px; background:var(--navy); color:#fff; border-color:var(--navy); }
+.problem-label { font:700 16px var(--font-mono); letter-spacing:.14em; color:var(--teal); }
+.future .problem-label { color:var(--amber); }
+.problem-chart { width:100%; height:380px; margin-top:25px; }
+.problem-stat { display:flex; gap:22px; align-items:baseline; margin-top:15px; }
+.problem-stat strong { font:700 48px var(--font-display); color:var(--teal); }
+.future .problem-stat strong { color:var(--amber); }
+.problem-stat span { font:600 18px var(--font-body); color:var(--muted); }
+.future .problem-stat span { color:#bdd0d7; }
+.now-marker { position:absolute; left:946px; top:282px; width:4px; height:468px; background:repeating-linear-gradient(to bottom,var(--coral),var(--coral) 14px,transparent 14px,transparent 25px); }
+.now-marker span { position:absolute; top:488px; left:-31px; color:var(--coral); font:700 15px var(--font-mono); }
+
+.arch-grid { position:absolute; left:76px; top:232px; width:1768px; height:702px; display:grid; grid-template-columns:1fr 1fr; gap:38px; }
+.arch-card { position:relative; padding:34px 40px; overflow:hidden; }
+.arch-card.chronos { background:#f5eaf4; border-color:#d8afd6; }
+.arch-card.timellm { background:#e8f5f1; border-color:#abd5ca; }
+.arch-name { font:700 33px var(--font-display); color:#643f70; }
+.timellm .arch-name { color:#176c63; }
+.arch-svg { position:absolute; left:35px; right:35px; top:112px; height:390px; }
+.arch-caption { position:absolute; left:40px; bottom:42px; }
+.arch-caption strong { display:block; font:700 25px var(--font-body); }
+.arch-caption span { display:block; margin-top:8px; color:var(--muted); font:500 17px var(--font-body); }
+
+/* === COMPLETE TECHNICAL PIPELINES === */
+.pipeline-shell { position:absolute; left:62px; top:210px; width:1796px; height:735px; padding:26px 28px; overflow:visible; }
+.pipeline-lanes { display:grid; grid-template-rows:1fr 1fr; gap:20px; height:100%; }
+.pipeline-lane { position:relative; display:flex; align-items:center; gap:9px; padding:22px 14px; border-radius:20px; background:#f9fbfb; border:1px solid #d5e1e3; }
+.pipeline-lane.prompt { background:#eaf3f5; }
+.pipeline-lane.train { background:#fff5f2; }
+.pipeline-lane.infer { background:#eef7f5; }
+.flow-tabs { position:absolute; right:14px; top:10px; z-index:35; display:flex; gap:8px; padding:6px; border-radius:15px; background:rgba(7,30,44,.10); backdrop-filter:blur(8px); }
+.flow-tab { min-width:112px; height:38px; padding:0 15px; border:1px solid #afc2c8; border-radius:10px; background:#fff; color:#526b75; cursor:pointer; font:700 12px var(--font-mono); letter-spacing:.04em; transition:background .25s ease,color .25s ease,transform .25s var(--ease),box-shadow .25s ease; }
+.flow-tab:hover,.flow-tab:focus-visible { transform:translateY(-2px); box-shadow:0 8px 18px rgba(7,30,44,.13); outline:none; }
+.flow-tab.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+.flow-tab[data-flow="train"].active { background:var(--coral); border-color:var(--coral); }
+.flow-tab[data-flow="infer"].active { background:var(--teal); border-color:var(--teal); }
+.flow-tab[data-flow="prompt"].active { background:var(--violet); border-color:var(--violet); }
+.flow-tab[data-flow="denoise"].active { background:#d69b22; border-color:#d69b22; }
+.flow-tab[data-flow="kd"].active { background:var(--violet); border-color:var(--violet); }
+.walk-controls { position:absolute; left:510px; top:10px; z-index:36; display:flex; align-items:center; gap:7px; padding:6px; border-radius:15px; background:rgba(255,255,255,.94); border:1px solid #c8d7da; box-shadow:0 8px 20px rgba(7,30,44,.10); }
+.walk-button { height:38px; min-width:45px; padding:0 11px; border:1px solid #b6c8cd; border-radius:10px; background:#f6f9f9; color:#29434e; cursor:pointer; font:800 12px var(--font-mono); transition:transform .2s var(--ease),background .2s ease,color .2s ease; }
+.walk-button:hover,.walk-button:focus-visible { transform:translateY(-2px); background:var(--teal); color:#fff; outline:none; }
+.walk-button.playing { background:var(--coral); border-color:var(--coral); color:#fff; }
+.walk-status { width:260px; text-align:center; color:#405b66; font:700 11px/1.2 var(--font-mono); }
+.architecture-svg [data-step] { transition:opacity .38s ease,filter .38s ease,transform .48s var(--ease); transform-box:fill-box; transform-origin:center; }
+.architecture-svg [data-step].step-future { opacity:.055 !important; filter:grayscale(.8) blur(.6px) !important; }
+.architecture-svg [data-step].step-past { opacity:.34 !important; filter:saturate(.55) !important; }
+.architecture-svg [data-step].step-current { opacity:1 !important; filter:none !important; animation:walk-pulse .65s var(--ease) both; }
+@keyframes walk-pulse { 0%{transform:scale(.96);filter:drop-shadow(0 0 0 rgba(8,127,131,0))} 60%{transform:scale(1.015);filter:drop-shadow(0 0 14px rgba(8,127,131,.3))} 100%{transform:scale(1);filter:none} }
+.pipeline-shell[data-focus]:not([data-focus="all"]) .pipeline-lane { opacity:.14; filter:grayscale(.45) blur(1px); transform:scale(.985); }
+.pipeline-shell[data-focus="prompt"] .pipeline-lane.prompt,
+.pipeline-shell[data-focus="train"] .pipeline-lane.train,
+.pipeline-shell[data-focus="infer"] .pipeline-lane.infer { opacity:1; filter:none; transform:scale(1); box-shadow:0 15px 30px rgba(7,30,44,.12); }
+.pipeline-shell[data-focus="train"] .loss-loop { opacity:1; }
+.pipeline-shell[data-focus="infer"] .loss-loop { opacity:.08; }
+.pipeline-lane { transition:opacity .35s ease,filter .35s ease,transform .4s var(--ease),box-shadow .35s ease; }
+.pipeline-shell[data-focus]:not([data-focus="all"]) .pipeline-arrow { opacity:.18; animation:none; }
+.pipeline-shell[data-focus="prompt"] .pipeline-lane.prompt .pipeline-arrow,
+.pipeline-shell[data-focus="train"] .pipeline-lane.train .pipeline-arrow,
+.pipeline-shell[data-focus="infer"] .pipeline-lane.infer .pipeline-arrow { opacity:1; }
+.pipeline-shell[data-focus]:not([data-focus="all"]) .pipeline-node { opacity:.68; transform:scale(.97); }
+.pipeline-shell[data-focus="prompt"] .pipeline-lane.prompt .pipeline-node,
+.pipeline-shell[data-focus="train"] .pipeline-lane.train .pipeline-node,
+.pipeline-shell[data-focus="infer"] .pipeline-lane.infer .pipeline-node { opacity:1; transform:scale(1); animation:focus-node .5s var(--ease) both; animation-delay:calc(var(--step, 0) * 85ms); }
+@keyframes focus-node { from{opacity:.25;transform:translateX(-18px) scale(.96)} to{opacity:1;transform:translateX(0) scale(1)} }
+.pipeline-shell[data-focus="prompt"] .pipeline-lane.prompt .pipeline-arrow,
+.pipeline-shell[data-focus="train"] .pipeline-lane.train .pipeline-arrow,
+.pipeline-shell[data-focus="infer"] .pipeline-lane.infer .pipeline-arrow { background-image:linear-gradient(90deg,transparent 0 20%,rgba(255,255,255,.9) 20% 42%,transparent 42% 100%); background-size:220% 100%; animation:arrow-energy .8s linear infinite; }
+@keyframes arrow-energy { to{background-position:-220% 0} }
+.lane-tag { position:absolute; left:18px; top:14px; font:700 13px var(--font-mono); letter-spacing:.12em; color:var(--teal); }
+.pipeline-node { position:relative; flex:1 1 0; min-width:0; min-height:108px; padding:16px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-radius:17px; background:#fff; border:2px solid #cbdadc; box-shadow:0 8px 20px rgba(7,30,44,.07); font:700 14px/1.22 var(--font-body); color:var(--ink); overflow:hidden; }
+.pipeline-node small { display:block; margin-top:7px; color:var(--muted); font:500 10px/1.25 var(--font-mono); }
+.pipeline-node.teal { background:#dff1ed; border-color:#75bdb1; }
+.pipeline-node.coral { background:#fde5df; border-color:#ef9d8d; }
+.pipeline-node.amber { background:#faefce; border-color:#e4bd5d; }
+.pipeline-node.violet { background:#efe4f0; border-color:#b894bc; }
+.pipeline-node.navy { background:var(--navy); border-color:var(--navy); color:#fff; }
+.pipeline-node.navy small { color:#bfd0d7; }
+.series-stack { position:relative; width:82px; height:54px; margin-bottom:7px; }
+.series-stack i { position:absolute; width:58px; height:42px; border:2px solid currentColor; border-radius:8px; background:#f0d7ec; }
+.series-stack i:nth-child(1){left:0;top:0;opacity:.5}.series-stack i:nth-child(2){left:9px;top:5px;opacity:.72}.series-stack i:nth-child(3){left:18px;top:10px}
+.series-stack i:nth-child(3)::after { content:''; position:absolute; left:8px; top:18px; width:39px; height:14px; border-left:3px solid currentColor; border-bottom:3px solid currentColor; transform:skewY(-24deg); }
+.source-triplet { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; width:100%; margin-top:5px; }
+.source-triplet span { padding:5px 3px; border-radius:7px; background:#f1e3ef; color:#684a70; font:700 8px var(--font-mono); }
+.model-bubbles { display:flex; align-items:center; justify-content:center; margin-bottom:7px; }
+.model-bubbles i { width:57px; height:57px; display:grid; place-items:center; border-radius:50%; background:#ef8588; border:2px solid #bd4e58; color:#2a1c23; font:800 15px var(--font-body); font-style:normal; }
+.model-bubbles i+i { margin-left:-8px; }
+.prototype-rack { display:flex; gap:3px; margin:7px auto 0; }
+.prototype-rack i { padding:4px 5px; border-radius:5px; background:#fff8d8; border:1px solid #c89e36; color:#614b1c; font:700 7px var(--font-mono); font-style:normal; }
+.math-inline, .math-display { font-family:'STIX Two Math','Cambria Math','Times New Roman',serif; color:inherit; }
+.math-display { display:block; margin:5px auto 0; font-size:13px; }
+.pipeline-node math { display:block; max-width:100%; margin:6px auto 0; font-size:12px; line-height:1.2; overflow:visible; }
+.pipeline-node math[display="block"] { min-height:28px; }
+.pipeline-node mfrac { padding-inline:2px; }
+.equation math { font-size:31px; }
+.pipeline-arrow { position:relative; flex:0 0 25px; height:4px; border-radius:3px; background:#7f969f; }
+.pipeline-arrow::after { content:''; position:absolute; right:-2px; top:-6px; border-left:12px solid #7f969f; border-top:8px solid transparent; border-bottom:8px solid transparent; }
+.pipeline-arrow.red { background:var(--coral); }
+.pipeline-arrow.red::after { border-left-color:var(--coral); }
+.pipeline-arrow.blue { background:var(--teal); }
+.pipeline-arrow.blue::after { border-left-color:var(--teal); }
+.token-stack { display:flex; gap:4px; align-items:flex-end; height:86px; }
+.token-stack i { display:block; width:16px; border-radius:5px 5px 3px 3px; background:var(--teal); opacity:.78; transform-origin:bottom; transform:scaleY(0); transition:transform .55s var(--ease); }
+.visible .token-stack i { transform:scaleY(1); }
+.token-stack i:nth-child(2){transition-delay:.08s}.token-stack i:nth-child(3){transition-delay:.16s}.token-stack i:nth-child(4){transition-delay:.24s}.token-stack i:nth-child(5){transition-delay:.32s}
+.tech-strip { position:absolute; left:88px; right:88px; bottom:91px; display:flex; gap:12px; justify-content:center; z-index:14; }
+.tech-chip { padding:10px 15px; border-radius:10px; background:#e4eef0; color:#36515d; font:600 13px var(--font-mono); }
+.math-label { font:500 13px/1.35 var(--font-mono); color:#3d5964; }
+.pipeline-note { position:absolute; right:22px; top:14px; max-width:620px; text-align:right; color:#617881; font:600 12px var(--font-mono); }
+.loss-loop { position:absolute; right:58px; bottom:54px; width:420px; height:58px; border-left:5px solid var(--coral); border-bottom:5px solid var(--coral); }
+.loss-loop::before { content:''; position:absolute; left:-12px; top:-4px; border-bottom:16px solid var(--coral); border-left:10px solid transparent; border-right:10px solid transparent; }
+.loss-loop span { position:absolute; left:38px; top:16px; color:#9b463c; font:700 13px var(--font-mono); }
+.branch-badge { position:absolute; left:14px; bottom:14px; padding:6px 9px; border-radius:8px; background:#edf3f4; color:#4f6872; font:600 10px var(--font-mono); }
+.train-key { position:absolute; right:22px; bottom:18px; display:flex; gap:16px; align-items:center; color:#556f79; font:600 11px var(--font-mono); }
+.train-key i { display:inline-block; width:13px; height:13px; margin-right:6px; border-radius:4px; vertical-align:-2px; }
+
+/* === TANGIBLE ARCHITECTURE DIAGRAMS === */
+.diagram-upgraded { padding:18px; overflow:hidden; background:linear-gradient(145deg,#fff 0%,#f5faf9 58%,#eef5f4 100%); }
+.diagram-upgraded .pipeline-lanes,.diagram-upgraded .loss-loop,.diagram-upgraded .train-key { position:absolute !important; left:-10000px !important; top:0 !important; width:1760px !important; height:auto !important; display:block !important; visibility:hidden !important; pointer-events:none !important; }
+.architecture-svg { width:100%; height:100%; overflow:visible; }
+.architecture-svg text { font-family:var(--font-body); fill:var(--ink); }
+.architecture-svg .mono { font-family:var(--font-mono); fill:#58717b; font-size:12px; }
+.architecture-svg .node-title { font-size:20px; font-weight:800; }
+.architecture-svg .node-copy { font-size:14px; font-weight:600; }
+.architecture-svg .stage-label { font-size:15px; font-weight:800; letter-spacing:.10em; }
+.architecture-svg .on-dark { fill:#fff; }
+.architecture-svg .on-dark-muted { fill:#bdd0d7; }
+.architecture-svg .shape { stroke-width:2.5; filter:drop-shadow(0 8px 11px rgba(7,30,44,.10)); }
+.architecture-svg .wire { fill:none; stroke:#7e949d; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; marker-end:url(#arrowGrey); vector-effect:non-scaling-stroke; }
+.architecture-svg .wire.prompt-wire { stroke:var(--violet); marker-end:url(#arrowViolet); }
+.architecture-svg .wire.train-wire { stroke:var(--coral); marker-end:url(#arrowCoral); }
+.architecture-svg .wire.infer-wire { stroke:var(--teal); marker-end:url(#arrowTeal); }
+.architecture-svg .merge { fill:var(--navy); stroke:#fff; stroke-width:4; }
+.architecture-svg [data-flow-part] { transition:opacity .35s ease,filter .35s ease,transform .45s var(--ease); transform-box:fill-box; transform-origin:center; }
+.diagram-upgraded[data-focus]:not([data-focus="all"]) .architecture-svg [data-flow-part] { opacity:.11; filter:grayscale(.65); }
+.diagram-upgraded[data-focus="prompt"] .architecture-svg [data-flow-part~="prompt"],
+.diagram-upgraded[data-focus="prompt"] .architecture-svg [data-flow-part~="shared"],
+.diagram-upgraded[data-focus="train"] .architecture-svg [data-flow-part~="train"],
+.diagram-upgraded[data-focus="train"] .architecture-svg [data-flow-part~="shared"],
+.diagram-upgraded[data-focus="infer"] .architecture-svg [data-flow-part~="infer"],
+.diagram-upgraded[data-focus="infer"] .architecture-svg [data-flow-part~="shared"] { opacity:1; filter:none; animation:diagram-pop .48s var(--ease) both; }
+.diagram-upgraded[data-focus="prompt"] .architecture-svg .prompt-wire,
+.diagram-upgraded[data-focus="train"] .architecture-svg .train-wire,
+.diagram-upgraded[data-focus="infer"] .architecture-svg .infer-wire { stroke-dasharray:14 10; animation:diagram-flow .75s linear infinite; }
+@keyframes diagram-flow { to{stroke-dashoffset:-24} }
+@keyframes diagram-pop { from{transform:scale(.95);opacity:.25} to{transform:scale(1);opacity:1} }
+.trace-path { fill:none; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; }
+.token-cube { stroke-width:1.5; }
+.diagram-caption { font:700 12px var(--font-mono); fill:#5c727b; }
+.architecture-svg .example-chip { fill:#fff; stroke:#9eb2b9; stroke-width:1.5; }
+.architecture-svg .example-label { font-family:var(--font-mono); font-size:13px; font-weight:700; fill:#45616c; }
+.diab-shell .walk-controls { left:435px; }
+.diab-shell .architecture-svg .denoise-wire { stroke:#d69b22; marker-end:url(#dArrowAmber); }
+.diab-shell .architecture-svg .kd-wire { stroke:var(--violet); marker-end:url(#dArrowViolet); }
+.diab-shell .architecture-svg .deploy-wire { stroke:var(--teal); marker-end:url(#dArrowTeal); }
+.diab-shell[data-focus="denoise"] .architecture-svg [data-flow-part~="denoise"],
+.diab-shell[data-focus="denoise"] .architecture-svg [data-flow-part~="shared"],
+.diab-shell[data-focus="kd"] .architecture-svg [data-flow-part~="kd"],
+.diab-shell[data-focus="kd"] .architecture-svg [data-flow-part~="shared"],
+.diab-shell[data-focus="infer"] .architecture-svg [data-flow-part~="infer"],
+.diab-shell[data-focus="infer"] .architecture-svg [data-flow-part~="shared"] { opacity:1; filter:none; animation:diagram-pop .48s var(--ease) both; }
+.diab-shell[data-focus="denoise"] .architecture-svg .denoise-wire,
+.diab-shell[data-focus="kd"] .architecture-svg .kd-wire,
+.diab-shell[data-focus="infer"] .architecture-svg .deploy-wire { stroke-dasharray:14 10; animation:diagram-flow .75s linear infinite; }
+
+/* === CORE-CONCEPT EXPLAINERS === */
+.concept-stage { position:absolute; left:84px; top:245px; width:1752px; height:650px; display:grid; align-items:center; }
+.transformer-flow { grid-template-columns:300px 90px 360px 90px 360px 90px 360px; }
+.concept-card { min-width:0; height:420px; padding:38px 34px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+.concept-card h3 { font:700 34px/1.08 var(--font-display); color:var(--ink); }
+.concept-card p { margin-top:22px; max-width:290px; font:600 20px/1.45 var(--font-body); color:var(--muted); }
+.concept-card code { margin-top:24px; padding:14px 18px; border-radius:12px; background:#edf3f4; color:#38545f; font:600 18px/1.35 var(--font-mono); }
+.concept-card.dark-core { background:var(--navy); color:#fff; border-color:var(--navy); }
+.concept-card.dark-core h3 { color:#fff; }
+.concept-card.dark-core p { color:#c9d9df; }
+.word-row { display:flex; gap:10px; margin-top:28px; flex-wrap:wrap; justify-content:center; }
+.word-row span { padding:12px 17px; border-radius:12px; background:#f2e3ef; border:2px solid #b58bb4; font:800 19px var(--font-body); }
+.attention-map { width:250px; height:112px; margin-top:24px; display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+.attention-map i { border-radius:8px; background:var(--teal); opacity:var(--a); }
+.concept-arrow { position:relative; height:7px; border-radius:8px; background:var(--teal); }
+.concept-arrow::after { content:''; position:absolute; right:-4px; top:-11px; border-left:24px solid var(--teal); border-top:15px solid transparent; border-bottom:15px solid transparent; }
+.concept-caption { position:absolute; left:190px; top:884px; width:1540px; text-align:center; font:700 27px/1.3 var(--font-display); color:var(--teal); }
+.two-concept { grid-template-columns:1fr 110px 1fr; gap:34px; }
+.concept-large { height:520px; padding:42px 48px; }
+.signal-pair { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:28px; margin-top:30px; }
+.signal-box { padding:24px; border-radius:18px; background:#f7ece8; border:2px solid #efa795; }
+.signal-box.clean { background:#e4f3ef; border-color:#75bdb1; }
+.signal-box strong { font:800 21px var(--font-body); }
+.signal-box svg { width:100%; height:135px; margin-top:15px; overflow:visible; }
+.loss-chip { margin-top:28px; padding:16px 24px; border-radius:14px; background:#fff0c7; color:#6d5215; font:700 23px 'STIX Two Math',serif; }
+.teacher-student { grid-template-columns:460px 110px 460px 110px 460px; }
+.model-size { margin-top:24px; font:800 52px var(--font-display); color:var(--teal); }
+.teacher-card .model-size { color:var(--coral); }
+.target-stack { display:grid; gap:14px; width:100%; margin-top:25px; }
+.target-stack span { padding:14px; border-radius:12px; background:#edf3f4; font:700 18px var(--font-body); }
+.transformer-flow .target-stack { gap:10px; margin-top:18px; }
+.transformer-flow .target-stack span { padding:10px 12px; font-size:17px; }
+
+.study-flow { position:absolute; left:80px; top:296px; width:1760px; display:grid; grid-template-columns:repeat(5,1fr); gap:28px; }
+.study-step { position:relative; min-width:0; min-height:465px; padding:46px 25px 28px; text-align:center; overflow:hidden; }
+.step-no { width:84px; height:84px; margin:0 auto 30px; display:grid; place-items:center; border-radius:50%; color:#fff; font:700 28px var(--font-display); }
+.study-step:nth-child(3) .step-no { color:var(--navy); }
+.study-step h3 { font:700 31px var(--font-display); }
+.study-step p { margin-top:25px; font:500 18px/1.5 var(--font-body); color:var(--muted); }
+.study-step code { display:block; width:100%; max-width:100%; margin-top:24px; padding:13px 12px; border-radius:11px; background:#edf3f4; color:#38545f; font:500 11px/1.45 var(--font-mono); overflow-wrap:anywhere; }
+.study-claim { position:absolute; left:230px; top:844px; width:1460px; text-align:center; color:var(--teal); font:700 31px var(--font-display); }
+
+.cohort-grid { position:absolute; left:82px; top:235px; width:1756px; height:675px; display:grid; grid-template-columns:1fr 1fr; gap:42px; }
+.cohort { padding:42px; }
+.cohort.ohio { background:var(--navy); color:#fff; border:0; }
+.cohort h3 { font:700 46px var(--font-display); }
+.cohort.d1 h3 { color:var(--teal); }
+.metric-row { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:55px; }
+.cohort .metric { padding:27px 20px; border-radius:20px; background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.13); }
+.cohort.d1 .metric { background:#eaf4f2; border-color:#cadfdb; }
+.cohort .metric-value { color:var(--amber); }
+.cohort.d1 .metric-value { color:var(--teal); }
+.cohort.d1 .metric-detail { color:var(--muted); }
+.cohort-foot { margin-top:58px; font:700 23px var(--font-body); }
+.cohort-sub { margin-top:13px; max-width:700px; font:500 17px/1.5 var(--font-body); color:#bdd0d7; }
+.cohort.d1 .cohort-sub { color:var(--muted); }
+
+.chart-layout { position:absolute; left:80px; top:225px; width:1760px; height:690px; display:grid; grid-template-columns:1120px 1fr; gap:46px; }
+.chart-panel { padding:28px 30px 18px; }
+.insight-panel { padding:35px; }
+.insight-panel h3 { font:700 31px var(--font-display); }
+.insight-list { list-style:none; margin-top:38px; display:grid; gap:32px; }
+.insight-list li { display:grid; grid-template-columns:44px 1fr; gap:16px; align-items:start; font:600 18px/1.4 var(--font-body); color:var(--ink); }
+.insight-list b { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; color:#fff; background:var(--teal); }
+.caution { margin-top:34px; padding:18px; border-radius:14px; background:#fae8e4; color:#8f3d35; font:600 15px/1.45 var(--font-body); }
+
+.grid-metrics { position:absolute; left:78px; top:226px; width:1764px; display:grid; grid-template-columns:repeat(4,1fr); gap:28px; }
+.grid-metrics .metric-card { padding:30px 30px 27px; min-height:190px; }
+.metric-card.purple { background:#f4eaf4; border-color:#d7b5d7; }
+.figure-grid { position:absolute; left:98px; top:500px; width:1724px; height:385px; display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
+.grid-viz { display:grid; place-items:center; overflow:hidden; }
+.grid-viz svg { width:94%; height:94%; }
+
+.robust-grid { position:absolute; left:78px; top:228px; width:1764px; height:675px; display:grid; grid-template-columns:1140px 1fr; gap:42px; }
+.corrupt-box { padding:40px; }
+.corrupt-box h3 { font:700 30px var(--font-display); }
+.corrupt-list { margin-top:35px; display:grid; gap:24px; }
+.corrupt-row { display:grid; grid-template-columns:190px 1fr; align-items:center; gap:20px; }
+.corrupt-row span:first-child { padding:15px 20px; border-radius:14px; text-align:center; font:700 17px var(--font-body); }
+.corrupt-row span:last-child { color:var(--muted); font:500 17px var(--font-body); }
+
+.transfer-grid { position:absolute; left:78px; top:228px; width:1764px; height:675px; display:grid; grid-template-columns:1230px 1fr; gap:38px; }
+.transfer-note { padding:38px 34px; background:var(--navy); color:#fff; }
+.transfer-note h3 { font:700 31px var(--font-display); }
+.transfer-note strong { display:block; margin-top:54px; text-align:center; color:var(--amber); font:700 28px var(--font-body); }
+.transfer-note p { margin-top:28px; font:500 18px/1.55 var(--font-body); color:#d2e0e5; }
+.transfer-note .boundary { margin-top:55px; padding:18px; border-radius:15px; background:rgba(239,118,95,.14); color:#ffd3ca; font-size:16px; }
+
+.distill-flow { position:absolute; left:82px; top:250px; width:1756px; height:610px; display:grid; grid-template-columns:430px 245px 430px 1fr; gap:34px; align-items:center; }
+.model-node { height:445px; padding:45px 30px; text-align:center; }
+.model-node.teacher { background:var(--navy); color:#fff; }
+.model-node .tag { font:700 16px var(--font-mono); letter-spacing:.14em; color:var(--amber); }
+.model-node.student .tag { color:var(--teal); }
+.model-node h3 { margin-top:60px; font:700 45px/1.05 var(--font-display); }
+.model-node p { margin-top:45px; color:#bdd0d7; font:600 18px var(--font-body); }
+.model-node.student p { color:var(--muted); }
+.model-node strong { display:block; margin-top:55px; color:var(--amber); font:700 30px var(--font-display); }
+.model-node.student strong { color:var(--teal); }
+.loss-bridge { position:relative; height:220px; display:grid; place-items:center; text-align:center; color:var(--muted); font:600 15px/1.35 var(--font-body); }
+.loss-bridge::before { content:''; position:absolute; left:0; right:0; top:82px; height:44px; background:var(--coral); clip-path:polygon(0 35%,78% 35%,78% 0,100% 50%,78% 100%,78% 65%,0 65%); }
+.diff-card { padding:46px 38px; height:445px; text-align:center; background:#e9f5f2; }
+.diff-card h3 { font:700 30px var(--font-display); }
+.diff-card .big { margin-top:48px; color:var(--teal); font:700 76px var(--font-display); }
+.diff-card p { margin-top:25px; color:var(--muted); font:500 17px/1.45 var(--font-body); }
+.equation { position:absolute; left:520px; top:880px; width:880px; text-align:center; color:var(--coral); font:500 30px var(--font-mono); }
+
+.eff-grid { position:absolute; left:82px; top:245px; width:1756px; display:grid; grid-template-columns:repeat(3,1fr); gap:38px; }
+.eff-card { height:560px; padding:48px 38px; text-align:center; }
+.eff-card.darkish { background:var(--navy); color:#fff; border:0; }
+.eff-card h3 { font:700 34px var(--font-display); }
+.eff-card .ratio { margin-top:64px; font:700 92px var(--font-display); color:var(--teal); }
+.eff-card.darkish .ratio { color:var(--amber); }
+.eff-card .smaller { font:700 18px var(--font-body); }
+.eff-card .transition { margin-top:60px; color:var(--muted); font:600 21px var(--font-body); }
+.eff-card.darkish .transition { color:#ccdde2; }
+.eff-card .mini-bars { margin:42px auto 0; width:340px; height:70px; display:grid; gap:14px; align-content:center; }
+.mini-bars i { display:block; height:18px; border-radius:9px; transform-origin:left; transform:scaleX(0); transition:transform 1s var(--ease); }
+.visible .mini-bars i { transform:scaleX(1); }
+
+.limit-grid { position:absolute; left:80px; top:224px; width:1760px; display:grid; grid-template-columns:repeat(3,1fr); gap:28px; }
+.limit-card { min-height:275px; padding:32px; }
+.limit-card .tag { font:700 15px var(--font-mono); letter-spacing:.12em; color:var(--teal); }
+.limit-card:nth-child(2) .tag, .limit-card:nth-child(5) .tag { color:var(--coral); }
+.limit-card h3 { margin-top:27px; font:700 29px var(--font-display); }
+.limit-card p { margin-top:22px; font:500 17px/1.45 var(--font-body); color:var(--muted); }
+.limit-claim { position:absolute; left:160px; top:907px; width:1600px; text-align:center; font:700 27px var(--font-display); color:var(--teal); }
+
+.take-grid { position:absolute; left:82px; top:250px; width:1756px; display:grid; grid-template-columns:repeat(3,1fr); gap:36px; }
+.take-card { min-height:520px; padding:44px 40px; text-align:center; color:#fff; }
+.take-card:nth-child(1){background:#143444}.take-card:nth-child(2){background:#103d42}.take-card:nth-child(3){background:#3d302b}
+.take-no { width:96px; height:96px; margin:auto; display:grid; place-items:center; border-radius:50%; background:var(--teal); font:700 32px var(--font-display); }
+.take-card:nth-child(2) .take-no { background:var(--coral); }
+.take-card:nth-child(3) .take-no { background:var(--amber); color:var(--navy); }
+.take-card h3 { margin-top:50px; font:700 38px var(--font-display); }
+.take-card p { margin-top:35px; color:#d7e5e8; font:500 20px/1.5 var(--font-body); }
+.next-line { position:absolute; left:190px; top:870px; width:1540px; text-align:center; color:var(--amber); font:700 22px var(--font-body); }
+
+.ref-list { position:absolute; left:82px; top:215px; width:1756px; display:grid; gap:18px; }
+.ref-row { display:grid; grid-template-columns:190px 1fr 330px; gap:26px; align-items:center; min-height:102px; padding:20px 28px; }
+.ref-row:nth-child(even){background:#eaf1f2}.ref-row:nth-child(odd){background:#fff}
+.ref-row strong { font:700 20px var(--font-body); color:var(--teal); }
+.ref-row p { font:500 16px/1.35 var(--font-body); color:var(--ink); }
+.ref-row code { text-align:right; font:500 14px var(--font-mono); color:var(--muted); }
+.question-chip { position:absolute; left:710px; top:900px; width:500px; height:66px; display:grid; place-items:center; border-radius:20px; background:var(--navy); color:#fff; font:700 27px var(--font-display); }
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage" aria-label="DiabLLM presentation">
+
+<!-- === SLIDE 1: TITLE === -->
+<section class="slide dark active" data-notes="Open with the core idea: this work asks whether language-inspired forecasting architectures can model short-term glucose dynamics from CGM alone. Introduce yourself as Amirhossein Mahmoudi, first author. The talk has three parts: architectural choices, evidence, and what remains before deployment.">
+  <div class="gridlines"></div><div class="hero-orbit"></div><div class="hero-orbit two"></div>
+  <svg class="hero-glyph float" viewBox="0 0 480 480" aria-label="Glucose forecasting motif">
+    <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#83d8ca"/><stop offset="1" stop-color="#ef765f"/></linearGradient></defs>
+    <circle cx="240" cy="240" r="208" fill="#0d2c3a" stroke="#31586a" stroke-width="3"/>
+    <path d="M55 294 C100 290,115 160,160 215 S235 360,280 205 S350 125,425 178" fill="none" stroke="url(#hg)" stroke-width="18" stroke-linecap="round"/>
+    <g fill="#edc66c"><circle cx="55" cy="294" r="12"/><circle cx="160" cy="215" r="12"/><circle cx="280" cy="205" r="12"/><circle cx="425" cy="178" r="12"/></g>
+    <path class="flow-line" d="M70 380 H410" stroke="#83d8ca" stroke-width="5" fill="none"/>
+  </svg>
+  <h1 class="hero-title reveal-left" data-editable="true">DiabLLM</h1>
+  <p class="hero-sub reveal" data-delay="2" data-editable="true">An LLM-Based Framework for Blood Glucose Prediction in Type 1 Diabetes</p>
+  <p class="hero-author reveal" data-delay="3" data-editable="true">Amirhossein Mahmoudi · First author and presenter</p>
+  <p class="hero-meta reveal" data-delay="4">IEEE Journal of Biomedical and Health Informatics · 2026</p>
+  <div style="position:absolute;left:104px;top:790px;display:flex;gap:18px;z-index:8" class="reveal" data-delay="5"><span class="pill" style="background:var(--coral)">TIME-LLM</span><span class="pill" style="background:var(--teal)">CHRONOS</span><span class="pill" style="background:var(--amber);color:var(--navy)">CGM FORECASTING</span></div>
+  <p class="source">DOI 10.1109/JBHI.2026.3658588</p><span class="slide-no">01</span>
+</section>
+
+<!-- === CORE CONCEPT: TRANSFORMERS === -->
+<section class="slide light" data-notes="Before introducing time-series models, explain the language-model primitive. Text is split into tokens. Each token becomes a vector. Self-attention lets every position weigh the earlier context, so the representation of diabetes depends strongly on the words glucose and type 1. A prediction head converts the final hidden state into probabilities over the vocabulary. Training repeatedly asks the model to assign high probability to the actual next word. Chronos reuses this idea for time-series tokens, while Time-LLM reuses the learned embedding and attention space.">
+  <span class="kicker">Core concept · transformers</span><h2 class="title reveal">A transformer predicts the next token by attending to the context</h2>
+  <div class="concept-stage transformer-flow">
+    <article class="concept-card card reveal-left" data-delay="1"><h3>1 · Tokenize</h3><p>Split a sentence into discrete pieces.</p><div class="word-row"><span>glucose</span><span>is</span><span>rising</span></div></article>
+    <div class="concept-arrow reveal" data-delay="2"></div>
+    <article class="concept-card card reveal" data-delay="2"><h3>2 · Embed</h3><p>Map each token to a learned vector.</p><code>[0.18, −0.42, 0.77, …]</code></article>
+    <div class="concept-arrow reveal" data-delay="3"></div>
+    <article class="concept-card dark-core card reveal" data-delay="3"><h3>3 · Self-attention</h3><p>Measure which earlier tokens matter for the current prediction.</p><div class="attention-map"><i style="--a:.25"></i><i style="--a:.55"></i><i style="--a:.92"></i><i style="--a:.35"></i><i style="--a:.72"></i><i style="--a:.28"></i><i style="--a:.64"></i><i style="--a:1"></i></div></article>
+    <div class="concept-arrow reveal" data-delay="4"></div>
+    <article class="concept-card card reveal" data-delay="4"><h3>4 · Next-token probabilities</h3><p>The model scores every possible continuation.</p><div class="target-stack"><span>quickly · 0.54</span><span>overnight · 0.27</span><span>again · 0.08</span></div></article>
+  </div>
+  <p class="concept-caption reveal" data-delay="5">Language models learn by repeating this prediction across billions of token positions.</p>
+  <p class="source">Conceptual transformer illustration; probabilities are pedagogical, not model outputs.</p><span class="slide-no">02</span>
+</section>
+
+<!-- === SLIDE 2: FORECASTING TASK === -->
+<section class="slide light" data-notes="The operational task is deliberately constrained: six CGM readings, covering only thirty minutes, must generate six or nine future values. Explain why this matters: short context limits feature engineering, while longer horizons amplify uncertainty. The trajectory is schematic, not patient data.">
+  <span class="kicker">Clinical forecasting problem</span><h2 class="title reveal" data-editable="true">Thirty minutes of CGM history must anticipate the next 30–45 minutes</h2>
+  <div class="problem-panel past card reveal-left" data-delay="2"><span class="problem-label">PAST</span><svg id="pastChart" class="problem-chart chart" viewBox="0 0 720 380" aria-label="Observed CGM history"></svg><div class="problem-stat"><strong>6 readings</strong><span>5-minute sampling</span></div></div>
+  <div class="now-marker reveal-scale" data-delay="3"><span>NOW</span></div>
+  <div class="problem-panel future card reveal" data-delay="4"><span class="problem-label">FORECAST</span><svg id="futureChart" class="problem-chart chart" viewBox="0 0 720 380" aria-label="Predicted glucose horizon"></svg><div class="problem-stat"><strong>6 or 9 targets</strong><span>30- or 45-minute horizon</span></div></div>
+  <p class="source">Source: DiabLLM abstract and experimental protocol. Illustrative trajectory; not patient data.</p><span class="slide-no">02</span><span class="chrome left">DiabLLM · Amirhossein Mahmoudi</span>
+</section>
+
+<!-- === SLIDE 3: COMPLETE TIME-LLM PIPELINE === -->
+<section class="slide light architecture-slide" data-notes="Follow both branches. The upper branch implements Prompt-as-Prefix: normalized-window statistics and a T1DM dataset/task description are tokenized and embedded by the backbone's frozen token embedder. The lower branch implements patch reprogramming: RevIN-normalized CGM is padded, unfolded, and embedded; its queries cross-attend to 1,000 source prototypes obtained by a trainable linear compression of the frozen vocabulary embedding matrix. Concatenating prompt and reprogrammed embeddings forms the LLM input. The frozen LLM body transforms that sequence; only the final patch states are retained, truncated to d_ff=32, flattened, linearly projected to H values, and denormalized. MSE trains the patch embedder, vocabulary mapping, cross-attention bridge, and forecast head, but never the backbone.">
+  <span class="kicker">Time-LLM · complete DiabLLM computation graph</span><h2 class="title reveal">Time-LLM aligns numerical patches with a frozen language-model embedding space</h2>
+  <div class="pipeline-shell diagram-upgraded card reveal" data-delay="2" data-flow-shell="timellm" data-focus="all">
+    <div class="walk-controls" role="group" aria-label="Time-LLM step walkthrough"><button class="walk-button" data-walk="prev" aria-label="Previous step">◀</button><span class="walk-status">FULL OVERVIEW</span><button class="walk-button" data-walk="next" aria-label="Next step">▶</button><button class="walk-button" data-walk="play" aria-label="Auto-play steps">AUTO</button></div>
+    <div class="flow-tabs" role="group" aria-label="Time-LLM flow focus"><button class="flow-tab active" data-flow="all">FULL FLOW</button><button class="flow-tab" data-flow="prompt">PROMPT</button><button class="flow-tab" data-flow="train">TRAINING</button><button class="flow-tab" data-flow="infer">PREDICTION</button></div>
+    <svg class="architecture-svg" viewBox="0 0 1760 700" role="img" aria-label="Time-LLM tangible computation graph">
+      <defs>
+        <marker id="arrowGrey" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#7e949d"/></marker>
+        <marker id="arrowViolet" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#846a9a"/></marker>
+        <marker id="arrowCoral" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#ef765f"/></marker>
+        <marker id="arrowTeal" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#087f83"/></marker>
+      </defs>
+      <text x="22" y="30" class="stage-label" fill="#846a9a">ONE CGM WINDOW BECOMES TWO COMPLEMENTARY INPUTS</text>
+      <g data-flow-part="prompt train infer shared" data-step="1">
+        <rect class="shape" x="34" y="70" width="210" height="170" rx="24" fill="#f2e3ef" stroke="#a975a5"/>
+        <text x="139" y="105" text-anchor="middle" class="node-title">6 CGM readings</text><text x="139" y="128" text-anchor="middle" class="mono">154 · 149 · 142</text><text x="139" y="145" text-anchor="middle" class="mono">151 · 160 · 166</text>
+        <line x1="55" y1="158" x2="223" y2="158" stroke="#cfb4ce" stroke-width="1.5"/>
+        <path class="trace-path" d="M60 217 L88 194 L116 205 L144 178 L172 190 L218 166" stroke="#684a9b"/>
+        <circle cx="60" cy="217" r="5" fill="#ef765f"/><circle cx="88" cy="194" r="5" fill="#ef765f"/><circle cx="116" cy="205" r="5" fill="#ef765f"/><circle cx="144" cy="178" r="5" fill="#ef765f"/><circle cx="172" cy="190" r="5" fill="#ef765f"/><circle cx="218" cy="166" r="5" fill="#ef765f"/>
+      </g>
+      <path data-flow-part="prompt" class="wire prompt-wire" d="M244 115 C300 115 300 115 350 115"/>
+      <path data-flow-part="train" class="wire train-wire" d="M244 200 C300 200 300 390 350 390"/>
+      <g data-flow-part="prompt infer" data-step="2">
+        <path class="shape" d="M350 55 H690 Q712 55 712 77 V190 Q712 212 690 212 H350Z" fill="#dceffa" stroke="#5fa5d1"/>
+        <text x="375" y="86" class="node-title">Prompt-as-Prefix</text><text x="375" y="115" class="node-copy">Domain: Type 1 diabetes CGM</text><text x="375" y="139" class="node-copy">Instruction: forecast next H values</text><text x="375" y="163" class="node-copy">Statistics: min · max · median · trend · lags</text><text x="375" y="190" class="mono" font-size="11">human-readable context → tokenizer</text>
+        <path class="wire prompt-wire" d="M712 134 H785"/>
+        <g transform="translate(790 68)"><rect class="shape" width="180" height="138" rx="22" fill="#e9e4f3" stroke="#846a9a"/><text x="90" y="34" text-anchor="middle" class="node-title">Prompt tokens</text><g fill="#fff" stroke="#846a9a"><rect x="24" y="54" width="132" height="18" rx="6"/><rect x="24" y="80" width="105" height="18" rx="6"/><rect x="24" y="106" width="146" height="18" rx="6"/></g></g>
+        <path class="wire prompt-wire" d="M970 134 C1200 134 1435 170 1550 242 V338"/>
+      </g>
+      <g data-flow-part="train infer" data-step="2">
+        <rect class="shape" x="350" y="295" width="190" height="180" rx="24" fill="#f0e3ef" stroke="#aa78a7"/><text x="445" y="328" text-anchor="middle" class="node-title">RevIN</text><text x="445" y="350" text-anchor="middle" class="mono" font-size="11">normalize per window</text><path class="trace-path" d="M375 430 L400 405 L425 416 L450 368 L478 397 L515 350" stroke="#846a9a"/>
+        <path class="wire train-wire" d="M540 385 H610"/>
+        <g transform="translate(620 294)"><text x="110" y="28" text-anchor="middle" class="node-title">Patch sequence</text><g><rect class="shape" x="0" y="55" width="92" height="112" rx="15" fill="#fbe4df" stroke="#ef765f"/><path class="trace-path" d="M15 132L34 100L53 116L75 76" stroke="#ef765f"/><rect class="shape" x="115" y="55" width="92" height="112" rx="15" fill="#f8edcf" stroke="#d8a93e"/><path class="trace-path" d="M130 118L149 128L168 84L190 102" stroke="#d8a93e"/></g><text x="105" y="190" text-anchor="middle" class="mono" font-size="11">2 patches × 6 values</text></g>
+        <path class="wire train-wire" d="M828 385 H888"/>
+        <g transform="translate(900 292)"><rect class="shape" width="180" height="184" rx="26" fill="#fff1cc" stroke="#d7a939"/><text x="90" y="32" text-anchor="middle" class="node-title">Text prototypes</text><g class="mono" font-size="10"><rect x="18" y="58" width="67" height="30" rx="8" fill="#fff" stroke="#d7a939"/><text x="52" y="77" text-anchor="middle">early up</text><rect x="95" y="58" width="67" height="30" rx="8" fill="#fff" stroke="#d7a939"/><text x="129" y="77" text-anchor="middle">steady</text><rect x="18" y="99" width="67" height="30" rx="8" fill="#fff" stroke="#d7a939"/><text x="52" y="118" text-anchor="middle">down</text><rect x="95" y="99" width="67" height="30" rx="8" fill="#fff" stroke="#d7a939"/><text x="129" y="118" text-anchor="middle">long</text></g><text x="90" y="156" text-anchor="middle" class="mono" font-size="10">1,000 learned anchors</text></g>
+        <path class="wire train-wire" d="M1080 385 H1130"/>
+      </g>
+      <g data-flow-part="train infer shared" data-step="3">
+        <circle class="shape" cx="1202" cy="385" r="72" fill="#f6bf72" stroke="#c98224"/><text x="1202" y="370" text-anchor="middle" class="node-title">Cross-</text><text x="1202" y="394" text-anchor="middle" class="node-title">attention</text><text x="1202" y="418" text-anchor="middle" class="mono" font-size="10">patch ↔ words</text>
+        <path class="wire train-wire" d="M1274 385 H1310"/>
+        <g transform="translate(1320 288)"><rect class="shape" width="150" height="194" rx="25" fill="#dff1ed" stroke="#49a99b"/><text x="75" y="34" text-anchor="middle" class="node-title">Reprogrammed</text><text x="75" y="57" text-anchor="middle" class="node-title">patches</text><g fill="#fff" stroke="#49a99b"><rect x="24" y="78" width="102" height="23" rx="7"/><rect x="24" y="109" width="102" height="23" rx="7"/><rect x="24" y="140" width="102" height="23" rx="7"/></g></g>
+        <path class="wire infer-wire" d="M1470 385 H1498"/>
+        <rect class="merge" x="1512" y="356" width="80" height="58" rx="18"/><text x="1552" y="391" text-anchor="middle" font-size="10" font-weight="900" class="on-dark">CONCAT</text>
+      </g>
+      <g data-flow-part="prompt train infer shared" data-step="4">
+        <path class="wire infer-wire" d="M1602 385 H1630"/>
+        <rect class="shape" x="1642" y="292" width="96" height="186" rx="28" fill="#071e2c" stroke="#071e2c"/><circle cx="1690" cy="343" r="35" fill="#ef8588"/><text x="1690" y="350" text-anchor="middle" font-weight="800">LLM</text><text x="1690" y="405" text-anchor="middle" font-size="15" font-weight="800" class="on-dark">FROZEN</text><text x="1690" y="430" text-anchor="middle" class="mono on-dark-muted" font-size="10">transform</text>
+        <path class="wire infer-wire" d="M1690 478 V525"/>
+        <path class="shape" d="M1578 534 H1738 V620 H1578 L1598 577Z" fill="#f9d9d2" stroke="#ef765f"/><text x="1660" y="567" text-anchor="middle" class="node-title">Flatten + linear</text><text x="1660" y="592" text-anchor="middle" class="mono" font-size="10">H = 6 or 9</text>
+        <path class="wire infer-wire" d="M1578 577 H1510"/>
+        <g transform="translate(1290 515)"><rect class="shape" width="210" height="125" rx="22" fill="#cfeee3" stroke="#087f83"/><text x="105" y="27" text-anchor="middle" class="node-title">Example forecast</text><text x="105" y="50" text-anchor="middle" class="example-label">171 · 178 · 186</text><text x="105" y="66" text-anchor="middle" class="example-label">193 · 201 · 207</text><line x1="20" y1="76" x2="190" y2="76" stroke="#98cec5" stroke-width="1.5"/><path class="trace-path" d="M22 111L50 106L78 101L105 96L133 91L184 82" stroke="#087f83"/></g>
+      </g>
+      <g data-flow-part="train" data-step="5"><path class="wire train-wire" d="M1390 640 C1160 684 700 680 455 485" stroke-dasharray="10 9"/><rect x="610" y="608" width="570" height="34" rx="12" fill="#fff" opacity=".94"/><text x="895" y="631" text-anchor="middle" class="stage-label" fill="#ef765f">MSE GRADIENT · TRAINABLE BRIDGE AND OUTPUT MODULES ONLY</text></g>
+    </svg>
+    <div class="pipeline-lanes">
+      <div class="pipeline-lane prompt"><span class="lane-tag">PROMPT-AS-PREFIX · CONTEXT PATH</span><span class="pipeline-note">tokenizer padding/truncation; max_length=2048</span><div class="pipeline-node violet"><div class="series-stack"><i></i><i></i><i></i></div>Dataset<small>six CGM readings</small></div><div class="pipeline-arrow"></div><div class="pipeline-node amber" style="min-width:260px">Dataset information<small>context + domain knowledge<br>instruction + input statistics</small></div><div class="pipeline-arrow"></div><div class="pipeline-node teal">Token embedder<small>text IDs → frozen embeddings</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node navy">Prompt embeddings<math display="block"><msub><mi>E</mi><mrow><mi>prompt</mi></mrow></msub><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>B</mi><mo>×</mo><mi>P</mi><mo>×</mo><mi>D</mi></mrow></msup></math></div><span class="branch-badge">stack above reprogrammed patch embeddings ↓</span></div>
+      <div class="pipeline-lane train"><span class="lane-tag" style="color:var(--coral)">PATCH REPROGRAMMING · NUMERICAL + VOCABULARY PATHS</span><div class="pipeline-node violet">RevIN<math display="block"><msub><mi>x̃</mi><mi>t</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>−</mo><mi>μ</mi></mrow><mi>σ</mi></mfrac></math><small>affine=false</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node">Data patches<small>L<sub>p</sub>=6 · stride=8<br>two padded patches</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node coral">Patch embedder<small>6 samples → d<sub>model</sub>=32</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node amber" style="min-width:225px">Text prototypes<div class="prototype-rack"><i>early up</i><i>steady</i><i>down</i></div><small>LLM vocabulary E → E′ (1000×D)<br>trainable linear compression</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node amber" style="min-width:225px">Multi-head attention<math display="block"><mi>Z</mi><mo>=</mo><mi>softmax</mi><mo>(</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mi>T</mi></msup></mrow><msqrt><mi>d</mi></msqrt></mfrac><mo>)</mo><mi>V</mi></math><small>Q=patches · K,V=prototypes</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node teal">Reprogrammed patches<math display="block"><mi>O</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>B</mi><mo>×</mo><mn>2</mn><mo>×</mo><mi>D</mi></mrow></msup></math></div><div class="pipeline-arrow blue"></div><div class="pipeline-node navy"><div class="model-bubbles"><i>GPT</i><i style="font-size:11px">LLaMA</i></div>Frozen LLM</div><div class="pipeline-arrow red"></div><div class="pipeline-node coral">Flatten + linear<small>last 2 states × first 32 dims<br>→ H=6 or 9</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node teal">Prediction values<math display="block"><mi>ŷ</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>B</mi><mo>×</mo><mi>H</mi><mo>×</mo><mn>1</mn></mrow></msup></math></div></div>
+    </div><div class="loss-loop"><span><math><msub><mi>ℒ</mi><mi>MSE</mi></msub><mo>=</mo><mfrac><mn>1</mn><mi>H</mi></mfrac><munderover><mo>∑</mo><mrow><mi>h</mi><mo>=</mo><mn>1</mn></mrow><mi>H</mi></munderover><msubsup><mo>∥</mo><mrow><msub><mi>Y</mi><mi>h</mi></msub><mo>−</mo><msub><mi>Ŷ</mi><mi>h</mi></msub></mrow><mn>2</mn></msubsup></math> · backprop through bridge/head only</span></div><div class="train-key"><span><i style="background:#fde5df;border:1px solid #ef9d8d"></i>trainable</span><span><i style="background:#071e2c"></i>frozen</span><span>blue arrows = forward · red = gradient path</span></div>
+  </div>
+  <div class="tech-strip"><span class="tech-chip">illustrative trace—not patient data</span><span class="tech-chip">sequence=6</span><span class="tech-chip">patch=6</span><span class="tech-chip">stride=8</span><span class="tech-chip">d_model=32</span><span class="tech-chip">d_ff=32</span><span class="tech-chip">heads=8</span><span class="tech-chip">source prototypes=1000</span><span class="tech-chip">dropout=0.1</span><span class="tech-chip">Adam lr=10⁻³</span></div>
+  <p class="source">Sources: DiabLLM implementation `models/time_llm.py`, experiment configs, and Jin et al., Time-LLM, arXiv:2310.01728.</p><span class="slide-no">03</span>
+</section>
+
+<!-- === SLIDE 4: COMPLETE CHRONOS PIPELINE === -->
+<section class="slide light architecture-slide" data-notes="Read this as three stages: corpus construction, token learning, and probabilistic decoding. Original Chronos pretraining mixes public series, TSMixup convex combinations, and KernelSynth trajectories. Every sampled context is mean-scaled, uniformly quantized into a 4,096-token vocabulary, padded for missing values, and terminated with EOS. T5 learns target tokens with categorical cross-entropy: regression via classification, with no distance term between neighboring bins. DiabLLM then updates all Chronos parameters on patient CGM. At inference, the six-value context defines the scale; autoregressive generation yields token paths, which are dequantized and unscaled. DiabLLM evaluation configs request one path for deterministic point evaluation, while the architecture supports N paths and empirical quantiles.">
+  <span class="kicker">Chronos · complete tokenization, training, and inference graph</span><h2 class="title reveal">Chronos casts glucose regression as probabilistic next-token generation</h2>
+  <div class="pipeline-shell diagram-upgraded card reveal" data-delay="2" data-flow-shell="chronos" data-focus="all">
+    <div class="walk-controls" role="group" aria-label="Chronos step walkthrough"><button class="walk-button" data-walk="prev" aria-label="Previous step">◀</button><span class="walk-status">FULL OVERVIEW</span><button class="walk-button" data-walk="next" aria-label="Next step">▶</button><button class="walk-button" data-walk="play" aria-label="Auto-play steps">AUTO</button></div>
+    <div class="flow-tabs" role="group" aria-label="Chronos flow focus"><button class="flow-tab active" data-flow="all">FULL FLOW</button><button class="flow-tab" data-flow="train">TRAINING</button><button class="flow-tab" data-flow="infer">PREDICTION</button></div>
+    <svg class="architecture-svg" viewBox="0 0 1760 700" role="img" aria-label="Chronos tangible training and prediction graph">
+      <defs>
+        <marker id="cArrowGrey" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#7e949d"/></marker>
+        <marker id="cArrowCoral" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#ef765f"/></marker>
+        <marker id="cArrowTeal" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#087f83"/></marker>
+      </defs>
+      <text x="24" y="28" class="stage-label" fill="#ef765f">TRAINING: LEARN THE LANGUAGE OF TIME SERIES</text>
+      <g data-flow-part="train" data-step="1">
+        <g transform="translate(28 55)"><text x="115" y="26" text-anchor="middle" class="node-title">Three source streams</text><g transform="translate(0 46)"><rect class="shape" width="200" height="62" rx="17" fill="#dceffa" stroke="#5fa5d1"/><text x="100" y="17" text-anchor="middle" font-size="13" font-weight="800">Public datasets</text><path class="trace-path" d="M18 52L45 39L72 48L99 30L128 47L177 27" stroke="#4b82bd" stroke-width="3"/></g><g transform="translate(0 112)"><rect class="shape" width="200" height="62" rx="17" fill="#f2e3ef" stroke="#a975a5"/><text x="100" y="17" text-anchor="middle" font-size="13" font-weight="800">TSMixup</text><path class="trace-path" d="M18 52L45 34L72 46L99 29L128 51L177 34" stroke="#846a9a" stroke-width="3"/></g><g transform="translate(0 186)"><rect class="shape" width="200" height="62" rx="17" fill="#fff1bf" stroke="#d8a93e"/><text x="100" y="17" text-anchor="middle" font-size="13" font-weight="800">KernelSynth</text><path class="trace-path" d="M18 49L45 31L72 54L99 36L128 48L177 28" stroke="#e99a21" stroke-width="3"/></g></g>
+        <path class="wire train-wire" style="marker-end:url(#cArrowCoral)" d="M228 200 H300"/>
+        <g transform="translate(315 104)"><path class="shape" d="M0 0H210V210H0L22 105Z" fill="#f7e7e3" stroke="#ef765f"/><text x="116" y="40" text-anchor="middle" class="node-title">Mean scaling</text><text x="116" y="68" text-anchor="middle" class="mono" font-size="11">divide by context scale s</text><path class="trace-path" d="M46 155L73 126L100 139L127 92L154 119L188 65" stroke="#ef765f"/><line x1="45" y1="176" x2="188" y2="176" stroke="#9b6157" stroke-width="2"/></g>
+        <path class="wire train-wire" style="marker-end:url(#cArrowCoral)" d="M525 208 H588"/>
+        <g transform="translate(600 82)"><rect class="shape" width="225" height="255" rx="28" fill="#fff0c7" stroke="#d7a939"/><text x="112" y="38" text-anchor="middle" class="node-title">Uniform quantizer</text><text x="112" y="63" text-anchor="middle" class="mono" font-size="10">continuous value → bin ID</text><g class="mono" font-size="11"><rect class="token-cube" x="32" y="91" width="66" height="32" rx="8" fill="#fff" stroke="#d7a939"/><text x="65" y="112" text-anchor="middle">2370</text><rect class="token-cube" x="127" y="91" width="66" height="32" rx="8" fill="#fff" stroke="#d7a939"/><text x="160" y="112" text-anchor="middle">2340</text><rect class="token-cube" x="32" y="137" width="66" height="32" rx="8" fill="#fff" stroke="#d7a939"/><text x="65" y="158" text-anchor="middle">2094</text><rect class="token-cube" x="127" y="137" width="66" height="32" rx="8" fill="#fff" stroke="#d7a939"/><text x="160" y="158" text-anchor="middle">2763</text><rect class="token-cube" x="79" y="183" width="66" height="32" rx="8" fill="#fff" stroke="#d7a939"/><text x="112" y="204" text-anchor="middle">EOS</text></g><text x="112" y="238" text-anchor="middle" class="mono" font-size="10">V = 4096 · PAD for NaN</text></g>
+        <path class="wire train-wire" style="marker-end:url(#cArrowCoral)" d="M825 208 H900"/>
+      </g>
+      <g data-flow-part="train shared" data-step="2">
+        <g transform="translate(915 80)"><path class="shape" d="M85 0C38 0 0 38 0 85v90c0 47 38 85 85 85h110c47 0 85-38 85-85V85c0-47-38-85-85-85Z" fill="#071e2c" stroke="#071e2c"/><circle cx="105" cy="107" r="54" fill="#ef8588" stroke="#bd4e58" stroke-width="3"/><circle cx="176" cy="107" r="54" fill="#ef8588" stroke="#bd4e58" stroke-width="3"/><text x="105" y="116" text-anchor="middle" font-size="25" font-weight="900">T5</text><text x="176" y="116" text-anchor="middle" font-size="20" font-weight="900">GPT</text><text x="140" y="207" text-anchor="middle" font-size="20" font-weight="800" class="on-dark">CHRONOS</text><text x="140" y="232" text-anchor="middle" class="mono on-dark-muted" font-size="10">next-token model</text></g>
+      </g>
+      <g data-flow-part="train" data-step="3">
+        <path class="wire train-wire" style="marker-end:url(#cArrowCoral)" d="M1195 208 H1262"/>
+        <g transform="translate(1275 92)"><rect class="shape" width="208" height="230" rx="26" fill="#f0e3ef" stroke="#a975a5"/><text x="104" y="36" text-anchor="middle" class="node-title">Token probabilities</text><g transform="translate(30 67)"><rect x="0" y="90" width="22" height="62" rx="5" fill="#846a9a"/><rect x="34" y="62" width="22" height="90" rx="5" fill="#846a9a"/><rect x="68" y="108" width="22" height="44" rx="5" fill="#846a9a"/><rect x="102" y="32" width="22" height="120" rx="5" fill="#5c4190"/><rect x="136" y="78" width="22" height="74" rx="5" fill="#846a9a"/><line x1="-8" y1="154" x2="170" y2="154" stroke="#58376b" stroke-width="3"/></g></g>
+        <path class="wire train-wire" style="marker-end:url(#cArrowCoral)" d="M1483 208 H1535"/>
+        <g transform="translate(1548 120)"><rect class="shape" width="180" height="176" rx="24" fill="#ececee" stroke="#9ba3aa"/><text x="90" y="35" text-anchor="middle" class="node-title">Cross-entropy</text><text x="90" y="67" text-anchor="middle" font-family="STIX Two Math,serif" font-size="19">−Σ 1[z=i] log pθ(i)</text><text x="90" y="98" text-anchor="middle" class="mono" font-size="10">ground-truth token</text><path d="M90 123V163" stroke="#ef765f" stroke-width="5" marker-end="url(#cArrowCoral)"/></g>
+        <path class="wire train-wire" style="marker-end:url(#cArrowCoral)" d="M1638 296 V340 H1215 V318" stroke-dasharray="12 9"/><rect x="1300" y="322" width="315" height="30" rx="11" fill="#fff" opacity=".96"/><text x="1458" y="343" text-anchor="middle" class="stage-label" fill="#ef765f">LOSS GRADIENT · ALL PARAMETERS</text>
+      </g>
+      <line x1="24" y1="391" x2="1732" y2="391" stroke="#cddbdd" stroke-width="2" stroke-dasharray="8 8"/>
+      <text x="24" y="425" class="stage-label" fill="#087f83">PREDICTION: SAMPLE FUTURE TOKENS, THEN RETURN TO mg/dL</text>
+      <g data-flow-part="infer" data-step="1"><g transform="translate(30 455)"><rect class="shape" width="210" height="180" rx="24" fill="#f2e3ef" stroke="#a975a5"/><text x="105" y="34" text-anchor="middle" class="node-title">Observed CGM</text><text x="105" y="58" text-anchor="middle" class="mono">154 · 149 · 142</text><text x="105" y="74" text-anchor="middle" class="mono">151 · 160 · 166</text><path class="trace-path" d="M24 150L51 118L78 132L105 88L135 110L184 58" stroke="#684a9b"/><g fill="#ef765f"><circle cx="24" cy="150" r="5"/><circle cx="51" cy="118" r="5"/><circle cx="78" cy="132" r="5"/><circle cx="105" cy="88" r="5"/><circle cx="135" cy="110" r="5"/><circle cx="184" cy="58" r="5"/></g></g><path class="wire infer-wire" style="marker-end:url(#cArrowTeal)" d="M240 545 H302"/></g>
+      <g data-flow-part="infer" data-step="2"><g transform="translate(315 458)"><rect class="shape" width="218" height="174" rx="25" fill="#fff0c7" stroke="#d7a939"/><text x="109" y="32" text-anchor="middle" class="node-title">Context tokens</text><g class="mono" font-size="10"><rect x="25" y="58" width="45" height="28" rx="7" fill="#fff" stroke="#d7a939"/><text x="48" y="77" text-anchor="middle">2370</text><rect x="86" y="58" width="45" height="28" rx="7" fill="#fff" stroke="#d7a939"/><text x="109" y="77" text-anchor="middle">2340</text><rect x="147" y="58" width="45" height="28" rx="7" fill="#fff" stroke="#d7a939"/><text x="170" y="77" text-anchor="middle">2094</text><rect x="55" y="105" width="45" height="28" rx="7" fill="#fff" stroke="#d7a939"/><text x="78" y="124" text-anchor="middle">2763</text><rect x="116" y="105" width="45" height="28" rx="7" fill="#fff" stroke="#d7a939"/><text x="139" y="124" text-anchor="middle">EOS</text></g></g><path class="wire infer-wire" style="marker-end:url(#cArrowTeal)" d="M533 545 H662"/></g>
+      <g data-flow-part="infer" data-step="3"><g transform="translate(675 448)"><rect class="shape" width="360" height="192" rx="35" fill="#071e2c" stroke="#071e2c"/><circle cx="145" cy="78" r="49" fill="#ef8588" stroke="#bd4e58" stroke-width="3"/><circle cx="215" cy="78" r="49" fill="#ef8588" stroke="#bd4e58" stroke-width="3"/><text x="145" y="87" text-anchor="middle" font-size="23" font-weight="900">T5</text><text x="215" y="87" text-anchor="middle" font-size="18" font-weight="900">GPT</text><text x="180" y="146" text-anchor="middle" font-size="19" font-weight="800" class="on-dark">TRAINED CHRONOS</text><text x="180" y="169" text-anchor="middle" class="mono on-dark-muted" font-size="10">autoregressive generation</text></g><path class="wire infer-wire" style="marker-end:url(#cArrowTeal)" d="M1035 545 H1268"/></g>
+      <g data-flow-part="infer" data-step="4"><g transform="translate(1280 449)"><rect class="shape" width="190" height="190" rx="25" fill="#eee1f0" stroke="#a975a5"/><text x="95" y="30" text-anchor="middle" class="node-title">Sample tokens</text><g class="mono" font-size="10"><rect x="23" y="52" width="42" height="28" rx="7" fill="#fff" stroke="#846a9a"/><text x="44" y="71" text-anchor="middle">2970</text><rect x="74" y="52" width="42" height="28" rx="7" fill="#fff" stroke="#846a9a"/><text x="95" y="71" text-anchor="middle">2347</text><rect x="125" y="52" width="42" height="28" rx="7" fill="#fff" stroke="#846a9a"/><text x="146" y="71" text-anchor="middle">2894</text><rect x="48" y="96" width="42" height="28" rx="7" fill="#fff" stroke="#846a9a"/><text x="69" y="115" text-anchor="middle">2983</text><rect x="100" y="96" width="42" height="28" rx="7" fill="#fff" stroke="#846a9a"/><text x="121" y="115" text-anchor="middle">2863</text></g><text x="95" y="159" text-anchor="middle" class="mono" font-size="10">autoregressive paths</text></g><path class="wire infer-wire" style="marker-end:url(#cArrowTeal)" d="M1470 545 H1518"/></g>
+      <g data-flow-part="infer" data-step="5"><g transform="translate(1530 449)"><rect class="shape" width="198" height="190" rx="25" fill="#cfeee3" stroke="#087f83"/><text x="99" y="30" text-anchor="middle" class="node-title">Dequantize</text><text x="99" y="52" text-anchor="middle" class="mono">bin center × saved scale</text><path d="M20 142L48 112L76 128L104 87L132 104L178 60V137L132 134L104 116L76 148L48 130L20 160Z" fill="#83d8ca" opacity=".36"/><path class="trace-path" d="M20 142L48 112L76 128L104 87L132 104L178 60" stroke="#087f83"/><text x="99" y="169" text-anchor="middle" class="example-label">171 · 178 · 186</text><text x="99" y="184" text-anchor="middle" class="example-label">193 · 201 · 207 mg/dL</text></g></g>
+    </svg>
+    <div class="pipeline-lanes">
+      <div class="pipeline-lane train"><span class="lane-tag" style="color:var(--coral)">CORPUS → TOKENS → FULL-PARAMETER ADAPTATION</span><span class="pipeline-note">pretraining sources converge before scaling; DiabLLM then adapts on patient CGM</span><div class="pipeline-node violet" style="min-width:190px"><div class="series-stack"><i></i><i></i><i></i></div>Training corpus<div class="source-triplet"><span>PUBLIC</span><span>TSMIXUP</span><span>KERNELSYNTH</span></div></div><div class="pipeline-arrow red"></div><div class="pipeline-node">Scaled datasets<math display="block"><mi>s</mi><mo>=</mo><mfrac><mrow><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><mo>|</mo><msub><mi>x</mi><mi>i</mi></msub><mo>|</mo></mrow><mi>C</mi></mfrac><mo>,</mo><mspace width=".4em"/><msub><mi>x̃</mi><mi>i</mi></msub><mo>=</mo><mfrac><msub><mi>x</mi><mi>i</mi></msub><mi>s</mi></mfrac></math></div><div class="pipeline-arrow red"></div><div class="pipeline-node amber">Quantized data<small>uniform centers [−30,30]<br>|V<sub>ts</sub>|=4096 incl. specials</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node violet"><div class="token-stack"><i style="height:35px"></i><i style="height:62px"></i><i style="height:46px"></i><i style="height:78px"></i><i style="height:54px"></i></div><small>context tokens · PAD · EOS</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node navy"><div class="model-bubbles"><i>T5</i><i>GPT</i></div>LLM model<small>all parameters updated</small></div><div class="pipeline-arrow red"></div><div class="pipeline-node coral">Predicted probabilities<math display="block"><msub><mi>p</mi><mi>θ</mi></msub><mo>(</mo><msub><mi>z</mi><mrow><mi>C</mi><mo>+</mo><mi>h</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>|</mo><msub><mi>z</mi><mrow><mn>1</mn><mo>:</mo><mi>C</mi><mo>+</mo><mi>h</mi></mrow></msub><mo>)</mo></math></div><div class="pipeline-arrow red"></div><div class="pipeline-node">Cross-entropy loss<math display="block"><mi>ℒ</mi><mo>=</mo><mo>−</mo><munderover><mo>∑</mo><mi>h</mi><mrow><mi>H</mi><mo>+</mo><mn>1</mn></mrow></munderover><munderover><mo>∑</mo><mi>i</mi><mrow><mo>|</mo><msub><mi>V</mi><mi>ts</mi></msub><mo>|</mo></mrow></munderover><mn>1</mn><mo>[</mo><mi>z</mi><mo>=</mo><mi>i</mi><mo>]</mo><mi>log</mi><msub><mi>p</mi><mi>θ</mi></msub><mo>(</mo><mi>i</mi><mo>)</mo></math><small>classification loss is not distance-aware</small></div></div>
+      <div class="pipeline-lane infer"><span class="lane-tag">CONTEXT → AUTOREGRESSIVE PATHS → REAL-VALUED FORECAST</span><span class="pipeline-note">DiabLLM L=6; H=6/9; evaluation num_samples=1</span><div class="pipeline-node violet"><div class="series-stack"><i></i><i></i><i></i></div>Input CGM<small>30-minute context</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node">Scale + mask<small>exclude NaN; preserve s</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node amber">Context tokens<small>bucketize(x/s) + EOS</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node navy"><div class="model-bubbles"><i>T5</i><i>GPT</i></div>Trained model<small>temperature · top-k · top-p</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node violet"><div class="token-stack"><i style="height:70px"></i><i style="height:44px"></i><i style="height:82px"></i><i style="height:58px"></i><i style="height:35px"></i></div><small>sample tokens ẑ ∈ ℕ<sup>B×N×H</sup></small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node teal">Dequantization + unscaling<math display="block"><msubsup><mi>ŷ</mi><mi>h</mi><mrow><mo>(</mo><mi>n</mi><mo>)</mo></mrow></msubsup><mo>=</mo><mi>c</mi><mo>[</mo><msubsup><mi>ẑ</mi><mi>h</mi><mrow><mo>(</mo><mi>n</mi><mo>)</mo></mrow></msubsup><mo>]</mo><mi>s</mi></math></div><div class="pipeline-arrow blue"></div><div class="pipeline-node coral"><div class="series-stack"><i></i><i></i><i></i></div>Probabilistic forecast<small>N paths; empirical quantiles</small></div><div class="pipeline-arrow blue"></div><div class="pipeline-node teal">Reported point forecast<small>N=1 in DiabLLM evaluation</small></div></div>
+    </div>
+  </div>
+  <div class="tech-strip"><span class="tech-chip">illustrative trace—not patient data</span><span class="tech-chip">V=4096</span><span class="tech-chip">MeanScaleUniformBins</span><span class="tech-chip">configured centers −30…30</span><span class="tech-chip">all parameters train</span><span class="tech-chip">context=6</span><span class="tech-chip">horizon=6/9</span><span class="tech-chip">lr=10⁻³</span><span class="tech-chip">batch=8</span><span class="tech-chip">max steps model-specific</span></div>
+  <p class="source">Sources: DiabLLM `models/chronos/src/chronos/chronos.py`, config generator, and Ansari et al., arXiv:2403.07815.</p><span class="slide-no">04</span>
+</section>
+
+<!-- === CORE CONCEPT: DENOISING AUTOENCODER === -->
+<section class="slide light" data-notes="Explain the denoising autoencoder before showing the complete framework. During training, we deliberately corrupt a clean CGM window. The encoder compresses the damaged sequence into a latent code that retains its temporal structure. The decoder reconstructs a clean estimate. Squared reconstruction error compares that estimate with the original clean target. During deployment the clean target is absent: the trained autoencoder simply repairs the incoming noisy or incomplete window before forecasting.">
+  <span class="kicker">Core concept · denoising</span><h2 class="title reveal">A denoising autoencoder learns to reconstruct clean CGM from corrupted input</h2>
+  <div class="concept-stage two-concept">
+    <article class="concept-card concept-large card reveal-left" data-delay="1"><h3>Training pair</h3><p>Corrupt a clean window with calibration error, correlated noise, and missing blocks.</p><div class="signal-pair"><div class="signal-box"><strong>Corrupted input x̃</strong><svg viewBox="0 0 300 130"><path d="M12 100L60 65L104 88L150 25L198 96L286 44" fill="none" stroke="#ef765f" stroke-width="8" stroke-linecap="round"/><circle cx="60" cy="65" r="8" fill="#ef765f"/><rect x="91" y="70" width="28" height="28" rx="6" fill="#fff" stroke="#ef765f" stroke-width="3"/><text x="105" y="90" text-anchor="middle" font-size="20">?</text></svg></div><div class="signal-box clean"><strong>Clean target x</strong><svg viewBox="0 0 300 130"><path d="M12 100L60 78L104 84L150 58L198 42L286 25" fill="none" stroke="#087f83" stroke-width="8" stroke-linecap="round"/></svg></div></div></article>
+    <div class="concept-arrow reveal" data-delay="2"></div>
+    <article class="concept-card concept-large dark-core card reveal" data-delay="3"><h3>Encoder → latent code → decoder</h3><p>The bottleneck forces the network to retain stable temporal structure instead of copying corruption.</p><div class="word-row"><span style="color:#132735">6 values</span><span style="color:#132735">latent z</span><span style="color:#132735">6 repaired values</span></div><div class="loss-chip">ℒ<sub>rec</sub> = ‖z − x‖²</div></article>
+  </div>
+  <p class="concept-caption reveal" data-delay="4">Deployment keeps the trained reconstruction path; the clean target is needed only during training.</p>
+  <p class="source">Source: DiabLLM denoising methodology. Diagram is conceptual.</p><span class="slide-no">06</span>
+</section>
+
+<!-- === CORE CONCEPT: KNOWLEDGE DISTILLATION === -->
+<section class="slide light" data-notes="Knowledge distillation transfers behavior from a large teacher to a compact student. Both models receive the same reconstructed CGM window. The teacher produces a forecast that contains its learned response pattern. The student is trained against two targets: the actual future glucose values and the teacher forecast. The composite objective regularizes the smaller model toward both correctness and teacher-like behavior. Once training is complete, the teacher is discarded and only the compact student is deployed.">
+  <span class="kicker">Core concept · knowledge distillation</span><h2 class="title reveal">A compact student learns from both labels and a larger teacher</h2>
+  <div class="concept-stage teacher-student">
+    <article class="concept-card teacher-card card reveal-left" data-delay="1"><h3>Teacher</h3><p>Time-LLM BERT<br>12 layers · 768 dimensions</p><div class="model-size">282.4M</div><code>ŷ<sub>T</sub> = [170, 177, …]</code></article>
+    <div class="concept-arrow reveal" data-delay="2"></div>
+    <article class="concept-card card reveal" data-delay="2"><h3>Two learning targets</h3><div class="target-stack"><span>Ground truth y</span><span>Teacher forecast ŷ<sub>T</sub></span></div><div class="loss-chip">α MSE(ŷ<sub>S</sub>,y)<br>+ β MSE(ŷ<sub>S</sub>,ŷ<sub>T</sub>)</div></article>
+    <div class="concept-arrow reveal" data-delay="3"></div>
+    <article class="concept-card card reveal" data-delay="3"><h3>Student</h3><p>Time-LLM TinyBERT<br>4 layers · 312 dimensions</p><div class="model-size">45.0M</div><code>ŷ<sub>S</sub> = [169, 176, …]</code></article>
+  </div>
+  <p class="concept-caption reveal" data-delay="4">Train with the teacher present → deploy the student alone.</p>
+  <p class="source">Source: DiabLLM distillation methodology. Values are illustrative except reported model sizes.</p><span class="slide-no">07</span>
+</section>
+
+<!-- === SLIDE 5: COMPLETE DIABLLM PIPELINE === -->
+<section class="slide light architecture-slide" data-notes="This slide joins the components that were previously separated. First, clean training windows are corrupted with gain and offset error, AR(1) noise, and block dropout. A denoising autoencoder reconstructs z and minimizes squared error to the clean window. Second, reconstructed windows feed a fine-tuned Time-LLM BERT teacher and a smaller Time-LLM TinyBERT student. The teacher is the reference; the student is optimized against both the ground-truth future and the teacher forecast using alpha and beta, each selected as 0.3. Third, deployment keeps only the trained autoencoder and distilled student. The numerical values shown are an illustrative trace, not a patient record or a paper-reported sample. The cohort results at right are paper-reported: forty-five-minute denoised Time-LLM RMSE 19.119 mg/dL and distilled-student RMSE 20.953 mg/dL in the separate thirty-minute compression experiment.">
+  <span class="kicker">DiabLLM · end-to-end training and deployment graph</span><h2 class="title reveal">DiabLLM cleans corrupted CGM, transfers teacher behavior, then deploys only the compact path</h2>
+  <div class="pipeline-shell diagram-upgraded diab-shell card reveal" data-delay="2" data-flow-shell="diabllm" data-focus="all">
+    <div class="walk-controls" role="group" aria-label="DiabLLM step walkthrough"><button class="walk-button" data-walk="prev" aria-label="Previous step">◀</button><span class="walk-status">FULL OVERVIEW</span><button class="walk-button" data-walk="next" aria-label="Next step">▶</button><button class="walk-button" data-walk="play" aria-label="Auto-play steps">AUTO</button></div>
+    <div class="flow-tabs" role="group" aria-label="DiabLLM flow focus"><button class="flow-tab active" data-flow="all">FULL FLOW</button><button class="flow-tab" data-flow="denoise">DENOISING</button><button class="flow-tab" data-flow="kd">KD TRAINING</button><button class="flow-tab" data-flow="infer">DEPLOYMENT</button></div>
+    <svg class="architecture-svg" viewBox="0 0 1760 700" role="img" aria-label="Complete DiabLLM denoising, knowledge distillation, and deployment pipeline">
+      <defs>
+        <marker id="dArrowAmber" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#d69b22"/></marker>
+        <marker id="dArrowViolet" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#846a9a"/></marker>
+        <marker id="dArrowTeal" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#087f83"/></marker>
+      </defs>
+      <text x="22" y="28" class="stage-label" fill="#d69b22">A · DENOISING AUTOENCODER TRAINING</text>
+      <g data-flow-part="denoise shared" data-step="1"><rect class="shape" x="28" y="56" width="245" height="142" rx="22" fill="#dff1ed" stroke="#49a99b"/><text x="150" y="87" text-anchor="middle" class="node-title">Clean training window x</text><text x="150" y="116" text-anchor="middle" class="example-label">154 · 150 · 147 · 155 · 161 · 166</text><path class="trace-path" d="M55 169L92 144L128 151L164 126L200 108L246 82" stroke="#087f83" stroke-width="4"/></g>
+      <path data-flow-part="denoise" data-step="2" class="wire denoise-wire" d="M273 127 H332"/>
+      <g data-flow-part="denoise" data-step="2"><rect class="shape" x="345" y="56" width="285" height="142" rx="22" fill="#fff0c7" stroke="#d7a939"/><text x="487" y="84" text-anchor="middle" class="node-title">Simulate sensor artifacts</text><text x="487" y="109" text-anchor="middle" class="mono" font-size="10">gain + offset · AR(1) noise · ≈10% gaps</text><text x="487" y="143" text-anchor="middle" class="example-label">154 · 0 · 147 · 182 · 0 · 166</text><text x="487" y="174" text-anchor="middle" class="mono" font-size="9">illustrative corrupted window x̃</text></g>
+      <path data-flow-part="denoise" data-step="3" class="wire denoise-wire" d="M630 127 H696"/>
+      <g data-flow-part="denoise shared" data-step="3"><rect class="shape" x="710" y="48" width="280" height="158" rx="28" fill="#071e2c" stroke="#071e2c"/><text x="850" y="91" text-anchor="middle" class="node-title on-dark">Denoising autoencoder</text><text x="850" y="122" text-anchor="middle" class="mono on-dark-muted" font-size="10">encoder → latent code → decoder</text><text x="850" y="162" text-anchor="middle" class="on-dark" font-size="16" font-weight="800">x̃ → z</text></g>
+      <path data-flow-part="denoise" data-step="4" class="wire denoise-wire" d="M990 127 H1054"/>
+      <g data-flow-part="denoise shared" data-step="4"><rect class="shape" x="1068" y="56" width="265" height="142" rx="22" fill="#e7f5f1" stroke="#49a99b"/><text x="1200" y="86" text-anchor="middle" class="node-title">Reconstructed window z</text><text x="1200" y="116" text-anchor="middle" class="example-label">153 · 150 · 148</text><text x="1200" y="133" text-anchor="middle" class="example-label">156 · 160 · 165</text><text x="1200" y="163" text-anchor="middle" class="mono">feeds either forecasting backbone</text></g>
+      <path data-flow-part="denoise" data-step="5" class="wire denoise-wire" d="M1333 127 H1393"/>
+      <g data-flow-part="denoise" data-step="5"><rect class="shape" x="1407" y="63" width="320" height="128" rx="22" fill="#f8e8e4" stroke="#ef765f"/><text x="1567" y="95" text-anchor="middle" class="node-title">Reconstruction objective</text><text x="1567" y="132" text-anchor="middle" font-family="STIX Two Math,serif" font-size="22">ℒ<tspan baseline-shift="sub" font-size="14">rec</tspan> = ‖z − x‖²</text><text x="1567" y="163" text-anchor="middle" class="mono" font-size="10">clean target is used only for training</text></g>
+
+      <line x1="22" y1="230" x2="1735" y2="230" stroke="#d4e0e2" stroke-width="2" stroke-dasharray="8 8"/>
+      <text x="22" y="263" class="stage-label" fill="#846a9a">B · KNOWLEDGE DISTILLATION TRAINING</text>
+      <g data-flow-part="kd shared" data-step="1"><rect class="shape" x="30" y="290" width="235" height="166" rx="25" fill="#e7f5f1" stroke="#49a99b"/><text x="147" y="327" text-anchor="middle" class="node-title">Denoised input z</text><text x="147" y="355" text-anchor="middle" class="example-label">153 · 150 · 148</text><text x="147" y="373" text-anchor="middle" class="example-label">156 · 160 · 165</text><text x="147" y="408" text-anchor="middle" class="mono">same window → both models</text></g>
+      <path data-flow-part="kd" data-step="2" class="wire kd-wire" d="M265 337 H343"/><path data-flow-part="kd" data-step="2" class="wire kd-wire" d="M265 411 H343"/>
+      <g data-flow-part="kd" data-step="2"><g><rect class="shape" x="357" y="278" width="290" height="105" rx="23" fill="#f9d9d2" stroke="#ef765f"/><text x="502" y="313" text-anchor="middle" class="node-title">Teacher · Time-LLM BERT</text><text x="502" y="342" text-anchor="middle" class="mono">12 layers · 768 dimensions · reference</text></g><g><rect class="shape" x="357" y="397" width="290" height="105" rx="23" fill="#dff1ed" stroke="#49a99b"/><text x="502" y="432" text-anchor="middle" class="node-title">Student · Time-LLM TinyBERT</text><text x="502" y="461" text-anchor="middle" class="mono">4 layers · 312 dimensions · trainable</text></g></g>
+      <path data-flow-part="kd" data-step="3" class="wire kd-wire" d="M647 330 H735"/><path data-flow-part="kd" data-step="3" class="wire kd-wire" d="M647 449 H735"/>
+      <g data-flow-part="kd" data-step="3"><g><rect class="shape" x="749" y="278" width="250" height="105" rx="23" fill="#f2e3ef" stroke="#a975a5"/><text x="874" y="311" text-anchor="middle" class="node-title">Teacher forecast yT</text><text x="874" y="340" text-anchor="middle" class="example-label">170 · 177 · 185</text><text x="874" y="357" text-anchor="middle" class="example-label">191 · 199 · 205</text></g><g><rect class="shape" x="749" y="397" width="250" height="105" rx="23" fill="#e7f5f1" stroke="#49a99b"/><text x="874" y="430" text-anchor="middle" class="node-title">Student forecast yS</text><text x="874" y="459" text-anchor="middle" class="example-label">169 · 176 · 184</text><text x="874" y="476" text-anchor="middle" class="example-label">192 · 198 · 204</text></g></g>
+      <path data-flow-part="kd" data-step="4" class="wire kd-wire" d="M999 330 H1070 V366 H1140"/><path data-flow-part="kd" data-step="4" class="wire kd-wire" d="M999 449 H1070 V414 H1140"/>
+      <g data-flow-part="kd" data-step="4"><rect class="shape" x="1154" y="302" width="345" height="168" rx="27" fill="#fff0c7" stroke="#d7a939"/><text x="1326" y="337" text-anchor="middle" class="node-title">Composite student objective</text><text x="1326" y="373" text-anchor="middle" font-family="STIX Two Math,serif" font-size="17">ℒ<tspan baseline-shift="sub" font-size="11">distill</tspan> = α MSE(y<tspan baseline-shift="sub" font-size="11">S</tspan>, y) + β MSE(y<tspan baseline-shift="sub" font-size="11">S</tspan>, y<tspan baseline-shift="sub" font-size="11">T</tspan>)</text><text x="1326" y="405" text-anchor="middle" class="mono" font-size="10">ground truth y + teacher alignment</text><text x="1326" y="440" text-anchor="middle" font-size="16" font-weight="900">α = β = 0.3 · 10 epochs</text></g>
+      <path data-flow-part="kd" data-step="5" class="wire kd-wire" d="M1499 386 H1558"/>
+      <g data-flow-part="kd" data-step="5"><rect class="shape" x="1572" y="307" width="155" height="158" rx="24" fill="#071e2c" stroke="#071e2c"/><text x="1649" y="345" text-anchor="middle" class="on-dark" font-size="15" font-weight="800">Matched accuracy</text><text x="1649" y="382" text-anchor="middle" class="on-dark" font-size="23" font-weight="900">20.953</text><text x="1649" y="405" text-anchor="middle" class="mono on-dark-muted" font-size="10">student RMSE</text><text x="1649" y="435" text-anchor="middle" class="mono on-dark-muted" font-size="9">teacher: 20.967</text></g>
+
+      <line x1="22" y1="530" x2="1735" y2="530" stroke="#d4e0e2" stroke-width="2" stroke-dasharray="8 8"/>
+      <text x="22" y="562" class="stage-label" fill="#087f83">C · DEPLOYMENT INFERENCE · TEACHER AND CLEAN TARGET REMOVED</text>
+      <g data-flow-part="infer" data-step="1"><rect class="shape" x="30" y="585" width="280" height="82" rx="21" fill="#f2e3ef" stroke="#a975a5"/><text x="170" y="615" text-anchor="middle" class="node-title">Incoming noisy CGM</text><text x="170" y="645" text-anchor="middle" class="example-label">154 · 0 · 147 · 182 · 0 · 166</text></g>
+      <path data-flow-part="infer" data-step="2" class="wire deploy-wire" d="M310 626 H397"/>
+      <g data-flow-part="infer shared" data-step="2"><rect class="shape" x="411" y="580" width="285" height="92" rx="22" fill="#071e2c" stroke="#071e2c"/><text x="553" y="615" text-anchor="middle" class="node-title on-dark">Trained autoencoder</text><text x="553" y="644" text-anchor="middle" class="mono on-dark-muted" font-size="10">reconstructs a usable window</text></g>
+      <path data-flow-part="infer" data-step="3" class="wire deploy-wire" d="M696 626 H783"/>
+      <g data-flow-part="infer shared" data-step="3"><rect class="shape" x="797" y="580" width="330" height="92" rx="22" fill="#dff1ed" stroke="#49a99b"/><text x="962" y="615" text-anchor="middle" class="node-title">Distilled Time-LLM TinyBERT</text><text x="962" y="644" text-anchor="middle" class="mono" font-size="10">45.0M parameters · teacher not loaded</text></g>
+      <path data-flow-part="infer" data-step="4" class="wire deploy-wire" d="M1127 626 H1214"/>
+      <g data-flow-part="infer" data-step="4"><rect class="shape" x="1228" y="580" width="330" height="92" rx="22" fill="#cfeee3" stroke="#087f83"/><text x="1393" y="614" text-anchor="middle" class="node-title">Example 30-minute forecast</text><text x="1393" y="645" text-anchor="middle" class="example-label">169 · 176 · 184 · 192 · 198 · 204</text></g>
+      <path data-flow-part="infer" data-step="5" class="wire deploy-wire" d="M1558 626 H1615"/>
+      <g data-flow-part="infer" data-step="5"><rect class="shape" x="1629" y="580" width="98" height="92" rx="22" fill="#fff0c7" stroke="#d7a939"/><text x="1678" y="611" text-anchor="middle" font-size="13" font-weight="900">EDGE</text><text x="1678" y="636" text-anchor="middle" class="mono" font-size="9">compact</text><text x="1678" y="654" text-anchor="middle" class="mono" font-size="9">path</text></g>
+    </svg>
+  </div>
+  <div class="tech-strip"><span class="tech-chip">illustrative values—not patient data</span><span class="tech-chip">denoised Time-LLM · 45-min RMSE 19.119</span><span class="tech-chip">student · 30-min RMSE 20.953</span><span class="tech-chip">45.0M parameters</span><span class="tech-chip">teacher used only during KD</span></div>
+  <p class="source">Sources: DiabLLM methodology pp. 4–5; robustness and distillation results pp. 8–9. Example values are pedagogical.</p><span class="slide-no">05</span>
+</section>
+
+<!-- === SLIDE 6: STUDY DESIGN === -->
+<section class="slide light" data-notes="Define the protocol before discussing results. Each sample is a sliding map from six historical CGM readings to six or nine future readings. Zero-shot uses pretrained weights unchanged. Personalized adaptation uses the same patient's predefined training and test partitions: Time-LLM trains only its bridge and forecast head for ten epochs, whereas Chronos updates all T5 parameters. Robustness injects a Gaussian gain, Gaussian offset, AR(1) noise, and block dropout before reconstruction. Transfer is restricted to patients 570 and 584. Compression uses a BERT teacher, TinyBERT student, alpha=beta=0.3, and ten epochs. Final evaluation reports analytical error, retrospective CEG/SEG categories, and measured efficiency.">
+  <span class="kicker">Study design</span><h2 class="title reveal">DiabLLM evaluates adaptation, robustness, transfer, and compression</h2>
+  <div class="study-flow"><article class="study-step card reveal" data-delay="1"><div class="step-no" style="background:var(--teal)">1</div><h3>Forecast</h3><p>Pretrained zero-shot versus patient-specific adaptation</p><code>ℝ⁶ → ℝ⁶ or ℝ⁹<br>Time-LLM: bridge/head ×10 epochs<br>Chronos: full T5 update</code></article><article class="study-step card reveal" data-delay="2"><div class="step-no" style="background:var(--coral)">2</div><h3>Stress</h3><p>Calibration bias, correlated noise, and block dropout</p><code>α~N(1,.1), β~N(0,6)<br>ρ=.5, ση=6<br>≈10% gaps, max block=6</code></article><article class="study-step card reveal" data-delay="3"><div class="step-no" style="background:var(--amber)">3</div><h3>Transfer</h3><p>Train on one individual, test on another</p><code>570→570 · 584→570<br>570→584 · 584→584<br>restricted two-patient matrix</code></article><article class="study-step card reveal" data-delay="4"><div class="step-no" style="background:var(--teal-2)">4</div><h3>Compress</h3><p>BERT teacher to TinyBERT student</p><code>12×768 → 4×312<br>α=β=.3 · 10 epochs<br>MSE to labels + teacher</code></article><article class="study-step card reveal" data-delay="5"><div class="step-no" style="background:var(--navy)">5</div><h3>Assess</h3><p>Predictive, clinical, and computational outcomes</p><code>RMSE · MAE (mg/dL)<br>CEG · SEG at 30 min<br>latency · RAM · VRAM · W</code></article></div>
+  <p class="study-claim reveal" data-delay="6">The contribution is the complete evidence chain — not a single leaderboard number.</p><p class="source">Source: DiabLLM methodology and experimental sections.</p><span class="slide-no">06</span>
+</section>
+
+<!-- === SLIDE 7: DATA === -->
+<section class="slide light" data-notes="OhioT1DM is the primary cohort: twelve adults with T1DM, approximately eight weeks per record, five-minute CGM sampling, and predefined patient-specific train/test files. The held-out test split is reserved for final evaluation, and timestamp gaps are not interpolated in the core protocol. D1NAMO provides a separate public cohort: nine people over four weeks, with subjects one through seven used here. The deck must not imply a pooled randomized clinical design; these are retrospective sliding-window experiments over public records.">
+  <span class="kicker">Data and protocol</span><h2 class="title reveal">Two public T1DM cohorts test personalization and external transfer</h2>
+  <div class="cohort-grid"><article class="cohort ohio card reveal-left" data-delay="2"><h3>OhioT1DM</h3><div class="metric-row"><div class="metric"><div class="metric-value count" data-value="12">0</div><div class="metric-label">adults</div><div class="metric-detail" style="color:#bdd0d7">with T1DM</div></div><div class="metric"><div class="metric-value count" data-value="8">0</div><div class="metric-label">weeks</div><div class="metric-detail" style="color:#bdd0d7">per record</div></div><div class="metric"><div class="metric-value count" data-value="5">0</div><div class="metric-label">minutes</div><div class="metric-detail" style="color:#bdd0d7">CGM sampling</div></div></div><p class="cohort-foot">Primary personalized and cross-patient evaluation</p><p class="cohort-sub">Predefined train/test sets; missing values preserved in the core protocol.</p></article><article class="cohort d1 card reveal" data-delay="3"><h3>D1NAMO</h3><div class="metric-row"><div class="metric"><div class="metric-value count" data-value="9">0</div><div class="metric-label">people</div><div class="metric-detail">in the dataset</div></div><div class="metric"><div class="metric-value count" data-value="7">0</div><div class="metric-label">used</div><div class="metric-detail">patients 1–7</div></div><div class="metric"><div class="metric-value count" data-value="4">0</div><div class="metric-label">weeks</div><div class="metric-detail">collection period</div></div></div><p class="cohort-foot">Complementary validation cohort</p><p class="cohort-sub">Tests whether the adaptation pattern extends beyond OhioT1DM.</p></article></div>
+  <p class="source">Source: DiabLLM experiments. OhioT1DM: Marling & Bunescu (2020); D1NAMO: Dubosson et al. (2018).</p><span class="slide-no">07</span>
+</section>
+
+<!-- === SLIDE 8: ADAPTATION === -->
+<section class="slide light" data-notes="These are matched OhioT1DM cohort averages with six inputs and a six-step, thirty-minute target. Time-LLM LLaMA 7B with eight retained layers moves from 24.44 to 16.10 mg/dL RMSE, a 34.1 percent reduction. Its LLM remains frozen: adaptation updates the numerical-to-language bridge and output projection. Chronos Base moves from 22.29 to 20.89, a 6.3 percent reduction, while updating all T5 parameters. Therefore the visual compares two adaptation regimes, not the same fine-tuning operation. The manuscript reports ten epochs for Time-LLM and a single L40S GPU for fine-tuning.">
+  <span class="kicker">Zero-shot versus fine-tuned</span><h2 class="title reveal">Task-specific adaptation produces the largest accuracy gain</h2>
+  <div class="chart-layout"><div class="chart-panel card reveal-left" data-delay="2"><svg id="adaptChart" class="chart" viewBox="0 0 1080 610" aria-label="Zero-shot versus fine-tuned RMSE"></svg></div><aside class="insight-panel dark-card reveal" data-delay="3" style="color:#fff"><h3>RMSE reduction after adaptation</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:65px;text-align:center"><div><div class="metric-value count-dec" data-value="34">0</div><div class="metric-label">Time-LLM</div></div><div><div class="metric-value count-dec" data-value="6" style="color:var(--mint)">0</div><div class="metric-label">Chronos</div></div></div><p style="margin-top:70px;text-align:center;font:600 19px/1.55 var(--font-body);color:#cbdce2">Same 30-minute history and 30-minute horizon</p><p style="margin-top:35px;text-align:center;font:700 18px/1.45 var(--font-body)">Fine-tuning the modality bridge matters more than merely choosing a larger pretrained model.</p></aside></div>
+  <p class="source">Sources: DiabLLM zero-shot and fine-tuned 30-minute tables. Percentages calculated from table averages.</p><span class="slide-no">08</span>
+</section>
+
+<!-- === SLIDE 9: BENCHMARK === -->
+<section class="slide light" data-notes="All displayed bars use the paper's thirty-minute OhioT1DM comparison: six historical readings and a thirty-minute horizon. Fine-tuned Time-LLM LLaMA 7B with eight layers has cohort-average RMSE 16.10 mg/dL and MAE 10.00. GPT-2 reaches 16.34 RMSE. The paper identifies Deep RL at 18.32 and LSTM plus WaveNet plus GRU at 21.90 as configuration-matched baselines, giving reductions of 12.12 and 26.5 percent respectively for LLaMA-8. Chronos Base reaches 20.89. Do not merge this ranking with D1NAMO or forty-five-minute results.">
+  <span class="kicker">30-minute OhioT1DM benchmark</span><h2 class="title reveal">Fine-tuned Time-LLM reaches 16.10 mg/dL average RMSE</h2>
+  <div class="chart-layout"><div class="chart-panel card reveal-left" data-delay="2"><svg id="benchmarkChart" class="chart" viewBox="0 0 1080 620" aria-label="Model RMSE comparison"></svg></div><aside class="insight-panel card reveal" data-delay="3"><h3>What the comparison supports</h3><ol class="insight-list"><li><b>1</b><span>Time-LLM variants cluster near 16 mg/dL RMSE.</span></li><li><b style="background:var(--coral)">2</b><span>LLaMA-8 improves 12.1% over the matched Deep RL baseline.</span></li><li><b style="background:var(--amber);color:var(--navy)">3</b><span>Chronos offers a smaller accuracy gain with faster fine-tuning.</span></li></ol><div class="caution">Rows from other papers are contextual unless the protocol is explicitly matched.</div></aside></div>
+  <p class="source">Source: DiabLLM Model Performance Comparison, 30-minute history and horizon. Lower RMSE is better.</p><span class="slide-no">09</span>
+</section>
+
+<!-- === SLIDE 10: ERROR GRIDS === -->
+<section class="slide light" data-notes="This is a cohort-level, thirty-minute, retrospective evaluation comparing fine-tuned Chronos Base and Time-LLM LLaMA 7B with eight layers. Time-LLM places 99.58 percent of predictions in Clarke Zone A versus 98.43 for Chronos; corresponding non-A rates are 0.42 and 1.57 percent. In the Surveillance Error Grid, Time-LLM places 97.15 percent in None and 2.38 percent in Mild, versus 92.94 and 5.42 for Chronos. The diagrams are distribution schematics driven by reported percentages, not reproductions of patient-level scatter. Error grids characterize potential consequence; they do not validate automated insulin dosing.">
+  <span class="kicker">Clinical error characterization</span><h2 class="title reveal">Error-grid analysis favors Time-LLM at the cohort level</h2>
+  <div class="grid-metrics"><div class="metric-card card reveal" data-delay="1"><div class="metric-value" style="color:var(--teal)">99.58%</div><div class="metric-label">CEG Zone A</div><div class="metric-detail">Time-LLM cohort result</div></div><div class="metric-card card purple reveal" data-delay="2"><div class="metric-value" style="color:var(--violet)">98.43%</div><div class="metric-label">CEG Zone A</div><div class="metric-detail">Chronos cohort result</div></div><div class="metric-card card reveal" data-delay="3"><div class="metric-value" style="color:var(--teal)">97.15%</div><div class="metric-label">SEG: None</div><div class="metric-detail">Time-LLM cohort result</div></div><div class="metric-card card purple reveal" data-delay="4"><div class="metric-value" style="color:var(--violet)">92.94%</div><div class="metric-label">SEG: None</div><div class="metric-detail">Chronos cohort result</div></div></div>
+  <div class="figure-grid"><div class="grid-viz card reveal-scale" data-delay="2"><svg id="cegTime" viewBox="0 0 390 360"></svg></div><div class="grid-viz card reveal-scale" data-delay="3"><svg id="cegChronos" viewBox="0 0 390 360"></svg></div><div class="grid-viz card reveal-scale" data-delay="4"><svg id="segTime" viewBox="0 0 390 360"></svg></div><div class="grid-viz card reveal-scale" data-delay="5"><svg id="segChronos" viewBox="0 0 390 360"></svg></div></div>
+  <p class="source">Source: DiabLLM cohort-level CEG and SEG results, OhioT1DM, 30-minute horizon.</p><span class="slide-no">10</span>
+</section>
+
+<!-- === SLIDE 11: ROBUSTNESS === -->
+<section class="slide light" data-notes="The corruption model is explicit: gain alpha is sampled from N(1,0.1), offset beta from N(0,6), and AR(1) noise follows epsilon_t=0.5 epsilon_{t-1}+eta_t with eta_t sampled from N(0,6 squared). Dropout covers about ten percent of the signal in blocks no longer than six readings, represented as zeros. A denoising autoencoder learns clean reconstruction with squared error before either forecaster. Across twelve OhioT1DM patients at nine-step, forty-five-minute forecasting, Time-LLM RMSE changes from 51.067 plus or minus 3.301 to 19.119 plus or minus 0.231; Chronos changes from 47.453 plus or minus 1.603 to 25.963 plus or minus 0.551. This only supports robustness to the simulated mechanism.">
+  <span class="kicker">Robustness to sensor imperfections</span><h2 class="title reveal">Denoising recovers much of the accuracy lost to corrupted CGM</h2>
+  <div class="robust-grid"><div class="chart-panel card reveal-left" data-delay="2"><svg id="robustChart" class="chart" viewBox="0 0 1080 630"></svg></div><aside class="corrupt-box card reveal" data-delay="3"><h3>Corruption model</h3><div class="corrupt-list"><div class="corrupt-row"><span style="background:#dceff2">gain + offset</span><span>calibration bias</span></div><div class="corrupt-row"><span style="background:#fae7e2">AR(1) noise</span><span>temporally correlated</span></div><div class="corrupt-row"><span style="background:#f8edcf">dropout blocks</span><span>≈10% cumulative duration</span></div></div><p style="margin-top:55px;color:var(--teal);font:700 20px var(--font-body)">45-minute horizon</p><p style="margin-top:18px;font:600 17px/1.5 var(--font-body);color:var(--muted)">Denoised Time-LLM is ≈26% lower RMSE than denoised Chronos.</p></aside></div>
+  <p class="source">Source: DiabLLM robustness table. Cohort averages across 12 OhioT1DM patients; RMSE in mg/dL.</p><span class="slide-no">11</span>
+</section>
+
+<!-- === SLIDE 12: TRANSFER === -->
+<section class="slide light" data-notes="This is a four-cell matrix over only patients 570 and 584. Time-LLM same-patient average is (16.81+27.23)/2=22.02 mg/dL RMSE; cross-patient average is (17.63+26.63)/2=22.13. Chronos same-patient average is (23.69+30.76)/2=27.23, while cross-patient average is (22.09+31.68)/2=26.89. The unusual improvement for Chronos on average is driven by training on patient 584 and testing on 570. This does not estimate leave-one-patient-out or population generalization because ten OhioT1DM patients are absent from the transfer matrix.">
+  <span class="kicker">Generalization across individuals</span><h2 class="title reveal">Cross-patient transfer shows limited degradation in the tested pairs</h2>
+  <div class="transfer-grid"><div class="chart-panel card reveal-left" data-delay="2"><svg id="transferChart" class="chart" viewBox="0 0 1180 630"></svg></div><aside class="transfer-note card reveal" data-delay="3"><h3>What transfers?</h3><strong>Temporal glucose patterns</strong><p>Training on patient 584 slightly improves Chronos performance on patient 570.</p><p class="boundary"><b>Boundary:</b> only two patients are used in this transfer matrix; population-level generalization remains unresolved.</p></aside></div>
+  <p class="source">Source: DiabLLM cross-patient performance table. Labels are Train ID → Test ID; RMSE in mg/dL.</p><span class="slide-no">12</span>
+</section>
+
+<!-- === SLIDE 13: DISTILLATION === -->
+<section class="slide light" data-notes="The teacher is Time-LLM BERT with twelve layers and hidden size 768; the student uses TinyBERT with four layers and hidden size 312 while preserving the Time-LLM bridge-and-head pattern. The student minimizes alpha times ground-truth MSE plus beta times MSE to the teacher's forecasts. A validation grid search selected alpha=0.3 and beta=0.3, followed by ten training epochs. Across all twelve OhioT1DM patients, teacher RMSE is 20.967 and student RMSE 20.953; MAE values are 13.109 and 13.067. The 0.014 RMSE difference is descriptive only: no significance test supports student superiority.">
+  <span class="kicker">Knowledge distillation</span><h2 class="title reveal">Distillation preserves BERT-level accuracy with a 45M-parameter student</h2>
+  <div class="distill-flow"><article class="model-node teacher card reveal-left" data-delay="2"><span class="tag">TEACHER</span><h3>Time-LLM<br>BERT</h3><p>12 layers · 768 dimensions</p><strong>RMSE 20.967</strong></article><div class="loss-bridge reveal-scale" data-delay="3"><span style="margin-top:150px">ground truth +<br>teacher alignment</span></div><article class="model-node student card reveal" data-delay="4"><span class="tag">STUDENT</span><h3>Time-LLM<br>TinyBERT</h3><p>4 layers · 312 dimensions</p><strong>RMSE 20.953</strong></article><aside class="diff-card card reveal" data-delay="5"><h3>Across 12 patients</h3><div class="big">0.014</div><p>mg/dL lower average RMSE<br><br>No significance claim: predictive performance is effectively matched at reported precision.</p></aside></div>
+  <p class="equation reveal" data-delay="6"><math display="block"><msub><mi>ℒ</mi><mrow><mi>distill</mi></mrow></msub><mo>=</mo><mi>α</mi><msub><mi>ℒ</mi><mrow><mi>GT</mi></mrow></msub><mo>+</mo><mi>β</mi><msub><mi>ℒ</mi><mrow><mi>teacher</mi></mrow></msub><mo>,</mo><mspace width=".8em"/><mi>α</mi><mo>=</mo><mi>β</mi><mo>=</mo><mn>0.3</mn></math></p><p class="source">Sources: DiabLLM distillation methodology and 12-patient results.</p><span class="slide-no">13</span>
+</section>
+
+<!-- === SLIDE 14: EFFICIENCY === -->
+<section class="slide light" data-notes="The inference table uses OhioT1DM thirty-minute forecasting and reports a broad systems profile, not only parameter count. BERT has 282.4 million parameters, 1,077 MB disk size, 2,035 MB RAM, 3,692 MB VRAM, 164.15 W, throughput 0.0048 predictions per second, and 208,218.8 ms latency under the reported measurement procedure. Distilled TinyBERT has 45.0 million parameters, 172 MB disk, 1,002 MB RAM, 173 MB VRAM, 55.22 W, 0.79 predictions per second, and 1,271.3 ms latency. The ratios shown are 6.28 times fewer parameters, 6.26 times smaller disk footprint, and 163.8 times lower reported latency. Hardware and batching conditions must accompany these numbers; no pump, phone, or Raspberry Pi trial occurred.">
+  <span class="kicker">Inference efficiency</span><h2 class="title reveal">Compression changes the deployment trade-off by orders of magnitude</h2>
+  <div class="eff-grid"><article class="eff-card card reveal" data-delay="1"><h3>Parameters</h3><div class="ratio count-ratio" data-value="6.28">0×</div><div class="smaller">smaller</div><div class="transition">282.4M → 45.0M</div><div class="mini-bars"><i style="background:var(--coral);width:100%"></i><i style="background:var(--teal);width:16%"></i></div></article><article class="eff-card card reveal" data-delay="2"><h3>Disk size</h3><div class="ratio count-ratio" data-value="6.26">0×</div><div class="smaller">smaller</div><div class="transition">1077 MB → 172 MB</div><div class="mini-bars"><i style="background:var(--coral);width:100%"></i><i style="background:var(--teal);width:16%"></i></div></article><article class="eff-card darkish card reveal" data-delay="3"><h3>Latency</h3><div class="ratio count-ratio" data-value="163.8">0×</div><div class="smaller">lower</div><div class="transition">208218.8 ms → 1271.3 ms</div><div class="mini-bars"><i style="background:var(--coral);width:100%"></i><i style="background:var(--amber);width:1%"></i></div></article></div>
+  <div style="position:absolute;left:510px;top:900px;width:900px;padding:16px 26px;text-align:center;border-radius:16px;background:#fae8e4;color:#97433a;font:700 16px var(--font-body)" class="reveal" data-delay="5">Boundary: simulated constraints; physical edge-device deployment was not performed.</div><p class="source">Source: DiabLLM inference metrics and limitations. Ratios calculated from reported values.</p><span class="slide-no">14</span>
+</section>
+
+<!-- === SLIDE 15: LIMITATIONS === -->
+<section class="slide light" data-notes="The datasets are small, CGM is the only input, corruption is simulated, edge results are not from physical deployment, and error grids are retrospective. The proper next step is prospective validation with calibrated uncertainty and real hardware.">
+  <span class="kicker">Validity boundaries</span><h2 class="title reveal">Strong retrospective results do not establish clinical readiness</h2>
+  <div class="limit-grid"><article class="limit-card card reveal" data-delay="1"><span class="tag">DATA</span><h3>Two small public T1DM cohorts</h3><p>Broader demographic and device diversity remains untested.</p></article><article class="limit-card card reveal" data-delay="2"><span class="tag">INPUTS</span><h3>CGM-only forecasting</h3><p>Meals, insulin, activity, and uncertainty are not integrated.</p></article><article class="limit-card card reveal" data-delay="3"><span class="tag">ROBUSTNESS</span><h3>Simulated corruption</h3><p>Real sensor failures may differ from the gain, noise, and dropout model.</p></article><article class="limit-card card reveal" data-delay="2"><span class="tag">DEPLOYMENT</span><h3>No physical edge validation</h3><p>Latency, energy, thermals, and reliability require hardware testing.</p></article><article class="limit-card card reveal" data-delay="3"><span class="tag">CLINICAL</span><h3>Retrospective error grids</h3><p>No prospective trial or closed-loop dosing evaluation.</p></article><article class="limit-card card reveal" data-delay="4"><span class="tag">TRUST</span><h3>Complex model representations</h3><p>Interpretability, bias, privacy, and calibration remain open.</p></article></div>
+  <p class="limit-claim reveal" data-delay="5">The next milestone is not another retrospective benchmark — it is prospective, calibrated, hardware-validated evidence.</p><p class="source">Source: DiabLLM discussion, limitations, and conclusion.</p><span class="slide-no">15</span>
+</section>
+
+<!-- === SLIDE 16: TAKEAWAYS === -->
+<section class="slide dark" data-notes="Close with three takeaways. First, the architectures solve the continuous-to-language interface differently. Second, adaptation makes Time-LLM the strongest tested model in this protocol. Third, denoising and distillation move the system toward practical use. Remaining work is prospective clinical and hardware validation.">
+  <div class="gridlines"></div><h2 class="title reveal" style="left:140px;top:78px;width:1640px;text-align:center">DiabLLM establishes a promising but bounded foundation</h2>
+  <div class="take-grid"><article class="take-card card reveal" data-delay="1"><div class="take-no">1</div><h3>Architecture</h3><p>Chronos tokenizes glucose; Time-LLM reprograms patches for a frozen LLM.</p></article><article class="take-card card reveal" data-delay="2"><div class="take-no">2</div><h3>Evidence</h3><p>Fine-tuned Time-LLM leads the tested 30-minute benchmark and error-grid outcomes.</p></article><article class="take-card card reveal" data-delay="3"><div class="take-no">3</div><h3>Practicality</h3><p>Denoising and distillation address corrupted inputs and computational cost.</p></article></div>
+  <p class="next-line reveal" data-delay="5">Next: prospective evaluation · uncertainty calibration · multimodal context · real edge hardware</p><p class="source" style="text-align:center">Amirhossein Mahmoudi · github.com/ammahmoudi/diab-llm</p><span class="slide-no">16</span>
+</section>
+
+<!-- === SLIDE 17: REFERENCES === -->
+<section class="slide light" data-notes="Use this as the discussion slide. If asked about architecture details, return to slide three. If asked about clinical readiness, return to slide thirteen. If asked about efficiency, distinguish the reported benchmark from actual hardware deployment.">
+  <span class="kicker">Selected sources</span><h2 class="title reveal">References and discussion</h2>
+  <div class="ref-list"><div class="ref-row card reveal" data-delay="1"><strong>DiabLLM</strong><p>A. Mahmoudi et al., IEEE Journal of Biomedical and Health Informatics, vol. 30, no. 8, 2026.</p><code>10.1109/JBHI.2026.3658588</code></div><div class="ref-row card reveal" data-delay="2"><strong>Time-LLM</strong><p>M. Jin et al., Time Series Forecasting by Reprogramming Large Language Models, ICLR 2024.</p><code>arXiv:2310.01728</code></div><div class="ref-row card reveal" data-delay="3"><strong>Chronos</strong><p>A. F. Ansari et al., Learning the Language of Time Series, TMLR 2024.</p><code>arXiv:2403.07815</code></div><div class="ref-row card reveal" data-delay="4"><strong>OhioT1DM</strong><p>C. Marling & R. Bunescu, The OhioT1DM Dataset for Blood Glucose Level Prediction: Update 2020.</p><code>CEUR-WS Vol. 2675</code></div><div class="ref-row card reveal" data-delay="5"><strong>D1NAMO</strong><p>F. Dubosson et al., A multi-modal dataset for non-invasive type 1 diabetes management.</p><code>IMU, 2018</code></div><div class="ref-row card reveal" data-delay="6"><strong>Code</strong><p>Official DiabLLM implementation and experiment pipeline.</p><code>github.com/ammahmoudi/diab-llm</code></div></div>
+  <div class="question-chip reveal" data-delay="6">Questions?</div><span class="slide-no">17</span>
+</section>
+</main>
+</div>
+
+<!-- === PRESENTATION CONTROLS === -->
+<div class="deck-controls" role="navigation" aria-label="Presentation controls"><button id="prev" aria-label="Previous slide">←</button><div class="progress"><i id="progress"></i></div><span class="counter" id="counter">1 / 17</span><button id="next" aria-label="Next slide">→</button><button id="notesBtn" aria-label="Toggle speaker notes">N</button></div>
+<aside class="notes-panel" id="notesPanel"><h3>Speaker notes</h3><p id="notesText"></p></aside>
+<div class="edit-hotzone" aria-hidden="true"></div><button class="edit-toggle" id="editToggle" title="Edit mode (E)">✎</button>
+
+<script>
+/* === SVG CHART ENGINE: LOCAL, DEPENDENCY-FREE, EDITABLE === */
+const NS='http://www.w3.org/2000/svg';
+const S=(tag,attrs={},text='')=>{const e=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(text)e.textContent=text;return e};
+function lineChart(id, values, labels, color, min=0, max=null){const svg=document.getElementById(id);if(!svg)return;max=max??Math.max(...values)*1.1;const W=720,H=380,p={l:66,r:28,t:26,b:58};for(let i=0;i<5;i++){const y=p.t+i*(H-p.t-p.b)/4;svg.append(S('line',{x1:p.l,y1:y,x2:W-p.r,y2:y,class:'grid'}));svg.append(S('text',{x:p.l-15,y:y+6,'text-anchor':'end','font-size':15},Math.round(max-(max-min)*i/4)))}svg.append(S('line',{x1:p.l,y1:H-p.b,x2:W-p.r,y2:H-p.b,class:'axis'}));svg.append(S('line',{x1:p.l,y1:p.t,x2:p.l,y2:H-p.b,class:'axis'}));const pts=values.map((v,i)=>[p.l+i*(W-p.l-p.r)/(values.length-1),p.t+(max-v)*(H-p.t-p.b)/(max-min)]);const d=pts.map((q,i)=>(i?'L':'M')+q[0]+' '+q[1]).join(' ');svg.append(S('path',{d,class:'line-path',stroke:color,'stroke-width':8}));pts.forEach((q,i)=>{const c=S('circle',{cx:q[0],cy:q[1],r:9,fill:color,class:'dot'});c.style.transitionDelay=`${.6+i*.08}s`;svg.append(c);svg.append(S('text',{x:q[0],y:H-20,'text-anchor':'middle','font-size':14},labels[i]))})}
+function groupedBars(id,groups,series,opts={}){const svg=document.getElementById(id);if(!svg)return;const vb=svg.viewBox.baseVal,W=vb.width,H=vb.height,p={l:opts.left||190,r:45,t:35,b:75};const max=opts.max||Math.max(...series.flatMap(s=>s.values))*1.2;for(let i=0;i<6;i++){const x=p.l+i*(W-p.l-p.r)/5;svg.append(S('line',{x1:x,y1:p.t,x2:x,y2:H-p.b,class:'grid'}));svg.append(S('text',{x,y:H-p.b+34,'text-anchor':'middle','font-size':15},(max*i/5).toFixed(opts.decimals??0)))}svg.append(S('line',{x1:p.l,y1:p.t,x2:p.l,y2:H-p.b,class:'axis'}));const groupH=(H-p.t-p.b)/groups.length,barH=Math.min(42,(groupH-16)/series.length);groups.forEach((g,gi)=>{const cy=p.t+gi*groupH+groupH/2;svg.append(S('text',{x:p.l-18,y:cy+6,'text-anchor':'end','font-size':17,'font-weight':600},g));series.forEach((s,si)=>{const y=cy-(series.length*barH+(series.length-1)*8)/2+si*(barH+8);const width=s.values[gi]/max*(W-p.l-p.r);const r=S('rect',{x:p.l,y,width,height:barH,rx:8,fill:s.color,class:'bar'});r.style.transitionDelay=`${.15+gi*.08+si*.06}s`;svg.append(r);svg.append(S('text',{x:p.l+width+12,y:y+barH*.72,'font-size':16,'font-weight':700,fill:'#132735'},s.values[gi].toFixed(opts.valueDecimals??2)))})});series.forEach((s,i)=>{const x=p.l+i*170;svg.append(S('rect',{x,y:H-28,width:22,height:12,rx:4,fill:s.color}));svg.append(S('text',{x:x+30,y:H-17,'font-size':14},s.name))})}
+function columnChart(id,groups,series,opts={}){const svg=document.getElementById(id);if(!svg)return;const vb=svg.viewBox.baseVal,W=vb.width,H=vb.height,p={l:80,r:35,t:30,b:90};const max=opts.max||Math.max(...series.flatMap(s=>s.values))*1.2;for(let i=0;i<6;i++){const y=H-p.b-i*(H-p.t-p.b)/5;svg.append(S('line',{x1:p.l,y1:y,x2:W-p.r,y2:y,class:'grid'}));svg.append(S('text',{x:p.l-15,y:y+6,'text-anchor':'end','font-size':15},(max*i/5).toFixed(0)))}const groupW=(W-p.l-p.r)/groups.length,barW=Math.min(64,(groupW-35)/series.length);groups.forEach((g,gi)=>{const gx=p.l+gi*groupW+groupW/2;svg.append(S('text',{x:gx,y:H-48,'text-anchor':'middle','font-size':15,'font-weight':600},g));series.forEach((s,si)=>{const h=s.values[gi]/max*(H-p.t-p.b);const x=gx-(series.length*barW+(series.length-1)*10)/2+si*(barW+10),y=H-p.b-h;const r=S('rect',{x,y,width:barW,height:h,rx:9,fill:s.color,class:'column'});r.style.transitionDelay=`${.15+gi*.09+si*.06}s`;svg.append(r);svg.append(S('text',{x:x+barW/2,y:y-10,'text-anchor':'middle','font-size':14,'font-weight':700},s.values[gi].toFixed(2)))})});series.forEach((s,i)=>{const x=p.l+i*180;svg.append(S('rect',{x,y:H-24,width:22,height:12,rx:4,fill:s.color}));svg.append(S('text',{x:x+30,y:H-13,'font-size':14},s.name))})}
+function errorGrid(id,type,model){const svg=document.getElementById(id);if(!svg)return;const time=model==='Time-LLM',teal=time?'#087f83':'#846a9a';svg.append(S('rect',{x:40,y:25,width:300,height:280,rx:16,fill:'#f8fbfb',stroke:'#c8d7da','stroke-width':2}));if(type==='CEG'){const zones=[['#d7f0df','40,305 40,70 340,305'],['#f4edbd','40,25 340,25 340,305 40,70'],['#f6d1c8','40,25 340,25 40,70']];zones.forEach(z=>svg.append(S('polygon',{points:z[1],fill:z[0],opacity:.8})));svg.append(S('line',{x1:40,y1:305,x2:340,y2:25,stroke:teal,'stroke-width':5}));for(let i=0;i<38;i++){const x=55+Math.random()*270,y=290-(x-40)*.88+(Math.random()-.5)*(time?20:42);svg.append(S('circle',{cx:x,cy:Math.max(35,Math.min(295,y)),r:4,fill:teal,opacity:.72,class:'dot'}))}}else{const cx=190,cy=170;[135,105,78,50].forEach((r,i)=>svg.append(S('circle',{cx,cy,r,fill:['#d6f0df','#f5edbd','#f4cfc6','#eaa49a'][i],stroke:'#fff','stroke-width':2})));for(let i=0;i<42;i++){const a=Math.random()*Math.PI*2,r=Math.random()*(time?64:96);svg.append(S('circle',{cx:cx+Math.cos(a)*r,cy:cy+Math.sin(a)*r,r:4,fill:teal,opacity:.72,class:'dot'}))}}svg.append(S('text',{x:190,y:335,'text-anchor':'middle','font-size':17,'font-weight':700,fill:teal},`${type} · ${model}`))}
+
+/* === INITIALIZE ALL DATA VISUALS === */
+lineChart('pastChart',[155,149,142,151,160,166],['−30','−25','−20','−15','−10','−5'],'#087f83',120,190);
+lineChart('futureChart',[171,178,186,193,201,207,211,214,218],['+5','+10','+15','+20','+25','+30','+35','+40','+45'],'#ef765f',140,230);
+groupedBars('adaptChart',['Time-LLM LLaMA-8','Chronos Base'],[{name:'Zero-shot',values:[24.44,22.29],color:'#9bb5be'},{name:'Fine-tuned',values:[16.10,20.89],color:'#ef765f'}],{max:30,valueDecimals:2});
+groupedBars('benchmarkChart',['Time-LLM LLaMA-8','Time-LLM GPT-2','Deep RL','Chronos Base','LSTM + WaveNet + GRU'],[{name:'Average RMSE',values:[16.10,16.34,18.32,20.89,21.90],color:'#087f83'}],{max:25,valueDecimals:2,left:235});
+errorGrid('cegTime','CEG','Time-LLM');errorGrid('cegChronos','CEG','Chronos');errorGrid('segTime','SEG','Time-LLM');errorGrid('segChronos','SEG','Chronos');
+groupedBars('robustChart',['Chronos Base','Time-LLM LLaMA-8'],[{name:'Noisy input',values:[47.453,51.067],color:'#c84f4f'},{name:'After denoising',values:[25.963,19.119],color:'#087f83'}],{max:60,valueDecimals:1});
+columnChart('transferChart',['570→570','584→570','570→584','584→584'],[{name:'Time-LLM',values:[16.81,17.63,26.63,27.23],color:'#087f83'},{name:'Chronos',values:[23.69,22.09,31.68,30.76],color:'#846a9a'}],{max:36});
+
+/* === INTERACTIVE ARCHITECTURE FOCUS === */
+document.querySelectorAll('[data-flow-shell]').forEach(shell=>{
+  const walkthroughs=shell.dataset.flowShell==='timellm'
+    ? {
+        all:['CGM context enters both branches','Build prompt and numerical patches','Align patches with text prototypes','Frozen LLM transforms; head forecasts','MSE updates bridge and output head'],
+        prompt:['Read CGM context','Build Prompt-as-Prefix','Concatenate prompt with reprogrammed patches','Frozen LLM transforms the combined sequence'],
+        train:['Normalize and patch CGM','Reprogram patches with text prototypes','Concatenate both embedding streams','Frozen LLM and trainable head forecast','MSE updates bridge and output head'],
+        infer:['Read six CGM values','Construct prompt and patch embeddings','Reprogram patches into LLM space','Concatenate embeddings; frozen LLM transforms','Output head predicts 6 or 9 glucose values']
+      }
+    : shell.dataset.flowShell==='chronos' ? {
+        all:['Build scaled, quantized training tokens','Chronos learns next-token probabilities','Cross-entropy updates the model','Observed CGM becomes context tokens','Sample and dequantize future trajectories'],
+        train:['Build scaled, quantized training tokens','Chronos predicts categorical token probabilities','Cross-entropy updates all model parameters'],
+        infer:['Read six CGM observations','Scale and quantize the context','Autoregressively generate future tokens','Collect sampled token trajectories','Dequantize and unscale to mg/dL']
+      } : {
+        all:['Create corrupted training pairs','Train the denoising autoencoder','Run teacher and student on reconstructed CGM','Combine label and teacher losses','Deploy the trained autoencoder and compact student'],
+        denoise:['Start from clean CGM windows','Inject gain, offset, AR(1) noise, and gaps','Reconstruct with the autoencoder','Compare reconstruction z with clean x','Minimize squared reconstruction error'],
+        kd:['Send reconstructed CGM to teacher and student','Generate teacher and student forecasts','Align student with teacher forecast','Add ground-truth forecast loss','Retain the trained compact student'],
+        infer:['Read a noisy or incomplete CGM window','Reconstruct the input window','Forecast with distilled TinyBERT','Return six future glucose values','Run the compact path without the teacher']
+      };
+  const walkStatus=shell.querySelector('.walk-status');
+  const walkPlay=shell.querySelector('[data-walk="play"]');
+  let walkStep=0,walkTimer=null;
+  const labels=()=>walkthroughs[shell.dataset.focus]||walkthroughs.all;
+  const stopWalk=()=>{if(walkTimer){clearInterval(walkTimer);walkTimer=null}walkPlay?.classList.remove('playing');if(walkPlay)walkPlay.textContent='AUTO'};
+  const renderWalk=step=>{
+    const activeLabels=labels();
+    walkStep=Math.max(0,Math.min(step,activeLabels.length));
+    const eligible=[...shell.querySelectorAll('[data-step]')].filter(part=>shell.dataset.focus==='all'||(part.dataset.flowPart||'').split(' ').includes(shell.dataset.focus));
+    shell.querySelectorAll('[data-step]').forEach(part=>{part.classList.remove('step-past','step-current','step-future')});
+    eligible.forEach(part=>{
+      const sequenceStep=Number(part.dataset.step);
+      part.classList.toggle('step-past',walkStep>0&&sequenceStep<walkStep);
+      part.classList.toggle('step-current',walkStep>0&&sequenceStep===walkStep);
+      part.classList.toggle('step-future',walkStep>0&&sequenceStep>walkStep);
+    });
+    if(walkStatus)walkStatus.textContent=walkStep===0?'FULL OVERVIEW':`${walkStep}/${activeLabels.length} · ${activeLabels[walkStep-1]}`;
+  };
+  shell.resetWalk=()=>{stopWalk();renderWalk(0)};
+  shell.querySelector('[data-walk="prev"]')?.addEventListener('click',event=>{event.stopPropagation();stopWalk();renderWalk(walkStep<=1?0:walkStep-1)});
+  shell.querySelector('[data-walk="next"]')?.addEventListener('click',event=>{event.stopPropagation();stopWalk();renderWalk(walkStep>=labels().length?0:walkStep+1)});
+  walkPlay?.addEventListener('click',event=>{
+    event.stopPropagation();
+    if(walkTimer){stopWalk();return}
+    if(walkStep>=labels().length)renderWalk(0);
+    walkPlay.classList.add('playing');walkPlay.textContent='STOP';
+    renderWalk(walkStep+1);
+    walkTimer=setInterval(()=>{if(walkStep>=labels().length){stopWalk();return}renderWalk(walkStep+1)},1500);
+  });
+  shell.querySelectorAll('.pipeline-lane').forEach(lane=>{
+    lane.querySelectorAll('.pipeline-node').forEach((node,index)=>node.style.setProperty('--step',index));
+  });
+  shell.querySelectorAll('.flow-tab').forEach(button=>button.addEventListener('click',event=>{
+    event.stopPropagation();
+    shell.resetWalk();
+    const focus=button.dataset.flow;
+    shell.dataset.focus=focus;
+    shell.querySelectorAll('.flow-tab').forEach(tab=>tab.classList.toggle('active',tab===button));
+  }));
+});
+
+/* === PRESENTATION CONTROLLER === */
+class SlidePresentation {
+  constructor(){this.slides=[...document.querySelectorAll('.slide')];this.slides.forEach((slide,index)=>{const number=slide.querySelector('.slide-no');if(number)number.textContent=String(index+1).padStart(2,'0')});this.current=0;this.stage=document.getElementById('deckStage');this.notes=document.getElementById('notesPanel');this.setupScale();this.setupNavigation();const requested=Number(location.hash.slice(1));this.show(Number.isInteger(requested)&&requested>0?requested-1:0)}
+  setupScale(){const scale=()=>{const f=Math.min(innerWidth/1920,innerHeight/1080),x=(innerWidth-1920*f)/2,y=(innerHeight-1080*f)/2;this.stage.style.transform=`translate(${x}px,${y}px) scale(${f})`};scale();addEventListener('resize',scale)}
+  setupNavigation(){document.getElementById('prev').onclick=()=>this.show(this.current-1);document.getElementById('next').onclick=()=>this.show(this.current+1);document.getElementById('notesBtn').onclick=()=>this.notes.classList.toggle('open');addEventListener('keydown',e=>{if(e.target.getAttribute?.('contenteditable')==='true')return;if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();this.show(this.current+1)}if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();this.show(this.current-1)}if(e.key==='Home')this.show(0);if(e.key==='End')this.show(this.slides.length-1);if(e.key.toLowerCase()==='n')this.notes.classList.toggle('open')});let startX=0;addEventListener('touchstart',e=>startX=e.changedTouches[0].screenX,{passive:true});addEventListener('touchend',e=>{const dx=e.changedTouches[0].screenX-startX;if(Math.abs(dx)>60)this.show(this.current+(dx<0?1:-1))},{passive:true});let locked=false;addEventListener('wheel',e=>{if(locked||Math.abs(e.deltaY)<25)return;locked=true;this.show(this.current+(e.deltaY>0?1:-1));setTimeout(()=>locked=false,650)},{passive:true})}
+  show(i){this.current=Math.max(0,Math.min(i,this.slides.length-1));this.slides.forEach((s,n)=>{s.classList.toggle('active',n===this.current);s.classList.toggle('visible',n===this.current)});document.getElementById('counter').textContent=`${this.current+1} / ${this.slides.length}`;document.getElementById('progress').style.transform=`scaleX(${(this.current+1)/this.slides.length})`;document.getElementById('notesText').textContent=this.slides[this.current].dataset.notes||'No notes.';this.animateCounters(this.slides[this.current]);document.querySelectorAll('[data-flow-shell]').forEach(shell=>shell.resetWalk?.());this.slides[this.current].querySelectorAll('[data-flow-shell]').forEach(shell=>{shell.dataset.focus='all';shell.querySelectorAll('.flow-tab').forEach(tab=>tab.classList.toggle('active',tab.dataset.flow==='all'))});history.replaceState(null,'',`#${this.current+1}`)}
+  animateCounters(slide){slide.querySelectorAll('.count,.count-dec,.count-ratio').forEach(el=>{const target=+el.dataset.value,duration=900,start=performance.now();const tick=now=>{const t=Math.min(1,(now-start)/duration),v=target*(1-Math.pow(1-t,3));if(el.classList.contains('count-ratio'))el.textContent=(target>20?v.toFixed(1):v.toFixed(2))+'×';else if(el.classList.contains('count-dec'))el.textContent=Math.round(v)+'%';else el.textContent=Math.round(v);if(t<1)requestAnimationFrame(tick)};requestAnimationFrame(tick)})}
+}
+const deck=new SlidePresentation();
+
+/* === INLINE EDITOR WITH LOCAL STORAGE === */
+class InlineEditor { constructor(){this.active=false;this.key='diabllm-html-edits';this.load();document.getElementById('editToggle').onclick=()=>this.toggle()} toggle(){this.active=!this.active;document.body.classList.toggle('editing',this.active);document.getElementById('editToggle').classList.toggle('active',this.active);document.querySelectorAll('[data-editable="true"]').forEach(e=>e.contentEditable=this.active?'true':'false');if(!this.active)this.save()} save(){const values=[...document.querySelectorAll('[data-editable="true"]')].map(e=>e.innerHTML);localStorage.setItem(this.key,JSON.stringify(values))} load(){try{const values=JSON.parse(localStorage.getItem(this.key)||'null');if(values)[...document.querySelectorAll('[data-editable="true"]')].forEach((e,i)=>{if(values[i])e.innerHTML=values[i]})}catch{}}}
+const editor=new InlineEditor(),hotzone=document.querySelector('.edit-hotzone'),toggle=document.getElementById('editToggle');let hideTimeout;hotzone.onmouseenter=()=>{clearTimeout(hideTimeout);toggle.classList.add('show')};hotzone.onmouseleave=()=>hideTimeout=setTimeout(()=>{if(!editor.active)toggle.classList.remove('show')},400);toggle.onmouseenter=()=>clearTimeout(hideTimeout);toggle.onmouseleave=()=>hideTimeout=setTimeout(()=>{if(!editor.active)toggle.classList.remove('show')},400);hotzone.onclick=()=>editor.toggle();addEventListener('keydown',e=>{if(e.key.toLowerCase()==='e'&&!e.target.getAttribute?.('contenteditable'))editor.toggle();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&editor.active){e.preventDefault();editor.save()}});
+</script>
+</body>
+</html>

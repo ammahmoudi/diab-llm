@@ -1,0 +1,72 @@
+# Imported from this workspace's VS Code MCP configuration and the user's
+# VS Code MCP configuration on 2026-09-05. Secrets are intentionally not
+# stored here; credential-bearing servers read named environment variables.
+
+[mcp_servers.arxiv]
+command = "/home/amma/.local/bin/arxiv-mcp-server"
+args = ["--storage-path", "/home/amma/LLM-TIME/.research-data/arxiv"]
+
+[mcp_servers.paper_search]
+command = "/home/amma/.local/bin/paper-search-mcp"
+args = []
+cwd = "/home/amma/LLM-TIME/.research-data/papers"
+
+[mcp_servers.pubmed_search]
+command = "/home/amma/.local/bin/pubmed-search-mcp"
+args = []
+
+[mcp_servers.pubmed_search.env]
+PUBMED_DATA_DIR = "/home/amma/LLM-TIME/.research-data/pubmed"
+PUBMED_WORKSPACE_DIR = "/home/amma/LLM-TIME/.research-data/pubmed"
+
+[mcp_servers.huggingface]
+url = "https://huggingface.co/mcp?login"
+auth = "oauth"
+
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+auth = "oauth"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]
+
+[mcp_servers.vercel]
+url = "https://mcp.vercel.com"
+auth = "oauth"
+
+[mcp_servers.markitdown]
+command = "uvx"
+args = ["markitdown-mcp@0.0.1a4"]
+
+[mcp_servers.github]
+command = "docker"
+args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+
+[mcp_servers.langchain_docs]
+url = "https://docs.langchain.com/mcp"
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@latest"]
+
+# VS Code marked this URL as stdio despite providing no command. Treat it as
+# the HTTP endpoint implied by the URL.
+[mcp_servers.coder]
+url = "https://cde.rastar.dev/api/experimental/mcp/http"
+
+# VS Code prompt inputs have no direct noninteractive Codex equivalent.
+# Export these variables, then set enabled=true when DBHub is needed.
+[mcp_servers.dbhub]
+command = "npx"
+args = ["-y", "@bytebase/dbhub@1.2.0"]
+env_vars = ["DSN", "DB_TYPE", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "TRANSPORT", "PORT", "ID", "SSH_HOST", "SSH_PORT", "SSH_USER", "SSH_PASSWORD", "SSH_KEY", "SSH_PASSPHRASE"]
+enabled = false
+
+# This Windows-only server also depended on a VS Code envFile. It is retained
+# but disabled until its environment is supplied explicitly.
+[mcp_servers.marker]
+command = "/mnt/c/Windows/System32/cmd.exe"
+args = ["/d", "/c", "set PATH=C:\\Program Files\\GTK3-Runtime Win64\\bin;%PATH%&&\"C:\\Users\\ammah\\Documents\\GitHub\\marker\\.venv\\Scripts\\marker_mcp.exe\" --transport stdio"]
+enabled = false
